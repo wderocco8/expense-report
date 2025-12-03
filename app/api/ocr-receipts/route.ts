@@ -11,7 +11,7 @@ export const runtime = "nodejs"; // required for file processing
 
 const Receipt = z.object({
   merchant: z.string(),
-  description: z.string().optional(),
+  description: z.string().nullable().default(null),
   date: z.string(),
   amount: z.number(),
   category: z
