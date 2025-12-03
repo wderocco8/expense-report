@@ -1,11 +1,32 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
+import { z } from "zod";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export const runtime = "nodejs"; // required for file processing
+
+const Receipt = z.object({
+  merchant: z.string(),
+  description: z.string().optional(),
+  date: z.string(),
+  amount: z.number(),
+  category: z
+    .enum([
+      "tolls/parking",
+      "hotel",
+      "transport",
+      "fuel",
+      "meals",
+      "phone",
+      "supplies",
+      "misc",
+    ])
+    .default("misc"),
+});
 
 export async function POST(req: Request) {
   try {
@@ -21,16 +42,13 @@ export async function POST(req: Request) {
     for (const file of files) {
       const arrayBuffer = await file.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString("base64");
-
-      console.log(`base64 decoded for ${file.name}`, base64);
-
-      const response = await client.chat.completions.create({
+      const response = await client.chat.completions.parse({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
             content:
-              "You are a receipt-reading assistant. Extract only structured JSON with: merchant, date, amount, category (if present), and any notes. Never hallucinate.",
+              "You are a receipt-reading assistant. Extract only structured JSON with: merchant, description, date, amount, and category (if present). Never hallucinate.",
           },
           {
             role: "user",
@@ -50,19 +68,10 @@ export async function POST(req: Request) {
         ],
         temperature: 0,
         max_completion_tokens: 300,
+        response_format: zodResponseFormat(Receipt, "receipt"),
       });
 
-      // Attempt to parse model output
-      let parsed;
-      try {
-        parsed = JSON.parse(response.choices[0].message.content || "{}");
-      } catch (error) {
-        console.error("Parse error:", error);
-        parsed = {
-          error: "Failed to parse JSON",
-          raw: response.choices[0].message.content,
-        };
-      }
+      const parsed = response.choices[0].message.parsed;
 
       results.push({
         filename: file.name,
