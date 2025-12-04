@@ -9,6 +9,8 @@ const client = new OpenAI({
 
 export const runtime = "nodejs"; // required for file processing
 
+const VALID_FILE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
 const Receipt = z.object({
   merchant: z.string(),
   description: z.string().nullable().default(null),
@@ -29,7 +31,7 @@ const Receipt = z.object({
 });
 
 type ReceiptType = z.infer<typeof Receipt> | null;
-type Result = { filename: string; data: ReceiptType };
+type Result = { filename: string; data: ReceiptType; error?: string };
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +45,17 @@ export async function POST(req: Request) {
     const results: Result[] = [];
 
     for (const file of files) {
+      if (!VALID_FILE_TYPES.includes(file.type)) {
+        results.push({
+          filename: file.name,
+          data: null,
+          error: `${
+            file.type
+          } is not supported. Please use: ${VALID_FILE_TYPES.join(", ")}`,
+        });
+        continue;
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString("base64");
       const response = await client.chat.completions.parse({
@@ -59,7 +72,7 @@ export async function POST(req: Request) {
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/jpeg;base64,${base64}`,
+                  url: `data:image/${file.type};base64,${base64}`,
                 },
               },
               {
