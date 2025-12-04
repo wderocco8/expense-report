@@ -72,6 +72,7 @@ const ReceiptFormat: ResponseTextConfig = {
             mileage: { type: ["number", "null"] },
           },
           required: ["mode", "mileage"],
+          additionalProperties: false,
         },
       },
       required: [
