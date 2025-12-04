@@ -186,6 +186,9 @@ export async function POST(req: Request) {
           error: parsed.error.message,
         });
       } else {
+        if (parsed.data.category !== "transport") {
+          parsed.data.transport_details = null;
+        }
         results.push({
           filename: f.filename,
           data: parsed.data,
