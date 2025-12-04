@@ -22,9 +22,9 @@ export default function OcrTest() {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    if (file) {
-      setFiles([file]);
+    const files = event.target.files;
+    if (files) {
+      setFiles([...files]);
     } else {
       setFiles([]);
     }
@@ -39,6 +39,7 @@ export default function OcrTest() {
         <Input
           id="receipt"
           type="file"
+          multiple
           onChange={handleFileChange}
           accept="image/*"
         />
