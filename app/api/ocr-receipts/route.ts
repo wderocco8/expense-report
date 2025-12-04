@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { ResponseTextConfig } from "openai/resources/responses/responses.mjs";
+import { zodTextFormat } from "openai/helpers/zod.mjs";
 import { z } from "zod";
 
 export const runtime = "nodejs"; // required to read binary files
@@ -36,56 +36,6 @@ const Receipt = z.object({
     .nullable()
     .default(null),
 });
-
-const ReceiptFormat: ResponseTextConfig = {
-  format: {
-    type: "json_schema",
-    name: "receipt",
-    strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        merchant: { type: ["string", "null"] },
-        description: { type: ["string", "null"] },
-        date: { type: "string" },
-        amount: { type: "number" },
-        category: {
-          type: "string",
-          enum: [
-            "tolls/parking",
-            "hotel",
-            "transport",
-            "fuel",
-            "meals",
-            "phone",
-            "supplies",
-            "misc",
-          ],
-        },
-        transport_details: {
-          type: ["object", "null"],
-          properties: {
-            mode: {
-              type: ["string", "null"],
-              enum: ["train", "car", "plane"],
-            },
-            mileage: { type: ["number", "null"] },
-          },
-          required: ["mode", "mileage"],
-        },
-      },
-      required: [
-        "merchant",
-        "description",
-        "date",
-        "amount",
-        "category",
-        "transport_details",
-      ],
-      additionalProperties: false,
-    },
-  },
-};
 
 type ReceiptType = z.infer<typeof Receipt> | null;
 type Result = {
@@ -156,7 +106,7 @@ export async function POST(req: Request) {
             ],
           },
         ],
-        text: ReceiptFormat,
+        text: { format: zodTextFormat(Receipt, "receipt") },
       });
 
       const raw = response.output_text;
