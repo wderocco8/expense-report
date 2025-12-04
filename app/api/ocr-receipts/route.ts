@@ -160,25 +160,33 @@ export async function POST(req: Request) {
       });
 
       const raw = response.output_text;
-      
-      const parsed = Receipt.safeParse(JSON.parse(raw));
-      if (parsed.success) {
+
+      let parsed;
+      try {
+        parsed = Receipt.safeParse(JSON.parse(raw));
+      } catch (e) {
+        console.error("Error parsing json", f.filename, e);
+        results.push({
+          filename: f.filename,
+          data: null,
+          success: false,
+          error: "Model returned invalid JSON",
+        });
+        continue;
+      }
+
+      if (!parsed.success) {
+        results.push({
+          filename: f.filename,
+          data: null,
+          success: false,
+          error: parsed.error.message,
+        });
+      } else {
         results.push({
           filename: f.filename,
           data: parsed.data,
           success: true,
-        });
-      } else {
-        console.error(
-          "Failed to parse json from model",
-          f.filename,
-          parsed.error
-        );
-        results.push({
-          filename: f.filename,
-          success: false,
-          data: null,
-          error: parsed.error.message,
         });
       }
     }
