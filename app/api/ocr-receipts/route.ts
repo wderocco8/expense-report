@@ -123,6 +123,14 @@ export async function POST(req: Request) {
       }
     }
 
+    // TODO: maybe resize files
+    // import sharp from "sharp";
+
+    // const resized = await sharp(file.arrayBuffer())
+    //   .resize({ width: 768 }) // or even 512 for receipts
+    //   .jpeg({ quality: 80 })
+    //   .toBuffer();
+
     // Upload each file to OpenAI file storage
     const uploadedFiles = await Promise.all(
       files.map(async (file) => {
@@ -153,7 +161,7 @@ export async function POST(req: Request) {
               {
                 type: "input_image",
                 file_id: f.id,
-                detail: "auto",
+                detail: "low",
               },
             ],
           },
