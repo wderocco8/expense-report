@@ -12,7 +12,7 @@ export const runtime = "nodejs"; // required for file processing
 const VALID_FILE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const Receipt = z.object({
-  merchant: z.string(),
+  merchant: z.string().nullable().default(null),
   description: z.string().nullable().default(null),
   date: z.string(),
   amount: z.number(),
@@ -28,6 +28,13 @@ const Receipt = z.object({
       "misc",
     ])
     .default("misc"),
+  transport_details: z
+    .object({
+      mode: z.enum(["train", "car", "plane"]).nullable().default(null),
+      mileage: z.number().nullable().default(null),
+    })
+    .nullable()
+    .default(null),
 });
 
 type ReceiptType = z.infer<typeof Receipt> | null;
@@ -63,8 +70,13 @@ export async function POST(req: Request) {
         messages: [
           {
             role: "system",
-            content:
-              "You are a receipt-reading assistant. Extract only structured JSON with: merchant, description, date, amount, and category (if present). Never hallucinate.",
+            content: `You are a receipt-reading assistant. Extract only structured JSON with: 
+              merchant (if present), description, date, amount, and category (if present).
+
+              If category === "transit", include the "transit_details" object in your output, 
+              and fill mode (if present) and mileage (if present).
+
+              Never hallucinate. Return null rather than guessing an output.`,
           },
           {
             role: "user",
