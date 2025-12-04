@@ -28,6 +28,9 @@ const Receipt = z.object({
     .default("misc"),
 });
 
+type ReceiptType = z.infer<typeof Receipt> | null;
+type Result = { filename: string; data: ReceiptType };
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
     }
 
-    const results: unknown[] = [];
+    const results: Result[] = [];
 
     for (const file of files) {
       const arrayBuffer = await file.arrayBuffer();
