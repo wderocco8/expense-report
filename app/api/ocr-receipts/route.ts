@@ -45,8 +45,8 @@ const ReceiptFormat: ResponseTextConfig = {
     schema: {
       type: "object",
       properties: {
-        merchant: { type: ["string", "null"] },
-        description: { type: ["string", "null"] },
+        merchant: { type: "string", nullable: true },
+        description: { type: "string", nullable: true },
         date: { type: "string" },
         amount: { type: "number" },
         category: {
@@ -63,13 +63,15 @@ const ReceiptFormat: ResponseTextConfig = {
           ],
         },
         transport_details: {
-          type: ["object", "null"],
+          type: "object",
+          nullable: true,
           properties: {
             mode: {
-              type: ["string", "null"],
+              type: "string",
+              nullable: true,
               enum: ["train", "car", "plane"],
             },
-            mileage: { type: ["number", "null"] },
+            mileage: { type: "number", nullable: true },
           },
           required: ["mode", "mileage"],
           additionalProperties: false,
@@ -140,7 +142,7 @@ export async function POST(req: Request) {
             content: `You are a receipt-reading assistant. Extract only structured JSON with: 
               merchant (if present), description, date, amount, and category (if present).
 
-              If category === "transit", include the "transit_details" object in your output, 
+              If category === "transport", include the "transport_details" object in your output, 
               and fill mode (if present) and mileage (if present).
 
               Never hallucinate. Return null rather than guessing an output.`,
