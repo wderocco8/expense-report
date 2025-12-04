@@ -139,7 +139,7 @@ export async function POST(req: Request) {
         input: [
           {
             role: "system",
-            content: `You are a receipt-reading assistant. Extract only structured JSON with: 
+            content: `Extract only structured JSON with: 
               merchant (if present), description, date, amount, and category (if present).
 
               If category === "transport", include the "transport_details" object in your output, 
@@ -150,7 +150,6 @@ export async function POST(req: Request) {
           {
             role: "user",
             content: [
-              { type: "input_text", text: "what's in this image?" },
               {
                 type: "input_image",
                 file_id: f.id,
