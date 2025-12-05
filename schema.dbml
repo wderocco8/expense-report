@@ -1,0 +1,53 @@
+Table expense_report_jobs {
+  id              bigint [pk, increment]
+  user_id         bigint
+  status          varchar(20) // pending, processing, complete, failed
+  total_files     int
+  processed_files int
+  created_at      timestamp [default: `now()`]
+  updated_at      timestamp [default: `now()`]
+
+  Note: 'Represents a batch upload job'
+}
+
+Table receipt_files {
+  id              bigint [pk, increment]
+  job_id          bigint [ref: > expense_report_jobs.id]
+  s3_url          text
+  original_name   varchar(255)
+  status          varchar(20) // pending, processing, done, error
+  error_message   text
+  created_at      timestamp [default: `now()`]
+  processed_at    timestamp
+
+  Note: 'One row per uploaded receipt file'
+}
+
+Table extracted_expenses {
+  id               bigint [pk, increment]
+  receipt_id       bigint [ref: > receipt_files.id]
+  job_id           bigint [ref: > expense_report_jobs.id]
+  merchant         varchar(255)
+  amount           numeric(10, 2)
+  category         varchar(100)
+  date             date
+  raw_json         jsonb    // full LLM/OCR output
+  created_at       timestamp [default: `now()`]
+
+  Note: 'Final structured data extracted from a receipt'
+}
+
+// Optional: enum-like tables if you want strict statuses
+Enum job_status {
+  pending
+  processing
+  complete
+  failed
+}
+
+Enum receipt_status {
+  pending
+  processing
+  done
+  error
+}

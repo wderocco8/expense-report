@@ -30,8 +30,6 @@ export default function OcrTest() {
     }
   };
 
-  console.log("files", files);
-
   return (
     <div>
       <div className="grid w-full max-w-sm items-center gap-3">
