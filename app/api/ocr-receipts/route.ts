@@ -2,6 +2,27 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { ResponseTextConfig } from "openai/resources/responses/responses.mjs";
 import { z } from "zod";
+import heicConvert from "heic-convert";
+import sharp from "sharp";
+
+async function convertIfNeeded(file: File) {
+  if (["image/heic", "image/heif"].includes(file.type)) {
+    const arrayBuffer = Buffer.from(await file.arrayBuffer());
+    const uint8 = new Uint8Array(arrayBuffer);
+
+    const jpegBuffer = await heicConvert({
+      buffer: uint8 as unknown as ArrayBuffer,
+      format: "JPEG",
+      quality: 0.8,
+    });
+
+    return new File([jpegBuffer], file.name.replace(/\.heic$/i, ".jpg"), {
+      type: "image/jpeg",
+    });
+  }
+
+  return file; // already valid
+}
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -9,7 +30,13 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-const VALID_FILE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const VALID_FILE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
 
 const Receipt = z.object({
   merchant: z.string().nullable().default(null),
@@ -109,6 +136,7 @@ export async function POST(req: Request) {
 
     const results: Result[] = [];
 
+    // Validate file-types
     for (const file of files) {
       if (!VALID_FILE_TYPES.includes(file.type)) {
         results.push({
@@ -123,17 +151,20 @@ export async function POST(req: Request) {
       }
     }
 
-    // TODO: maybe resize files
-    // import sharp from "sharp";
-
+    // Resize files
     // const resized = await sharp(file.arrayBuffer())
     //   .resize({ width: 768 }) // or even 512 for receipts
     //   .jpeg({ quality: 80 })
     //   .toBuffer();
 
+    const normalizedFiles = await Promise.all(files.map(convertIfNeeded));
+    console.log("normalizedFiles", normalizedFiles);
+
+    return NextResponse.json({ success: true, results });
+
     // Upload each file to OpenAI file storage
     const uploadedFiles = await Promise.all(
-      files.map(async (file) => {
+      normalizedFiles.map(async (file) => {
         return client.files.create({
           file,
           purpose: "vision",
