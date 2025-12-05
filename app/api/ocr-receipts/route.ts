@@ -158,9 +158,6 @@ export async function POST(req: Request) {
     //   .toBuffer();
 
     const normalizedFiles = await Promise.all(files.map(convertIfNeeded));
-    console.log("normalizedFiles", normalizedFiles);
-
-    return NextResponse.json({ success: true, results });
 
     // Upload each file to OpenAI file storage
     const uploadedFiles = await Promise.all(
