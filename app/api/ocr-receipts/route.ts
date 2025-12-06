@@ -41,7 +41,9 @@ const VALID_FILE_TYPES = [
 const Receipt = z.object({
   merchant: z.string().nullable().default(null),
   description: z.string().nullable().default(null),
-  date: z.string(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   amount: z.number(),
   category: z
     .enum([
@@ -55,7 +57,7 @@ const Receipt = z.object({
       "misc",
     ])
     .default("misc"),
-  transport_details: z
+  transportDetails: z
     .object({
       mode: z.enum(["train", "car", "plane"]).nullable().default(null),
       mileage: z.number().nullable().default(null),
@@ -74,7 +76,7 @@ const ReceiptFormat: ResponseTextConfig = {
       properties: {
         merchant: { type: "string", nullable: true },
         description: { type: "string", nullable: true },
-        date: { type: "string" },
+        date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
         amount: { type: "number" },
         category: {
           type: "string",
@@ -89,7 +91,7 @@ const ReceiptFormat: ResponseTextConfig = {
             "misc",
           ],
         },
-        transport_details: {
+        transportDetails: {
           type: "object",
           nullable: true,
           properties: {
@@ -110,7 +112,7 @@ const ReceiptFormat: ResponseTextConfig = {
         "date",
         "amount",
         "category",
-        "transport_details",
+        "transportDetails",
       ],
       additionalProperties: false,
     },
@@ -178,7 +180,7 @@ export async function POST(req: Request) {
             content: `Extract only structured JSON with: 
               merchant (if present), description, date, amount, and category (if present).
 
-              If category === "transport", include the "transport_details" object in your output, 
+              If category === "transport", include the "transportDetails" object in your output, 
               and fill mode (if present) and mileage (if present).
 
               Never hallucinate. Return null rather than guessing an output.`,
@@ -222,7 +224,7 @@ export async function POST(req: Request) {
         });
       } else {
         if (parsed.data.category !== "transport") {
-          parsed.data.transport_details = null;
+          parsed.data.transportDetails = null;
         }
         results.push({
           filename: f.filename,

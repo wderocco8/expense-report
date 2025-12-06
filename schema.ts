@@ -1,12 +1,37 @@
-// schema.ts
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  decimal,
+  date,
+  pgEnum,
+  jsonb,
+} from "drizzle-orm/pg-core";
+
+const categoryEnum = pgEnum("category", [
+  "tolls/parking",
+  "hotel",
+  "transport",
+  "fuel",
+  "meals",
+  "phone",
+  "supplies",
+  "misc",
+]);
 
 // Example table for receipts
 export const receipts = pgTable("receipts", {
-  id: serial("id").primaryKey(),
-  merchant: text("merchant").notNull(),
-  description: text("description").notNull(),
-  amount: text("amount").notNull(),
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  merchant: text("merchant"),
+  description: text("description"),
+  date: date("date"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  category: categoryEnum("category").notNull(),
+  transportDetails: jsonb("transport_details").$type<{
+    mode: "train" | "car" | "plane" | null;
+    mileage: number | null;
+  } | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
