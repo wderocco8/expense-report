@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -10,7 +11,7 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 
-// ------------ Drizzle table schema definitions ------------
+// ------------ Table schema definitions ------------
 
 const status = pgEnum("status", [
   "pending",
@@ -35,6 +36,7 @@ export const receiptFilesTable = pgTable("receipt_files_table", {
     .references(() => expenseReportJobsTable.id)
     .notNull(),
   s3Url: text("s3_url").notNull(),
+  originalFilename: text("original_filename"),
   status: status("status"),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -73,6 +75,44 @@ export const extractedExpensesTable = pgTable("extracted_expenses_table", {
   modelVersion: text("model_version").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ------------ Relations definitions ------------
+
+// Job → ReceiptFiles (1-to-many)
+export const expenseReportJobsRelations = relations(
+  expenseReportJobsTable,
+  ({ many }) => ({
+    receiptFiles: many(receiptFilesTable),
+    extractedExpenses: many(extractedExpensesTable),
+  })
+);
+
+// ReceiptFiles → Job (many-to-1) and → ExtractedExpenses (1-to-many)
+export const receiptFilesRelations = relations(
+  receiptFilesTable,
+  ({ one, many }) => ({
+    job: one(expenseReportJobsTable, {
+      fields: [receiptFilesTable.jobId],
+      references: [expenseReportJobsTable.id],
+    }),
+    extractedExpenses: many(extractedExpensesTable),
+  })
+);
+
+// ExtractedExpenses → Job + ReceiptFile
+export const extractedExpensesRelations = relations(
+  extractedExpensesTable,
+  ({ one }) => ({
+    job: one(expenseReportJobsTable, {
+      fields: [extractedExpensesTable.jobId],
+      references: [expenseReportJobsTable.id],
+    }),
+    receipt: one(receiptFilesTable, {
+      fields: [extractedExpensesTable.receiptId],
+      references: [receiptFilesTable.id],
+    }),
+  })
+);
 
 // ------------ Type-safe helpers ------------
 export type ExtractedExpense = typeof extractedExpensesTable.$inferSelect;

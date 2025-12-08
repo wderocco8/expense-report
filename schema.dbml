@@ -1,6 +1,8 @@
 Table expense_report_jobs {
   id              bigint [pk, increment]
+  title           text
   user_id         bigint
+  title           varchar(255)
   status          varchar(20)
   total_files     int
   processed_files int
@@ -11,15 +13,15 @@ Table expense_report_jobs {
 }
 
 Table receipt_files {
-  id              bigint [pk, increment]
-  job_id          bigint [ref: > expense_report_jobs.id]
-  s3_url          text
-  original_name   varchar(255)
-  status          varchar(20) // pending, processing, done, error
-  error_message   text
-  ocr_text        text       // optional: raw OCR text
-  created_at      timestamp [default: `now()`]
-  processed_at    timestamp
+  id                  bigint [pk, increment]
+  job_id              bigint [ref: > expense_report_jobs.id]
+  s3_url              text
+  original_filename   varchar(255)
+  status              varchar(20) // pending, processing, done, error
+  error_message       text
+  // ocr_text        text       // optional: this would exist if we switched to an OCR -> LLM workflow (right now we are directly calling gpt)
+  created_at          timestamp [default: `now()`]
+  processed_at        timestamp
 }
 
 Table extracted_expenses {
@@ -36,17 +38,16 @@ Table extracted_expenses {
   processed_at     timestamp
 }
 
-// Optional strict enums
-Enum job_status {
-  pending
-  processing
-  complete
-  failed
-}
-
-Enum receipt_status {
+Enum status {
   pending
   processing
   done
   error
 }
+
+
+// status mappings
+// pending: job created, no files
+// processing: at least one file pending or processing
+// complete: all files have status=done
+// failed: at least one file failed and user didn't retry
