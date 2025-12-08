@@ -54,6 +54,9 @@ const categoryEnum = pgEnum("category", [
 
 export const extractedExpensesTable = pgTable("extracted_expenses_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
+  jobId: uuid("job_id")
+    .references(() => expenseReportJobsTable.id)
+    .notNull(),
   receiptId: uuid("receipt_id")
     .references(() => receiptFilesTable.id)
     .notNull(),
