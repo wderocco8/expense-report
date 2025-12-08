@@ -20,7 +20,7 @@ const status = pgEnum("status", [
   "failed",
 ]);
 
-export const expenseReportJobsTable = pgTable("expense_report_jobs_table", {
+export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   // userId: uuid("user_id").notNull().defaultRandom(), // TODO
   status: status("status"),
@@ -30,10 +30,10 @@ export const expenseReportJobsTable = pgTable("expense_report_jobs_table", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const receiptFilesTable = pgTable("receipt_files_table", {
+export const receiptFiles = pgTable("receipt_files_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   jobId: uuid("job_id")
-    .references(() => expenseReportJobsTable.id)
+    .references(() => expenseReportJobs.id)
     .notNull(),
   s3Url: text("s3_url").notNull(),
   originalFilename: text("original_filename"),
@@ -54,13 +54,13 @@ const categoryEnum = pgEnum("category", [
   "misc",
 ]);
 
-export const extractedExpensesTable = pgTable("extracted_expenses_table", {
+export const extractedExpenses = pgTable("extracted_expenses_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   jobId: uuid("job_id")
-    .references(() => expenseReportJobsTable.id)
+    .references(() => expenseReportJobs.id)
     .notNull(),
   receiptId: uuid("receipt_id")
-    .references(() => receiptFilesTable.id)
+    .references(() => receiptFiles.id)
     .notNull(),
   merchant: text("merchant"),
   description: text("description"),
@@ -80,46 +80,46 @@ export const extractedExpensesTable = pgTable("extracted_expenses_table", {
 
 // Job → ReceiptFiles (1-to-many)
 export const expenseReportJobsRelations = relations(
-  expenseReportJobsTable,
+  expenseReportJobs,
   ({ many }) => ({
-    receiptFiles: many(receiptFilesTable),
-    extractedExpenses: many(extractedExpensesTable),
+    receiptFiles: many(receiptFiles),
+    extractedExpenses: many(extractedExpenses),
   })
 );
 
 // ReceiptFiles → Job (many-to-1) and → ExtractedExpenses (1-to-many)
 export const receiptFilesRelations = relations(
-  receiptFilesTable,
+  receiptFiles,
   ({ one, many }) => ({
-    job: one(expenseReportJobsTable, {
-      fields: [receiptFilesTable.jobId],
-      references: [expenseReportJobsTable.id],
+    job: one(expenseReportJobs, {
+      fields: [receiptFiles.jobId],
+      references: [expenseReportJobs.id],
     }),
-    extractedExpenses: many(extractedExpensesTable),
+    extractedExpenses: many(extractedExpenses),
   })
 );
 
 // ExtractedExpenses → Job + ReceiptFile
 export const extractedExpensesRelations = relations(
-  extractedExpensesTable,
+  extractedExpenses,
   ({ one }) => ({
-    job: one(expenseReportJobsTable, {
-      fields: [extractedExpensesTable.jobId],
-      references: [expenseReportJobsTable.id],
+    job: one(expenseReportJobs, {
+      fields: [extractedExpenses.jobId],
+      references: [expenseReportJobs.id],
     }),
-    receipt: one(receiptFilesTable, {
-      fields: [extractedExpensesTable.receiptId],
-      references: [receiptFilesTable.id],
+    receipt: one(receiptFiles, {
+      fields: [extractedExpenses.receiptId],
+      references: [receiptFiles.id],
     }),
   })
 );
 
 // ------------ Type-safe helpers ------------
-export type ExtractedExpense = typeof extractedExpensesTable.$inferSelect;
-export type NewExtractedExpense = typeof extractedExpensesTable.$inferInsert;
+export type ExtractedExpense = typeof extractedExpenses.$inferSelect;
+export type NewExtractedExpense = typeof extractedExpenses.$inferInsert;
 
-export type ExpenseReportJob = typeof expenseReportJobsTable.$inferSelect;
-export type NewExpenseReportJob = typeof expenseReportJobsTable.$inferInsert;
+export type ExpenseReportJob = typeof expenseReportJobs.$inferSelect;
+export type NewExpenseReportJob = typeof expenseReportJobs.$inferInsert;
 
-export type ReceiptFile = typeof receiptFilesTable.$inferSelect;
-export type NewReceiptFile = typeof receiptFilesTable.$inferInsert;
+export type ReceiptFile = typeof receiptFiles.$inferSelect;
+export type NewReceiptFile = typeof receiptFiles.$inferInsert;
