@@ -11,14 +11,27 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 
-// ------------ Table schema definitions ------------
+// ------------ Enum definitions ------------
 
-const status = pgEnum("status", [
+export const status = pgEnum("status", [
   "pending",
   "processing",
   "complete",
   "failed",
 ]);
+
+export const categoryEnum = pgEnum("category", [
+  "tolls/parking",
+  "hotel",
+  "transport",
+  "fuel",
+  "meals",
+  "phone",
+  "supplies",
+  "misc",
+]);
+
+// ------------ Table column definitions ------------
 
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
@@ -42,17 +55,6 @@ export const receiptFiles = pgTable("receipt_files_table", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
 });
-
-const categoryEnum = pgEnum("category", [
-  "tolls/parking",
-  "hotel",
-  "transport",
-  "fuel",
-  "meals",
-  "phone",
-  "supplies",
-  "misc",
-]);
 
 export const extractedExpenses = pgTable("extracted_expenses_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
