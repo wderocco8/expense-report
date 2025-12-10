@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "dotenv -e .env.migrations -- drizzle-kit migrate",
-    "db:generate": "dotenv -e .env.migrations -- drizzle-kit generate"
+    "db:generate": "dotenv -e .env.migrations -- drizzle-kit generate",
+    "db:studio": "dotenv -e .env.migrations -- drizzle-kit studio"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
