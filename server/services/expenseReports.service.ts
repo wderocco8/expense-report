@@ -1,4 +1,7 @@
-import { createExpenseReportJob } from "@/server/repositories/expenseReports.repo";
+import {
+  createExpenseReportJob,
+  getExpenseReportJobs,
+} from "@/server/repositories/expenseReports.repo";
 import type { ExpenseReportJob } from "@/server/db/schema";
 
 export async function createExpenseReport(input?: {
@@ -13,4 +16,8 @@ export async function createExpenseReport(input?: {
   const job = await createExpenseReportJob(input?.title);
 
   return job;
+}
+
+export async function getExpenseReports(): Promise<ExpenseReportJob[]> {
+  return getExpenseReportJobs();
 }
