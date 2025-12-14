@@ -13,6 +13,12 @@ import {
 
 // ------------ Enum definitions ------------
 
+// ------- status mappings -------
+// pending: job created, no files
+// processing: at least one file pending or processing
+// complete: all files have status=done
+// failed: at least one file failed and user didn't retry
+
 export const status = pgEnum("status", [
   "pending",
   "processing",
@@ -36,9 +42,9 @@ export const categoryEnum = pgEnum("category", [
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   // userId: uuid("user_id").notNull().defaultRandom(), // TODO
-  status: status("status"),
-  totalFiles: integer("total_files").notNull().default(0),
-  processedFiles: integer("processed_files").notNull().default(0),
+  status: status("status").notNull().default("pending"),
+  totalFiles: integer("total_files").notNull().default(0), // number of receipt_files created for job
+  processedFiles: integer("processed_files").notNull().default(0), // increment only when a receipt transitions to a terminal state
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -50,7 +56,7 @@ export const receiptFiles = pgTable("receipt_files_table", {
     .notNull(),
   s3Url: text("s3_url").notNull(),
   originalFilename: text("original_filename"),
-  status: status("status"),
+  status: status("status").notNull().default("pending"),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
