@@ -26,9 +26,6 @@ export default function CreateExpenseReportJob() {
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(ExpenseReportCreateSchema),
-    defaultValues: {
-      title: "",
-    },
   });
 
   async function onSubmit(values: FormValues) {
