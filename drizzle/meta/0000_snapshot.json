@@ -1,5 +1,5 @@
 {
-  "id": "ca4b21db-b6df-4ae7-b9ee-d6ec72dc37b0",
+  "id": "7063ec6b-d635-45af-8fe9-a59889d14e8f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -15,12 +15,20 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Expense report'"
+        },
         "status": {
           "name": "status",
           "type": "status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'pending'"
         },
         "total_files": {
           "name": "total_files",
@@ -208,7 +216,8 @@
           "type": "status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'pending'"
         },
         "error_message": {
           "name": "error_message",

@@ -42,6 +42,7 @@ export const categoryEnum = pgEnum("category", [
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   // userId: uuid("user_id").notNull().defaultRandom(), // TODO
+  title: text("title").notNull().default("Expense report"),
   status: status("status").notNull().default("pending"),
   totalFiles: integer("total_files").notNull().default(0), // number of receipt_files created for job
   processedFiles: integer("processed_files").notNull().default(0), // increment only when a receipt transitions to a terminal state

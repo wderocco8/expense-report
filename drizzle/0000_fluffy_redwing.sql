@@ -2,7 +2,8 @@ CREATE TYPE "public"."category" AS ENUM('tolls/parking', 'hotel', 'transport', '
 CREATE TYPE "public"."status" AS ENUM('pending', 'processing', 'complete', 'failed');--> statement-breakpoint
 CREATE TABLE "expense_report_jobs_table" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"status" "status",
+	"title" text DEFAULT 'Expense report' NOT NULL,
+	"status" "status" DEFAULT 'pending' NOT NULL,
 	"total_files" integer DEFAULT 0 NOT NULL,
 	"processed_files" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -29,7 +30,7 @@ CREATE TABLE "receipt_files_table" (
 	"job_id" uuid NOT NULL,
 	"s3_url" text NOT NULL,
 	"original_filename" text,
-	"status" "status",
+	"status" "status" DEFAULT 'pending' NOT NULL,
 	"error_message" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"processed_at" timestamp
