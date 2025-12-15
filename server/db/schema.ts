@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { eq, relations } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -9,6 +9,8 @@ import {
   pgEnum,
   jsonb,
   integer,
+  boolean,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // ------------ Enum definitions ------------
@@ -63,27 +65,33 @@ export const receiptFiles = pgTable("receipt_files_table", {
   processedAt: timestamp("processed_at"),
 });
 
-export const extractedExpenses = pgTable("extracted_expenses_table", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
-  jobId: uuid("job_id")
-    .references(() => expenseReportJobs.id)
-    .notNull(),
-  receiptId: uuid("receipt_id")
-    .references(() => receiptFiles.id)
-    .notNull(),
-  merchant: text("merchant"),
-  description: text("description"),
-  date: date("date"),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  category: categoryEnum("category").notNull(),
-  transportDetails: jsonb("transport_details").$type<{
-    mode: "train" | "car" | "plane" | null;
-    mileage: number | null;
-  } | null>(),
-  rawJson: jsonb("raw_json"),
-  modelVersion: text("model_version").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const extractedExpenses = pgTable(
+  "extracted_expenses_table",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    receiptId: uuid("receipt_id")
+      .references(() => receiptFiles.id)
+      .notNull(),
+    merchant: text("merchant"),
+    description: text("description"),
+    date: date("date"),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    category: categoryEnum("category").notNull(),
+    transportDetails: jsonb("transport_details").$type<{
+      mode: "train" | "car" | "plane" | null;
+      mileage: number | null;
+    } | null>(),
+    rawJson: jsonb("raw_json"),
+    modelVersion: text("model_version").notNull(),
+    isCurrent: boolean("is_current").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uniq_active_receipt")
+      .on(t.receiptId)
+      .where(eq(t.isCurrent, true)),
+  ]
+);
 
 // ------------ Relations definitions ------------
 
@@ -112,10 +120,6 @@ export const receiptFilesRelations = relations(
 export const extractedExpensesRelations = relations(
   extractedExpenses,
   ({ one }) => ({
-    job: one(expenseReportJobs, {
-      fields: [extractedExpenses.jobId],
-      references: [expenseReportJobs.id],
-    }),
     receipt: one(receiptFiles, {
       fields: [extractedExpenses.receiptId],
       references: [receiptFiles.id],

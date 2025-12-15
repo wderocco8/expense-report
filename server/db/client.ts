@@ -2,6 +2,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon, neonConfig, Pool } from "@neondatabase/serverless";
 import ws from "ws";
+import * as schema from "@/server/db/schema";
 
 let connectionString = process.env.DATABASE_URL;
 
@@ -27,5 +28,5 @@ if (!connectionString) {
 }
 
 export const sql = neon(connectionString);
-export const db = drizzle(sql);
+export const db = drizzle(sql, { schema });
 export const pool = new Pool({ connectionString });

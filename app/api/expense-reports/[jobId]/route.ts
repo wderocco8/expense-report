@@ -1,6 +1,7 @@
-import { getExpenseReport } from "@/server/services/expenseReports.service";
+import { getExpenseReportJobWithFiles } from "@/server/repositories/expenseReports.repo";
 import { NextResponse } from "next/server";
 
+// NOTE: endpoint not currently used (only for testing purposes)
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ jobId: string }> }
@@ -8,7 +9,7 @@ export async function GET(
   try {
     const { jobId } = await params;
 
-    const job = await getExpenseReport(jobId);
+    const job = await getExpenseReportJobWithFiles(jobId);
 
     return NextResponse.json(job, { status: 200 });
   } catch (err) {

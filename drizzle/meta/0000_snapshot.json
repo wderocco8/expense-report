@@ -1,5 +1,5 @@
 {
-  "id": "7063ec6b-d635-45af-8fe9-a59889d14e8f",
+  "id": "ec1f7685-5d2c-486b-9693-051234a28680",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -78,12 +78,6 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "receipt_id": {
           "name": "receipt_id",
           "type": "uuid",
@@ -139,6 +133,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "is_current": {
+          "name": "is_current",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -147,21 +148,25 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "uniq_active_receipt": {
+          "name": "uniq_active_receipt",
+          "columns": [
+            {
+              "expression": "receipt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"extracted_expenses_table\".\"is_current\" = $1",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "extracted_expenses_table_job_id_expense_report_jobs_table_id_fk": {
-          "name": "extracted_expenses_table_job_id_expense_report_jobs_table_id_fk",
-          "tableFrom": "extracted_expenses_table",
-          "tableTo": "expense_report_jobs_table",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "extracted_expenses_table_receipt_id_receipt_files_table_id_fk": {
           "name": "extracted_expenses_table_receipt_id_receipt_files_table_id_fk",
           "tableFrom": "extracted_expenses_table",
