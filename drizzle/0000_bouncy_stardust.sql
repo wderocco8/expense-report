@@ -38,4 +38,4 @@ CREATE TABLE "receipt_files_table" (
 --> statement-breakpoint
 ALTER TABLE "extracted_expenses_table" ADD CONSTRAINT "extracted_expenses_table_receipt_id_receipt_files_table_id_fk" FOREIGN KEY ("receipt_id") REFERENCES "public"."receipt_files_table"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "receipt_files_table" ADD CONSTRAINT "receipt_files_table_job_id_expense_report_jobs_table_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."expense_report_jobs_table"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "uniq_active_receipt" ON "extracted_expenses_table" USING btree ("receipt_id") WHERE "extracted_expenses_table"."is_current" = $1;
+CREATE UNIQUE INDEX "uniq_active_receipt" ON "extracted_expenses_table" USING btree ("receipt_id") WHERE "extracted_expenses_table"."is_current" = true;

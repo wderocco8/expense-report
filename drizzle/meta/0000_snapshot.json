@@ -1,5 +1,5 @@
 {
-  "id": "ec1f7685-5d2c-486b-9693-051234a28680",
+  "id": "24acc112-b39a-4133-a0b0-40fb436da767",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -160,7 +160,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"extracted_expenses_table\".\"is_current\" = $1",
+          "where": "\"extracted_expenses_table\".\"is_current\" = true",
           "concurrently": false,
           "method": "btree",
           "with": {}

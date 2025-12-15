@@ -1,4 +1,4 @@
-import { eq, relations } from "drizzle-orm";
+import { eq, relations, sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -89,7 +89,7 @@ export const extractedExpenses = pgTable(
   (t) => [
     uniqueIndex("uniq_active_receipt")
       .on(t.receiptId)
-      .where(eq(t.isCurrent, true)),
+      .where(sql`${t.isCurrent} = true`),
   ]
 );
 
@@ -100,7 +100,6 @@ export const expenseReportJobsRelations = relations(
   expenseReportJobs,
   ({ many }) => ({
     receiptFiles: many(receiptFiles),
-    extractedExpenses: many(extractedExpenses),
   })
 );
 
