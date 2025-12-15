@@ -2,6 +2,7 @@ import { db } from "@/server/db/client";
 import {
   ExpenseReportJob,
   expenseReportJobs,
+  extractedExpenses,
   status,
 } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
@@ -57,7 +58,9 @@ export async function getExpenseReportJobWithFiles(jobId: string) {
     with: {
       receiptFiles: {
         with: {
-          extractedExpenses: true,
+          extractedExpenses: {
+            where: eq(extractedExpenses.isCurrent, true),
+          },
         },
       },
     },
