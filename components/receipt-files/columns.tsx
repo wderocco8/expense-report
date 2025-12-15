@@ -1,0 +1,38 @@
+"use client";
+
+import { ColumnDef } from "@tanstack/react-table";
+import { ReceiptFile } from "@/server/db/schema";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+export const columns: ColumnDef<ReceiptFile>[] = [
+  {
+    accessorKey: "originalFilename",
+    header: "Receipt",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <Badge variant="outline">{row.original.status}</Badge>,
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Uploaded",
+    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+  },
+  {
+    accessorKey: "expenseSummary",
+    header: "Expense Summary",
+    cell: ({ row }) => "TBD",
+  },
+
+  {
+    id: "actions",
+    cell: ({ row }) => (
+      <Button variant="ghost" size="sm">
+        View
+      </Button>
+    ),
+  },
+];
