@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ExpenseReportJob } from "@/server/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export const columns: ColumnDef<ExpenseReportJob>[] = [
   {
@@ -32,7 +33,7 @@ export const columns: ColumnDef<ExpenseReportJob>[] = [
     id: "actions",
     cell: ({ row }) => (
       <Button variant="ghost" size="sm">
-        View
+        <Link href={`/expense-report-jobs/${row.original.id}`}>View</Link>
       </Button>
     ),
   },

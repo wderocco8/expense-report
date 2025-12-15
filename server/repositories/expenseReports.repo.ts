@@ -36,6 +36,21 @@ export async function getExpenseReportJobs(): Promise<ExpenseReportJob[]> {
   return await db.select().from(expenseReportJobs);
 }
 
+export async function getExpenseReportJob(
+  jobId: string
+): Promise<ExpenseReportJob> {
+  const [job] = await db
+    .select()
+    .from(expenseReportJobs)
+    .where(eq(expenseReportJobs.id, jobId));
+
+  if (!job) {
+    throw new Error("Failed to find expense report job");
+  }
+
+  return job;
+}
+
 export async function updateJobStatus(
   jobId: string,
   jobStatus: (typeof status.enumValues)[number]
