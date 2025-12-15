@@ -1,4 +1,4 @@
-import { getExpenseReport } from "@/server/services/expenseReports.service";
+import { getExpenseReportWithFiles } from "@/server/services/expenseReports.service";
 
 export default async function ExpenseReportPage({
   params,
@@ -6,6 +6,6 @@ export default async function ExpenseReportPage({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = await params;
-  const job = await getExpenseReport(jobId);
+  const job = await getExpenseReportWithFiles(jobId);
   return <div className="container mx-auto py-8 space-y-8">{job.title}</div>;
 }

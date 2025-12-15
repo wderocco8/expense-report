@@ -2,6 +2,7 @@ import {
   createExpenseReportJob,
   getExpenseReportJobs,
   getExpenseReportJob,
+  getExpenseReportJobWithFiles,
 } from "@/server/repositories/expenseReports.repo";
 import type { ExpenseReportJob } from "@/server/db/schema";
 
@@ -27,4 +28,10 @@ export async function getExpenseReport(
   jobId: string
 ): Promise<ExpenseReportJob> {
   return getExpenseReportJob(jobId);
+}
+
+export async function getExpenseReportWithFiles(
+  jobId: string
+): Promise<ExpenseReportJob> {
+  return getExpenseReportJobWithFiles(jobId);
 }
