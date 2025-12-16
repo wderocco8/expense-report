@@ -1,12 +1,13 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ReceiptFile } from "@/server/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
 
-export const columns: ColumnDef<ReceiptFile>[] = [
+export const columns = (
+  onViewReceipt: (id: string) => void
+): ColumnDef<ReceiptFileWithExpenses>[] => [
   {
     accessorKey: "originalFilename",
     header: "Receipt",
@@ -30,7 +31,11 @@ export const columns: ColumnDef<ReceiptFile>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <Button variant="ghost" size="sm">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onViewReceipt(row.original.id)}
+      >
         View
       </Button>
     ),

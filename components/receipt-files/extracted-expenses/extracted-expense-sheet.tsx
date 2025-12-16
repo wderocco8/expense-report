@@ -12,12 +12,17 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function ExtractedExpenseSheet() {
+export function ExtractedExpenseSheet({
+  receiptId,
+  open,
+  onClose,
+}: {
+  receiptId: string | null;
+  open: boolean;
+  onClose: () => void;
+}) {
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline">View</Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onClose}>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Edit profile</SheetTitle>

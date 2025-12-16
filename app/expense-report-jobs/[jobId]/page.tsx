@@ -1,4 +1,4 @@
-import { ReceiptFilesTable } from "@/components/receipt-files/receipt-files-table";
+import { ReceiptFilesSection } from "@/components/receipt-files/receipt-files-section";
 import { getExpenseReportWithFiles } from "@/server/services/expenseReports.service";
 
 export default async function ExpenseReportPage({
@@ -14,7 +14,7 @@ export default async function ExpenseReportPage({
       <div>
         Progress: {job.processedFiles} / {job.totalFiles} receipts processed
       </div>
-      <ReceiptFilesTable data={job.receiptFiles} />
+      <ReceiptFilesSection receiptFiles={job.receiptFiles} />
     </div>
   );
 }
