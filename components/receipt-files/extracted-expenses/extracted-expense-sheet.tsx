@@ -1,6 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldSet,
+  FieldLegend,
+  FieldDescription,
+  FieldSeparator,
+} from "@/components/ui/field";
 import {
   Sheet,
   SheetClose,
@@ -46,39 +54,95 @@ export function ExtractedExpenseSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="grid flex-1 auto-rows-min gap-6 px-4">
+        <div className="flex-1 px-4">
           {!expense ? (
             <div className="text-sm text-muted-foreground">
               No extracted expense found for this receipt.
             </div>
           ) : (
-            <>
-              <DisplayField label="Category" value={expense.category} />
-              <DisplayField label="Merchant" value={expense.merchant} />
-              <DisplayField label="Description" value={expense.description} />
-              <DisplayField label="Amount" value={expense.amount} />
-              <DisplayField label="Date" value={expense.date} />
+            <FieldGroup>
+              <FieldSet>
+                <FieldLegend variant="label">Expense Details</FieldLegend>
+                <FieldDescription>
+                  General details regarding your expense
+                </FieldDescription>
+
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="category">Category</FieldLabel>
+                    <Input id="category" readOnly value={expense.category} />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="merchant">Merchant</FieldLabel>
+                    <Input
+                      id="merchant"
+                      readOnly
+                      value={expense.merchant ?? "—"}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="description">Description</FieldLabel>
+                    <Input
+                      id="description"
+                      readOnly
+                      value={expense.description ?? "—"}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="amount">Amount</FieldLabel>
+                    <Input id="amount" readOnly value={expense.amount ?? "—"} />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="date">Date</FieldLabel>
+                    <Input id="date" readOnly value={expense.date ?? "—"} />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
 
               {expense.transportDetails && (
                 <>
-                  <div className="pt-2 text-sm font-medium">
-                    Transport Details
-                  </div>
-                  <DisplayField
-                    label="Mode"
-                    value={expense.transportDetails.mode}
-                  />
-                  <DisplayField
-                    label="Mileage"
-                    value={expense.transportDetails.mileage?.toString() ?? null}
-                  />
+                  <FieldSeparator />
+                  <FieldSet>
+                    <FieldLegend variant="label">Transport Details</FieldLegend>
+                    <FieldDescription>
+                      Transport-specific details regarding your receipt
+                    </FieldDescription>
+
+                    <FieldGroup>
+                      <Field>
+                        <FieldLabel htmlFor="mode">Mode</FieldLabel>
+                        <Input
+                          id="mode"
+                          readOnly
+                          value={expense.transportDetails.mode ?? ""}
+                        />
+                      </Field>
+
+                      <Field>
+                        <FieldLabel htmlFor="mileage">Mileage</FieldLabel>
+                        <Input
+                          id="mileage"
+                          readOnly
+                          value={
+                            expense.transportDetails.mileage?.toString() ?? "—"
+                          }
+                        />
+                      </Field>
+                    </FieldGroup>
+                  </FieldSet>
                 </>
               )}
+            </FieldGroup>
+          )}
 
-              <div className="pt-2 text-xs text-muted-foreground">
-                Model version: {expense.modelVersion}
-              </div>
-            </>
+          {expense && (
+            <div className="pt-4 text-xs text-muted-foreground">
+              Model version: {expense.modelVersion}
+            </div>
           )}
         </div>
 
@@ -89,20 +153,5 @@ export function ExtractedExpenseSheet({
         </SheetFooter>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function DisplayField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
-      <Input readOnly value={value ?? "—"} />
-    </div>
   );
 }
