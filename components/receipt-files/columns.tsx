@@ -25,9 +25,12 @@ export const columns = (
   {
     accessorKey: "expenseSummary",
     header: "Expense Summary",
-    cell: ({ row }) => "TBD",
+    cell: ({ row }) => {
+      const expense = row.original.extractedExpenses[0];
+      if (!expense) return "Extracting...";
+      return `$${Number(expense.amount).toFixed(2)} : ${expense.category}`;
+    },
   },
-
   {
     id: "actions",
     cell: ({ row }) => (
