@@ -1,25 +1,5 @@
 import { NextResponse } from "next/server";
-import heicConvert from "heic-convert";
-import { extractReceiptFromImage } from "@/server/services/ocr.service";
-
-async function convertIfNeeded(file: File) {
-  if (["image/heic", "image/heif"].includes(file.type)) {
-    const arrayBuffer = Buffer.from(await file.arrayBuffer());
-    const uint8 = new Uint8Array(arrayBuffer);
-
-    const jpegBuffer = await heicConvert({
-      buffer: uint8 as unknown as ArrayBuffer,
-      format: "JPEG",
-      quality: 0.8,
-    });
-
-    return new File([jpegBuffer], file.name.replace(/\.heic$/i, ".jpg"), {
-      type: "image/jpeg",
-    });
-  }
-
-  return file; // already valid
-}
+import { ingestReceipt } from "@/server/services/receipts.service";
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -34,6 +14,7 @@ const VALID_FILE_TYPES = [
 export async function POST(req: Request) {
   try {
     const form = await req.formData();
+    const jobId = form.get("jobId") as string;
     const files = form.getAll("files") as File[];
 
     if (files.length === 0) {
@@ -51,20 +32,12 @@ export async function POST(req: Request) {
       }
     }
 
-    // Resize files
-    // const resized = await sharp(file.arrayBuffer())
-    //   .resize({ width: 768 }) // or even 512 for receipts
-    //   .jpeg({ quality: 80 })
-    //   .toBuffer();
+    for (const file of files) {
+      await ingestReceipt({ jobId, file });
+    }
 
-    const normalizedFiles = await Promise.all(files.map(convertIfNeeded));
-
-    // TODO: maybe switch to Promise.allSettled
-    const results = await Promise.all(
-      normalizedFiles.map(extractReceiptFromImage)
-    );
-
-    return NextResponse.json({ success: true, results });
+    return NextResponse.json({ success: true });
+    // return NextResponse.json({ success: true, results });
   } catch (error) {
     if (error instanceof Error) {
       console.error("OCR error:", error);

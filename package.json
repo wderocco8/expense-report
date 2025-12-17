@@ -12,6 +12,7 @@
     "db:studio": "dotenv -e .env.migrations -- drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.953.0",
     "@hookform/resolvers": "^5.2.2",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-dialog": "^1.1.15",
