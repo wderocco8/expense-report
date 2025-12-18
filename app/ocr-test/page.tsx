@@ -10,6 +10,7 @@ export default function OcrTest() {
 
   const test = async () => {
     const formData = new FormData();
+    formData.append("jobId", "6d1453c1-b353-404d-bd8d-52f01e02ce64");
     files.forEach((f) => formData.append("files", f));
 
     const res = await fetch("/api/ocr-receipts", {

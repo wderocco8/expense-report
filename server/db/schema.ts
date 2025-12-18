@@ -57,7 +57,7 @@ export const receiptFiles = pgTable("receipt_files_table", {
   jobId: uuid("job_id")
     .references(() => expenseReportJobs.id)
     .notNull(),
-  s3Url: text("s3_url").notNull(),
+  s3Key: text("s3_key").notNull(),
   originalFilename: text("original_filename"),
   status: status("status").notNull().default("pending"),
   errorMessage: text("error_message"),

@@ -27,7 +27,7 @@ export async function ingestReceipt({
     jobId,
   });
 
-  const s3Url = await uploadReceiptImage({
+  await uploadReceiptImage({
     buffer,
     contentType,
     key,
@@ -35,7 +35,7 @@ export async function ingestReceipt({
 
   const receipt = await createReceiptFile({
     jobId,
-    s3Url,
+    s3Key: key,
   });
 
   // await processReceipt(receipt.id);
