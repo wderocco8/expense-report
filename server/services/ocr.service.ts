@@ -60,19 +60,15 @@ const ReceiptFormat: ResponseTextConfig = {
 };
 
 export type ReceiptResult = {
-  filename: string;
   data: ReceiptDTO | null;
   success: boolean;
   error?: string;
 };
 
 export async function extractReceiptFromImage(
-  file: File
+  buffer: Buffer
 ): Promise<ReceiptResult> {
-  const uploaded = await client.files.create({
-    file,
-    purpose: "vision",
-  });
+  const base64Image = buffer.toString("base64");
 
   const response = await client.responses.create({
     model: "gpt-4o-mini",
@@ -81,6 +77,8 @@ export async function extractReceiptFromImage(
         role: "system",
         content: `Extract only structured JSON with: 
           merchant (if present), description, date, amount, and category (if present).
+
+          Date should be yyyy-mm-dd format.
 
           If category === "transport", include the "transportDetails" object in your output, 
           and fill mode (if present) and mileage (if present).
@@ -92,8 +90,8 @@ export async function extractReceiptFromImage(
         content: [
           {
             type: "input_image",
-            file_id: uploaded.id,
-            detail: "low",
+            image_url: `data:image/jpeg;base64,${base64Image}`,
+            detail: "auto",
           },
         ],
       },
@@ -107,9 +105,8 @@ export async function extractReceiptFromImage(
   try {
     parsed = ReceiptSchema.safeParse(JSON.parse(raw));
   } catch (e) {
-    console.error("Error parsing json", uploaded.filename, e);
+    console.error("Error parsing json", e);
     return {
-      filename: uploaded.filename,
       data: null,
       success: false,
       error: "Model returned invalid JSON",
@@ -118,7 +115,6 @@ export async function extractReceiptFromImage(
 
   if (!parsed.success) {
     return {
-      filename: uploaded.filename,
       data: null,
       success: false,
       error: parsed.error.message,
@@ -128,7 +124,6 @@ export async function extractReceiptFromImage(
       parsed.data.transportDetails = null;
     }
     return {
-      filename: uploaded.filename,
       data: parsed.data,
       success: true,
     };

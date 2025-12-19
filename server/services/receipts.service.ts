@@ -2,6 +2,7 @@ import heicConvert from "heic-convert";
 import { uploadReceiptImage } from "@/server/services/storage.service";
 import { NewReceiptFile, ReceiptFile } from "@/server/db/schema";
 import * as receiptFilesRepo from "@/server/repositories/receiptFiles.repo";
+import { processReceipt } from "@/server/services/extractedExpenses.service";
 
 /**
  * Ingests a receipt into the system.
@@ -39,7 +40,7 @@ export async function ingestReceipt({
     s3Key: key,
   });
 
-  // await processReceipt(receipt.id);
+  await processReceipt(receipt.id);
 }
 
 /**

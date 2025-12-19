@@ -54,7 +54,7 @@ export function ExtractedExpenseSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 px-4">
+        <div className="flex-1 px-4 overflow-y-auto">
           {!expense ? (
             <div className="text-sm text-muted-foreground">
               No extracted expense found for this receipt.

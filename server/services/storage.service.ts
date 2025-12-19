@@ -1,5 +1,10 @@
 // server/services/storage.service.ts
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
+import { Readable } from "stream";
 
 const S3_BUCKET = process.env.S3_BUCKET;
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
@@ -44,6 +49,31 @@ export function getPublicObjectUrl(key: string) {
 
   // AWS S3
   return `https://${S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`;
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
+}
+
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const res = await s3.send(
+    new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+    })
+  );
+
+  if (!res.Body) {
+    throw new Error(`S3 object body is empty for key: ${key}`);
+  }
+
+  return streamToBuffer(res.Body as Readable);
 }
 
 // TODO: look into this
