@@ -4,10 +4,13 @@ import { useMemo, useState } from "react";
 import { ReceiptFilesTable } from "@/components/receipt-files/receipt-files-table";
 import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
 import { ExtractedExpenseSheet } from "@/components/receipt-files/extracted-expenses/extracted-expense-sheet";
+import UploadReceipts from "@/components/receipt-files/upload-receipts";
 
 export function ReceiptFilesSection({
+  jobId,
   receiptFiles,
 }: {
+  jobId: string;
   receiptFiles: ReceiptFileWithExpenses[];
 }) {
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
@@ -22,8 +25,8 @@ export function ReceiptFilesSection({
 
   return (
     <>
+      <UploadReceipts jobId={jobId} />
       <ReceiptFilesTable data={receiptFiles} onViewReceipt={setOpenReceiptId} />
-
       <ExtractedExpenseSheet
         receipt={receipt}
         open={!!openReceiptId}

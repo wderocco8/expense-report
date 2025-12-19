@@ -14,7 +14,7 @@ export default async function ExpenseReportPage({
       <div>
         Progress: {job.processedFiles} / {job.totalFiles} receipts processed
       </div>
-      <ReceiptFilesSection receiptFiles={job.receiptFiles} />
+      <ReceiptFilesSection jobId={job.id} receiptFiles={job.receiptFiles} />
     </div>
   );
 }

@@ -47,3 +47,31 @@ export async function POST(req: Request) {
     }
   }
 }
+
+/**
+ * TODO: Validation
+ * import { ReceiptUploadSchema } from "@/server/validators/receiptUpload.zod";
+
+export async function POST(req: Request) {
+  const formData = await req.formData();
+
+  const jobId = formData.get("jobId");
+  const files = formData.getAll("files");
+
+  const parsed = ReceiptUploadSchema.safeParse({
+    jobId,
+    files: {
+      length: files.length,
+      item: (i: number) => files[i],
+      [Symbol.iterator]: () => files[Symbol.iterator](),
+    },
+  });
+
+  if (!parsed.success) {
+    return new Response(JSON.stringify(parsed.error), { status: 400 });
+  }
+
+  // continue with OCR
+}
+
+ */

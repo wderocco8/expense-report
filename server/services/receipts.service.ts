@@ -35,6 +35,7 @@ export async function ingestReceipt({
 
   const receipt = await createReceiptFile({
     jobId,
+    originalFilename: file.name,
     s3Key: key,
   });
 
