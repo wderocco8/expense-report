@@ -42,3 +42,20 @@ To view your locally emulated data, MinIO offers a dashboard that can be found h
 http://localhost:9001
 
 Use the MINIO_ROOT_USER and MINIO_ROOT_PASSWORD found in zap/docker-compose.yml to login.
+
+
+
+## If getting db connection errors
+
+```sh
+[cause]: Error: getaddrinfo ENOTFOUND db.localtest.me 
+```
+
+Add a hosts entry once, and you’ll never see this again.
+
+sudo nano /etc/hosts
+
+
+Add:
+
+127.0.0.1 db.localtest.me

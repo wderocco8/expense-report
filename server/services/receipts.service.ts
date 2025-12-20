@@ -40,7 +40,8 @@ export async function ingestReceipt({
     s3Key: key,
   });
 
-  await processReceipt(receipt.id);
+  // NOTE: process receipts asynchronously (no await keyword)
+  processReceipt(receipt.id);
 }
 
 /**
