@@ -32,6 +32,14 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 
 export function ExtractedExpenseSheet({
   receipt,
@@ -197,7 +205,39 @@ export function ExtractedExpenseSheet({
 
                     <Field>
                       <FieldLabel htmlFor="date">Date</FieldLabel>
-                      <Input id="date" {...register("date")} />
+                      <Controller
+                        name="date"
+                        control={control}
+                        render={({ field }) => {
+                          const date = field.value
+                            ? new Date(field.value)
+                            : undefined;
+
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal"
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {date ? format(date, "PPP") : "Pick a date"}
+                                </Button>
+                              </PopoverTrigger>
+
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={date}
+                                  onSelect={(d) =>
+                                    field.onChange(d ? d.toISOString() : null)
+                                  }
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        }}
+                      />
                     </Field>
                   </FieldGroup>
                 </FieldSet>
@@ -244,11 +284,7 @@ export function ExtractedExpenseSheet({
           </div>
 
           <SheetFooter>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              onClick={() => console.log("clicked")}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Updating..." : "Update"}
             </Button>
             <SheetClose asChild>
