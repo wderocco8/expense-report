@@ -4,6 +4,7 @@ import { extractReceiptFromImage } from "@/server/services/ocr.service";
 import { getReceiptFile } from "@/server/services/receipts.service";
 import { getObjectBuffer } from "@/server/services/storage.service";
 import { ReceiptDTO } from "@/server/validators/receipt.zod";
+import { ExtractedExpenseUpdateInput } from "../validators/extractedExpense.zod";
 
 /**
  * Persists a new ExtractedExpense record to the database.
@@ -14,8 +15,19 @@ import { ReceiptDTO } from "@/server/validators/receipt.zod";
 export async function createExtractedExpense(
   data: NewExtractedExpense
 ): Promise<ExtractedExpense> {
-  const job = await extractedExpensesRepo.createExtractedExpense(data);
-  return job;
+  const expense = await extractedExpensesRepo.createExtractedExpense(data);
+  return expense;
+}
+
+export async function updateExtractedExpense(
+  expenseId: string,
+  data: ExtractedExpenseUpdateInput
+): Promise<ExtractedExpense> {
+  const expense = await extractedExpensesRepo.updateExtractedExpense(
+    expenseId,
+    data
+  );
+  return expense;
 }
 
 export async function processReceipt(receiptId: string): Promise<void> {
