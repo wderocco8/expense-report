@@ -45,6 +45,12 @@ function parseDateOnly(value: string): Date {
   return new Date(year, month - 1, day);
 }
 
+function formatMoney(value: string): string {
+  const n = Number(value);
+  if (Number.isNaN(n)) return "";
+  return n.toFixed(2);
+}
+
 export function ExtractedExpenseSheet({
   receipt,
   open,
@@ -204,8 +210,13 @@ export function ExtractedExpenseSheet({
                       <FieldLabel htmlFor="amount">Amount</FieldLabel>
                       <Input
                         id="amount"
-                        // type="number"
-                        {...register("amount")}
+                        inputMode="decimal"
+                        {...register("amount", {
+                          onBlur: (e) => {
+                            const formatted = formatMoney(e.target.value);
+                            e.target.value = formatted;
+                          },
+                        })}
                       />
                     </Field>
 
