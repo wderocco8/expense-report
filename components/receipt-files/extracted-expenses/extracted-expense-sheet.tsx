@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
@@ -60,6 +60,7 @@ export function ExtractedExpenseSheet({
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    control,
   } = useForm<FormValues>({
     resolver: zodResolver(ExtractedExpenseUpdateSchema),
     defaultValues: expense
@@ -145,26 +146,34 @@ export function ExtractedExpenseSheet({
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="category">Category</FieldLabel>
-                      <Select
-                        defaultValue={expense.category}
-                        {...register("category")}
-                      >
-                        <SelectTrigger id="category">
-                          <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="tolls/parking">
-                            Tolls / Parking
-                          </SelectItem>
-                          <SelectItem value="hotel">Hotel</SelectItem>
-                          <SelectItem value="transport">Transport</SelectItem>
-                          <SelectItem value="fuel">Fuel</SelectItem>
-                          <SelectItem value="meals">Meals</SelectItem>
-                          <SelectItem value="phone">Phone</SelectItem>
-                          <SelectItem value="supplies">Supplies</SelectItem>
-                          <SelectItem value="misc">Misc</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Controller
+                        name="category"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger id="category">
+                              <SelectValue placeholder="Select Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="tolls/parking">
+                                Tolls / Parking
+                              </SelectItem>
+                              <SelectItem value="hotel">Hotel</SelectItem>
+                              <SelectItem value="transport">
+                                Transport
+                              </SelectItem>
+                              <SelectItem value="fuel">Fuel</SelectItem>
+                              <SelectItem value="meals">Meals</SelectItem>
+                              <SelectItem value="phone">Phone</SelectItem>
+                              <SelectItem value="supplies">Supplies</SelectItem>
+                              <SelectItem value="misc">Misc</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
                     </Field>
 
                     <Field>
@@ -181,7 +190,7 @@ export function ExtractedExpenseSheet({
                       <FieldLabel htmlFor="amount">Amount</FieldLabel>
                       <Input
                         id="amount"
-                        type="number"
+                        // type="number"
                         {...register("amount")}
                       />
                     </Field>

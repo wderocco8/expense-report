@@ -9,10 +9,10 @@ const ParamsSchema = z.object({
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { expenseId: string } }
+  { params }: { params: Promise<{ expenseId: string }> }
 ) {
   try {
-    const { expenseId } = ParamsSchema.parse(params);
+    const { expenseId } = ParamsSchema.parse(await params);
 
     const json = await req.json();
 
@@ -27,7 +27,7 @@ export async function PATCH(
 
     const expense = await updateExtractedExpense(expenseId, parsed.data);
 
-    return NextResponse.json(expense, { status: 201 });
+    return NextResponse.json(expense, { status: 200 });
   } catch (err) {
     console.error("Failed to create expense report", err);
 
