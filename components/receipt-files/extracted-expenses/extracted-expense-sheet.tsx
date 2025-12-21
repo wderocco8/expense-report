@@ -25,6 +25,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
 import { useEffect } from "react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 export function ExtractedExpenseSheet({
   receipt,
@@ -138,7 +145,26 @@ export function ExtractedExpenseSheet({
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="category">Category</FieldLabel>
-                      <Input id="category" {...register("category")} />
+                      <Select
+                        defaultValue={expense.category}
+                        {...register("category")}
+                      >
+                        <SelectTrigger id="category">
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tolls/parking">
+                            Tolls / Parking
+                          </SelectItem>
+                          <SelectItem value="hotel">Hotel</SelectItem>
+                          <SelectItem value="transport">Transport</SelectItem>
+                          <SelectItem value="fuel">Fuel</SelectItem>
+                          <SelectItem value="meals">Meals</SelectItem>
+                          <SelectItem value="phone">Phone</SelectItem>
+                          <SelectItem value="supplies">Supplies</SelectItem>
+                          <SelectItem value="misc">Misc</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Field>
 
                     <Field>
