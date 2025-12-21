@@ -24,7 +24,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Select,
   SelectTrigger,
@@ -39,6 +39,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function parseDateOnly(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
@@ -127,6 +128,44 @@ export function ExtractedExpenseSheet({
     router.refresh();
   }
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const topSentinel = useRef<HTMLDivElement>(null);
+  const bottomSentinel = useRef<HTMLDivElement>(null);
+
+  const [showTopFade, setShowTopFade] = useState(false);
+  const [showBottomFade, setShowBottomFade] = useState(false);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !topSentinel.current || !bottomSentinel.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.target === topSentinel.current) {
+          setShowTopFade(!entry.isIntersecting);
+        }
+        if (entry.target === bottomSentinel.current) {
+          setShowBottomFade(!entry.isIntersecting);
+        }
+      },
+      { root, threshold: 0, rootMargin: "-48px 0px -48px 0px" }
+    );
+
+    observer.observe(topSentinel.current);
+    observer.observe(bottomSentinel.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  function getMaskClass(top: boolean, bottom: boolean) {
+    if (top && bottom)
+      return "mask-[linear-gradient(to_bottom,transparent,black_48px,black_calc(100%-48px),transparent)]";
+    if (top) return "mask-[linear-gradient(to_bottom,transparent,black_48px)]";
+    if (bottom)
+      return "mask-[linear-gradient(to_bottom,black_calc(100%-48px),transparent)]";
+    return "mask-none";
+  }
+
   return (
     <Sheet
       open={open}
@@ -146,7 +185,16 @@ export function ExtractedExpenseSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 min-h-0 px-4 overflow-y-auto">
+          <div
+            ref={scrollRef}
+            className={cn(
+              "flex-1 min-h-0 px-4 overflow-y-auto transition-[mask-image]",
+              getMaskClass(showTopFade, showBottomFade)
+            )}
+          >
+            <div ref={topSentinel} className="h-px" />
+
+            {/* <div className="flex-1 min-h-0 px-4 overflow-y-auto mask-[linear-gradient(to_bottom,transparent,black_48px,black_calc(100%-48px),transparent)]"> */}
             {!expense ? (
               <div className="text-sm text-muted-foreground">
                 No extracted expense found for this receipt.
@@ -324,6 +372,7 @@ export function ExtractedExpenseSheet({
                 Model version: {expense.modelVersion}
               </div>
             )}
+            <div ref={bottomSentinel} className="h-px" />
           </div>
 
           <SheetFooter>
