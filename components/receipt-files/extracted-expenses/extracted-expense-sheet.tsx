@@ -95,8 +95,6 @@ export function ExtractedExpenseSheet({
       : undefined,
   });
 
-  console.log(errors);
-
   useEffect(() => {
     if (!expense) return;
 
@@ -111,8 +109,6 @@ export function ExtractedExpenseSheet({
   }, [expense, reset]);
 
   async function onSubmit(values: FormValues) {
-    console.log("here");
-
     if (!expense?.id) return;
 
     const res = await fetch(`/api/extracted-expenses/${expense.id}`, {
