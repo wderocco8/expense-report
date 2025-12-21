@@ -164,13 +164,14 @@ export function ExtractedExpenseSheet({
                   </FieldDescription>
 
                   <FieldGroup>
-                    <Field>
+                    <Field data-invalid={!!errors.category}>
                       <FieldLabel htmlFor="category">Category</FieldLabel>
                       <Controller
                         name="category"
                         control={control}
                         render={({ field }) => (
                           <Select
+                            aria-invalid={!!errors.category}
                             value={field.value}
                             onValueChange={field.onChange}
                           >
@@ -196,21 +197,30 @@ export function ExtractedExpenseSheet({
                       />
                     </Field>
 
-                    <Field>
+                    <Field data-invalid={!!errors.merchant}>
                       <FieldLabel htmlFor="merchant">Merchant</FieldLabel>
-                      <Input id="merchant" {...register("merchant")} />
+                      <Input
+                        id="merchant"
+                        aria-invalid={!!errors.merchant}
+                        {...register("merchant")}
+                      />
                     </Field>
 
-                    <Field>
+                    <Field data-invalid={!!errors.description}>
                       <FieldLabel htmlFor="description">Description</FieldLabel>
-                      <Input id="description" {...register("description")} />
+                      <Input
+                        id="description"
+                        aria-invalid={!!errors.description}
+                        {...register("description")}
+                      />
                     </Field>
 
-                    <Field>
+                    <Field data-invalid={!!errors.amount}>
                       <FieldLabel htmlFor="amount">Amount</FieldLabel>
                       <Input
                         id="amount"
                         inputMode="decimal"
+                        aria-invalid={!!errors.amount}
                         {...register("amount", {
                           onBlur: (e) => {
                             const formatted = formatMoney(e.target.value);
@@ -220,7 +230,7 @@ export function ExtractedExpenseSheet({
                       />
                     </Field>
 
-                    <Field>
+                    <Field data-invalid={!!errors.date}>
                       <FieldLabel htmlFor="date">Date</FieldLabel>
 
                       <Controller
@@ -232,7 +242,11 @@ export function ExtractedExpenseSheet({
                             : undefined;
 
                           return (
-                            <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                            <Popover
+                              open={dateOpen}
+                              onOpenChange={setDateOpen}
+                              aria-invalid={!!errors.date}
+                            >
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -283,18 +297,22 @@ export function ExtractedExpenseSheet({
                       </FieldDescription>
 
                       <FieldGroup>
-                        <Field>
+                        <Field data-invalid={!!errors.transportDetails?.mode}>
                           <FieldLabel htmlFor="mode">Mode</FieldLabel>
                           <Input
                             id="mode"
+                            aria-invalid={!!errors.transportDetails?.mode}
                             {...register("transportDetails.mode")}
                           />
                         </Field>
 
-                        <Field>
+                        <Field
+                          data-invalid={!!errors.transportDetails?.mileage}
+                        >
                           <FieldLabel htmlFor="mileage">Mileage</FieldLabel>
                           <Input
                             id="mileage"
+                            aria-invalid={!!errors.transportDetails?.mileage}
                             {...register("transportDetails.mileage")}
                           />
                         </Field>
