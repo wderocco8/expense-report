@@ -24,7 +24,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectTrigger,
@@ -32,14 +32,18 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import { ChevronDownIcon } from "lucide-react";
+
+function parseDateOnly(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
 
 export function ExtractedExpenseSheet({
   receipt,
@@ -50,6 +54,8 @@ export function ExtractedExpenseSheet({
   open: boolean;
   onClose: () => void;
 }) {
+  const [dateOpen, setDateOpen] = useState(false);
+
   const expenses = receipt?.extractedExpenses ?? [];
 
   if (expenses.length > 1) {
@@ -205,33 +211,45 @@ export function ExtractedExpenseSheet({
 
                     <Field>
                       <FieldLabel htmlFor="date">Date</FieldLabel>
+
                       <Controller
                         name="date"
                         control={control}
                         render={({ field }) => {
                           const date = field.value
-                            ? new Date(field.value)
+                            ? parseDateOnly(field.value)
                             : undefined;
 
                           return (
-                            <Popover>
+                            <Popover open={dateOpen} onOpenChange={setDateOpen}>
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
-                                  className="w-full justify-start text-left font-normal"
+                                  id="date"
+                                  className="w-48 justify-between font-normal"
                                 >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {date ? format(date, "PPP") : "Pick a date"}
+                                  {date
+                                    ? date.toLocaleDateString()
+                                    : "Select date"}
+                                  <ChevronDownIcon />
                                 </Button>
                               </PopoverTrigger>
-
-                              <PopoverContent className="w-auto p-0">
+                              <PopoverContent
+                                className="w-auto overflow-hidden p-0"
+                                align="start"
+                              >
                                 <Calendar
                                   mode="single"
                                   selected={date}
-                                  onSelect={(d) =>
-                                    field.onChange(d ? d.toISOString() : null)
-                                  }
+                                  captionLayout="dropdown"
+                                  onSelect={(date) => {
+                                    field.onChange(
+                                      date
+                                        ? date.toISOString().slice(0, 10)
+                                        : null
+                                    );
+                                    setDateOpen(false);
+                                  }}
                                 />
                               </PopoverContent>
                             </Popover>
