@@ -137,7 +137,7 @@ export function ExtractedExpenseSheet({
       <SheetContent className="flex flex-col">
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col flex-1"
+          className="flex flex-col flex-1 min-h-0"
         >
           <SheetHeader>
             <SheetTitle>Extracted Expense</SheetTitle>
@@ -146,7 +146,7 @@ export function ExtractedExpenseSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 px-4 overflow-y-auto">
+          <div className="flex-1 min-h-0 px-4 overflow-y-auto">
             {!expense ? (
               <div className="text-sm text-muted-foreground">
                 No extracted expense found for this receipt.
