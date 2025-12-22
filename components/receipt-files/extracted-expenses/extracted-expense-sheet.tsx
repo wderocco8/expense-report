@@ -23,22 +23,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
 import { useEffect, useState } from "react";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { ChevronDownIcon } from "lucide-react";
+import { Check, ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
 import { ExtractedExpense } from "@/server/db/schema";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+
+const CATEGORY_OPTIONS = [
+  { value: "tolls/parking", label: "Tolls / Parking" },
+  { value: "hotel", label: "Hotel" },
+  { value: "transport", label: "Transport" },
+  { value: "fuel", label: "Fuel" },
+  { value: "meals", label: "Meals" },
+  { value: "phone", label: "Phone" },
+  { value: "supplies", label: "Supplies" },
+  { value: "misc", label: "Misc" },
+];
 
 function parseDateOnly(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
@@ -160,35 +173,65 @@ export function ExtractedExpenseSheet({
                   <FieldGroup>
                     <Field data-invalid={!!errors.category}>
                       <FieldLabel htmlFor="category">Category</FieldLabel>
+
                       <Controller
                         name="category"
                         control={control}
-                        defaultValue="misc"
-                        render={({ field }) => (
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            aria-invalid={!!errors.category}
-                          >
-                            <SelectTrigger id="category">
-                              <SelectValue placeholder="Select Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="tolls/parking">
-                                Tolls / Parking
-                              </SelectItem>
-                              <SelectItem value="hotel">Hotel</SelectItem>
-                              <SelectItem value="transport">
-                                Transport
-                              </SelectItem>
-                              <SelectItem value="fuel">Fuel</SelectItem>
-                              <SelectItem value="meals">Meals</SelectItem>
-                              <SelectItem value="phone">Phone</SelectItem>
-                              <SelectItem value="supplies">Supplies</SelectItem>
-                              <SelectItem value="misc">Misc</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                        render={({ field }) => {
+                          const selected = CATEGORY_OPTIONS.find(
+                            (opt) => opt.value === field.value
+                          );
+
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={false}
+                                  className="w-full justify-between"
+                                >
+                                  {selected
+                                    ? selected.label
+                                    : "Select category"}
+                                  <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+
+                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                  <CommandInput placeholder="Search category..." />
+                                  <CommandList>
+                                    <CommandEmpty>
+                                      No category found.
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                      {CATEGORY_OPTIONS.map((option) => (
+                                        <CommandItem
+                                          key={option.value}
+                                          value={option.value}
+                                          onSelect={() => {
+                                            field.onChange(option.value);
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              field.value === option.value
+                                                ? "opacity-100"
+                                                : "opacity-0"
+                                            )}
+                                          />
+                                          {option.label}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        }}
                       />
                     </Field>
 
