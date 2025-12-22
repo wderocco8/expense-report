@@ -156,7 +156,7 @@ export function ExtractedExpenseSheet({
         if (!isOpen) onClose();
       }}
     >
-      <SheetContent className="flex flex-col">
+      <SheetContent className="flex flex-col" side="right-resize">
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col flex-1 min-h-0"

@@ -15,7 +15,6 @@ export function ReceiptFilesSection({
 }) {
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
 
-  // TODO: maybe remove this eventually and have ExtractedExpenseSheet fetch the extracted-expenses
   const receiptMap = useMemo(
     () => new Map(receiptFiles.map((r) => [r.id, r])),
     [receiptFiles]
