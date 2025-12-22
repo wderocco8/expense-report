@@ -31,10 +31,11 @@ import {
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
-import { ExtractedExpense } from "@/server/db/schema";
+import { ExtractedExpense, ReceiptFile } from "@/server/db/schema";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
+import Image from "next/image";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -64,12 +65,14 @@ function formatMoney(value: string): string {
   return n.toFixed(2);
 }
 
+type ReceiptImage = { url: string };
+
 export function ExtractedExpenseSheet({
-  receiptId,
+  receipt,
   open,
   onClose,
 }: {
-  receiptId: string | undefined;
+  receipt: ReceiptFile | null | undefined;
   open: boolean;
   onClose: () => void;
 }) {
@@ -86,7 +89,14 @@ export function ExtractedExpenseSheet({
     mutate,
   } = useSWR<ExtractedExpense>(
     () =>
-      open && receiptId ? `/api/receipts/${receiptId}/extracted-expense` : null,
+      open && receipt?.id
+        ? `/api/receipts/${receipt.id}/extracted-expense`
+        : null,
+    fetcher
+  );
+
+  const { data: image, isLoading: isLoadingImage } = useSWR<ReceiptImage>(
+    receipt?.id ? `/api/receipts/${receipt.id}/image` : null,
     fetcher
   );
 
@@ -169,6 +179,16 @@ export function ExtractedExpenseSheet({
           </SheetHeader>
 
           <div className="flex-1 min-h-0 px-4 overflow-y-auto">
+            {!isLoadingImage && image && (
+              <Image
+                src={image.url}
+                alt={""}
+                width={400}
+                height={600}
+                unoptimized
+              />
+            )}
+
             {!expense ? (
               <div className="text-sm text-muted-foreground">
                 No extracted expense found for this receipt.
