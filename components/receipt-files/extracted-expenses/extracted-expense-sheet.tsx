@@ -71,10 +71,18 @@ export function ExtractedExpenseSheet({
   open: boolean;
   onClose: () => void;
 }) {
+  const [localExpense, setLocalExpense] = useState<ExtractedExpense | null>(
+    null
+  );
   const [dateOpen, setDateOpen] = useState(false);
+
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-  const { data: expense, isLoading } = useSWR<ExtractedExpense>(
+  const {
+    data: expense,
+    isLoading,
+    mutate,
+  } = useSWR<ExtractedExpense>(
     () =>
       open && receiptId ? `/api/receipts/${receiptId}/extracted-expense` : null,
     fetcher
@@ -102,20 +110,24 @@ export function ExtractedExpenseSheet({
   });
 
   useEffect(() => {
-    if (!expense) return;
+    const source = localExpense ?? expense;
+
+    if (!source) return;
 
     reset({
-      category: expense.category ?? "",
-      merchant: expense.merchant ?? "",
-      description: expense.description ?? "",
-      amount: expense.amount,
-      date: expense.date ?? null,
-      transportDetails: expense.transportDetails ?? null,
+      category: source.category ?? "",
+      merchant: source.merchant ?? "",
+      description: source.description ?? "",
+      amount: source.amount,
+      date: source.date ?? null,
+      transportDetails: source.transportDetails ?? null,
     });
-  }, [expense, reset]);
+  }, [localExpense, expense, reset]);
 
   async function onSubmit(values: FormValues) {
     if (!expense?.id) return;
+
+    setLocalExpense({ ...expense, ...values });
 
     const res = await fetch(`/api/extracted-expenses/${expense.id}`, {
       method: "PATCH",
@@ -125,10 +137,12 @@ export function ExtractedExpenseSheet({
 
     if (!res.ok) {
       // optional: toast / error boundary
+      setLocalExpense(null);
       return;
     }
 
-    reset();
+    mutate(); // ?
+    // reset();
     // TODO: add local state for optimistic UI
   }
 
