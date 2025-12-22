@@ -18,8 +18,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
-import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,6 +37,8 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
+import useSWR from "swr";
+import { ExtractedExpense } from "@/server/db/schema";
 
 function parseDateOnly(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
@@ -52,27 +52,24 @@ function formatMoney(value: string): string {
 }
 
 export function ExtractedExpenseSheet({
-  receipt,
+  receiptId,
   open,
   onClose,
 }: {
-  receipt: ReceiptFileWithExpenses | null | undefined;
+  receiptId: string | undefined;
   open: boolean;
   onClose: () => void;
 }) {
   const [dateOpen, setDateOpen] = useState(false);
+  const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-  const expenses = receipt?.extractedExpenses ?? [];
+  const { data: expense, isLoading } = useSWR<ExtractedExpense>(
+    () =>
+      open && receiptId ? `/api/receipts/${receiptId}/extracted-expense` : null,
+    fetcher
+  );
 
-  if (expenses.length > 1) {
-    throw new Error(
-      `Invariant violated: expected 0 or 1 extracted expense, got ${expenses.length}`
-    );
-  }
-
-  const expense = expenses[0];
-
-  const router = useRouter();
+  console.log("swr", isLoading, expense, receiptId);
 
   type FormValues = z.infer<typeof ExtractedExpenseUpdateSchema>;
   const {
@@ -96,10 +93,12 @@ export function ExtractedExpenseSheet({
   });
 
   useEffect(() => {
+    console.log("uesEffect: expense", expense);
+
     if (!expense) return;
 
     reset({
-      category: expense.category,
+      category: expense.category ?? "",
       merchant: expense.merchant ?? "",
       description: expense.description ?? "",
       amount: expense.amount,
@@ -124,7 +123,6 @@ export function ExtractedExpenseSheet({
 
     reset();
     // TODO: add local state for optimistic UI
-    router.refresh();
   }
 
   return (
@@ -165,11 +163,12 @@ export function ExtractedExpenseSheet({
                       <Controller
                         name="category"
                         control={control}
+                        defaultValue="misc"
                         render={({ field }) => (
                           <Select
-                            aria-invalid={!!errors.category}
                             value={field.value}
                             onValueChange={field.onChange}
+                            aria-invalid={!!errors.category}
                           >
                             <SelectTrigger id="category">
                               <SelectValue placeholder="Select Category" />

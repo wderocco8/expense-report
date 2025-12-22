@@ -6,6 +6,3 @@ export type ExpenseReportWithFiles = Awaited<
 
 export type ReceiptFileWithExpenses =
   ExpenseReportWithFiles["receiptFiles"][number];
-
-export type ExtractedExpenseCurrent =
-  ReceiptFileWithExpenses["extractedExpenses"][number];

@@ -56,13 +56,7 @@ export async function getExpenseReportJobWithFiles(jobId: string) {
   const job = await db.query.expenseReportJobs.findFirst({
     where: eq(expenseReportJobs.id, jobId),
     with: {
-      receiptFiles: {
-        with: {
-          extractedExpenses: {
-            where: eq(extractedExpenses.isCurrent, true),
-          },
-        },
-      },
+      receiptFiles: true,
     },
   });
 

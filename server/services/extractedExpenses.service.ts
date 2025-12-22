@@ -19,6 +19,14 @@ export async function createExtractedExpense(
   return expense;
 }
 
+export async function getCurrentExtractedExpenseForReceipt(
+  receiptId: string
+): Promise<ExtractedExpense> {
+  const expense =
+    await extractedExpensesRepo.getCurrentExtractedExpenseForReceipt(receiptId);
+  return expense;
+}
+
 export async function updateExtractedExpense(
   expenseId: string,
   data: ExtractedExpenseUpdateInput

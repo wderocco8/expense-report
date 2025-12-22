@@ -28,7 +28,7 @@ export function ReceiptFilesSection({
       <UploadReceipts jobId={jobId} />
       <ReceiptFilesTable data={receiptFiles} onViewReceipt={setOpenReceiptId} />
       <ExtractedExpenseSheet
-        receipt={receipt}
+        receiptId={receipt?.id}
         open={!!openReceiptId}
         onClose={() => setOpenReceiptId(null)}
       />
