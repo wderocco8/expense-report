@@ -29,18 +29,10 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Check, ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
 import { ExtractedExpense } from "@/server/db/schema";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -51,6 +43,12 @@ const CATEGORY_OPTIONS = [
   { value: "phone", label: "Phone" },
   { value: "supplies", label: "Supplies" },
   { value: "misc", label: "Misc" },
+];
+
+const TRANSPORT_MODE_OPTIONS = [
+  { value: "car", label: "Car" },
+  { value: "train", label: "Train" },
+  { value: "plane", label: "Plane" },
 ];
 
 function parseDateOnly(value: string): Date {
@@ -82,8 +80,6 @@ export function ExtractedExpenseSheet({
     fetcher
   );
 
-  console.log("swr", isLoading, expense, receiptId);
-
   type FormValues = z.infer<typeof ExtractedExpenseUpdateSchema>;
   const {
     register,
@@ -106,8 +102,6 @@ export function ExtractedExpenseSheet({
   });
 
   useEffect(() => {
-    console.log("uesEffect: expense", expense);
-
     if (!expense) return;
 
     reset({
@@ -172,66 +166,12 @@ export function ExtractedExpenseSheet({
 
                   <FieldGroup>
                     <Field data-invalid={!!errors.category}>
-                      <FieldLabel htmlFor="category">Category</FieldLabel>
-
-                      <Controller
-                        name="category"
+                      <FieldLabel>Category</FieldLabel>
+                      <FormCombobox
                         control={control}
-                        render={({ field }) => {
-                          const selected = CATEGORY_OPTIONS.find(
-                            (opt) => opt.value === field.value
-                          );
-
-                          return (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  aria-expanded={false}
-                                  className="w-full justify-between"
-                                >
-                                  {selected
-                                    ? selected.label
-                                    : "Select category"}
-                                  <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-
-                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
-                                  <CommandInput placeholder="Search category..." />
-                                  <CommandList>
-                                    <CommandEmpty>
-                                      No category found.
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                      {CATEGORY_OPTIONS.map((option) => (
-                                        <CommandItem
-                                          key={option.value}
-                                          value={option.value}
-                                          onSelect={() => {
-                                            field.onChange(option.value);
-                                          }}
-                                        >
-                                          <Check
-                                            className={cn(
-                                              "mr-2 h-4 w-4",
-                                              field.value === option.value
-                                                ? "opacity-100"
-                                                : "opacity-0"
-                                            )}
-                                          />
-                                          {option.label}
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                          );
-                        }}
+                        name="category"
+                        options={CATEGORY_OPTIONS}
+                        placeholder="Select category"
                       />
                     </Field>
 
@@ -337,10 +277,11 @@ export function ExtractedExpenseSheet({
                       <FieldGroup>
                         <Field data-invalid={!!errors.transportDetails?.mode}>
                           <FieldLabel htmlFor="mode">Mode</FieldLabel>
-                          <Input
-                            id="mode"
-                            aria-invalid={!!errors.transportDetails?.mode}
-                            {...register("transportDetails.mode")}
+                          <FormCombobox
+                            control={control}
+                            name="transportDetails.mode"
+                            options={TRANSPORT_MODE_OPTIONS}
+                            placeholder="Select transport mode"
                           />
                         </Field>
 
