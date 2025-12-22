@@ -33,6 +33,8 @@ import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
 import { ExtractedExpense } from "@/server/db/schema";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
+import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -136,12 +138,13 @@ export function ExtractedExpenseSheet({
     });
 
     if (!res.ok) {
-      // optional: toast / error boundary
+      toast.error("Encountered error updating expense");
       setLocalExpense(null);
       return;
     }
 
     mutate(); // ?
+    toast.success("Expense has been updated");
     // reset();
     // TODO: add local state for optimistic UI
   }
@@ -325,7 +328,8 @@ export function ExtractedExpenseSheet({
 
           <SheetFooter>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Updating..." : "Update"}
+              {isSubmitting && <Spinner />}
+              Update
             </Button>
             <SheetClose asChild>
               <Button variant="outline">Close</Button>
