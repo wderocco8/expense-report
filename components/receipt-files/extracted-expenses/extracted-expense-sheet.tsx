@@ -35,7 +35,7 @@ import { ExtractedExpense, ReceiptFile } from "@/server/db/schema";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
-import Image from "next/image";
+import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -80,6 +80,7 @@ export function ExtractedExpenseSheet({
     null
   );
   const [dateOpen, setDateOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -176,19 +177,20 @@ export function ExtractedExpenseSheet({
             <SheetDescription>
               AI-extracted expense details from this receipt.
             </SheetDescription>
+            {image && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-2 w-fit"
+                onClick={() => setPreviewOpen(true)}
+              >
+                View receipt
+              </Button>
+            )}
           </SheetHeader>
 
           <div className="flex-1 min-h-0 px-4 overflow-y-auto">
-            {!isLoadingImage && image && (
-              <Image
-                src={image.url}
-                alt={""}
-                width={400}
-                height={600}
-                unoptimized
-              />
-            )}
-
             {!expense ? (
               <div className="text-sm text-muted-foreground">
                 No extracted expense found for this receipt.
@@ -357,6 +359,12 @@ export function ExtractedExpenseSheet({
           </SheetFooter>
         </form>
       </SheetContent>
+      <ReceiptPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        imageUrl={image?.url ?? null}
+        imageAlt={receipt?.originalFilename ?? null}
+      />
     </Sheet>
   );
 }
