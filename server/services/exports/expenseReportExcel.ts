@@ -15,13 +15,28 @@ export async function buildExpenseReportWorkbook(
   sheet.columns = [
     { header: "Date", key: "date", width: 12 },
     { header: "Merchant", key: "merchant", width: 20 },
+    { header: "Description", key: "description", width: 30 },
     { header: "Category", key: "category", width: 18 },
     { header: "Amount", key: "amount", width: 12 },
+
+    { header: "Transport Mode", key: "transportMode", width: 14 },
+    { header: "Mileage", key: "mileage", width: 10 },
+
+    { header: "Original Filename", key: "filename", width: 24 },
+    { header: "Receipt Status", key: "status", width: 12 },
+    { header: "Processed At", key: "processedAt", width: 18 },
+
+    { header: "Model Version", key: "modelVersion", width: 14 },
+
     { header: "Receipt", key: "receipt", width: 30 },
   ];
 
   sheet.views = [{ state: "frozen", ySplit: 1 }];
   sheet.getColumn("amount").numFmt = "$#,##0.00";
+  sheet.autoFilter = {
+    from: "A1",
+    to: "L1",
+  };
 
   for (const receipt of job.receiptFiles) {
     const buffer = await getObjectBuffer(receipt.s3Key);
@@ -30,17 +45,32 @@ export async function buildExpenseReportWorkbook(
       extension: "jpeg", // TODO: should this be determined from s3?
     });
 
+    const expense = receipt.extractedExpenses[0];
+    if (!expense) {
+      console.error("Failed to extract expense for receipt");
+      continue;
+    }
+
     const row = sheet.addRow({
-      date: receipt.extractedExpenses[0].date,
-      merchant: receipt.extractedExpenses[0].merchant,
-      category: receipt.extractedExpenses[0].category,
-      amount: receipt.extractedExpenses[0].amount,
+      date: expense.date,
+      merchant: expense.merchant,
+      description: expense.description,
+      category: expense.category,
+      amount: expense.amount,
+
+      transportMode: expense.transportDetails?.mode ?? null,
+      mileage: expense.transportDetails?.mileage ?? null,
+
+      filename: receipt.originalFilename,
+      status: receipt.status,
+      processedAt: receipt.processedAt,
+      modelVersion: expense.modelVersion,
     });
 
     const rowNumber = row.number;
 
     sheet.addImage(imageId, {
-      tl: { col: 5, row: rowNumber - 1 },
+      tl: { col: 11, row: rowNumber - 1 }, // adjust for new columns
       ext: { width: 150, height: 200 },
     });
 
