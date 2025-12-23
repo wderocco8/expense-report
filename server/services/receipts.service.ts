@@ -68,6 +68,10 @@ export async function getReceiptFile(id: string): Promise<ReceiptFile> {
   return receiptFilesRepo.getReceiptFile(id);
 }
 
+export async function getReceiptFileWithExpense(id: string): Promise<ReceiptFile> {
+  return receiptFilesRepo.getReceiptFile(id);
+}
+
 /**
  * Normalizes a receipt image file for processing and storage.
  *

@@ -5,6 +5,7 @@ import { ReceiptFilesTable } from "@/components/receipt-files/receipt-files-tabl
 import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
 import { ExtractedExpenseSheet } from "@/components/receipt-files/extracted-expenses/extracted-expense-sheet";
 import UploadReceipts from "@/components/receipt-files/upload-receipts";
+import ExportReceipts from "@/components/receipt-files/export-receipts";
 
 export function ReceiptFilesSection({
   jobId,
@@ -24,6 +25,7 @@ export function ReceiptFilesSection({
 
   return (
     <>
+      <ExportReceipts jobId={jobId} />
       <UploadReceipts jobId={jobId} />
       <ReceiptFilesTable data={receiptFiles} onViewReceipt={setOpenReceiptId} />
       <ExtractedExpenseSheet

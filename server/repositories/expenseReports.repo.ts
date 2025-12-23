@@ -67,6 +67,27 @@ export async function getExpenseReportJobWithFiles(jobId: string) {
   return job;
 }
 
+export async function getExpenseReportJobWithReceiptAndExpense(jobId: string) {
+  const job = await db.query.expenseReportJobs.findFirst({
+    where: eq(expenseReportJobs.id, jobId),
+    with: {
+      receiptFiles: {
+        with: {
+          extractedExpenses: {
+            where: eq(extractedExpenses.isCurrent, true),
+          },
+        },
+      },
+    },
+  });
+
+  if (!job) {
+    throw new Error("Expense report job not found");
+  }
+
+  return job;
+}
+
 export async function updateJobStatus(
   jobId: string,
   jobStatus: (typeof status.enumValues)[number]

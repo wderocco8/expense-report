@@ -4,12 +4,12 @@ import { NextResponse } from "next/server";
 // NOTE: endpoint not currently used (only for testing purposes)
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { jobId } = await params;
+    const { id } = await params;
 
-    const job = await getExpenseReportJobWithFiles(jobId);
+    const job = await getExpenseReportJobWithFiles(id);
 
     return NextResponse.json(job, { status: 200 });
   } catch (err) {

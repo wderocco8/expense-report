@@ -15,14 +15,29 @@ export async function createReceiptFile(
 }
 
 export async function getReceiptFile(id: string): Promise<ReceiptFile> {
-  const [job] = await db
+  const [receiptFile] = await db
     .select()
     .from(receiptFiles)
     .where(eq(receiptFiles.id, id));
 
-  if (!job) {
+  if (!receiptFile) {
     throw new Error("Failed to find receipt file");
   }
 
-  return job;
+  return receiptFile;
+}
+
+export async function getReceiptFileWithExpense(id: string) {
+  const receiptFile = await db.query.receiptFiles.findFirst({
+    where: eq(receiptFiles.id, id),
+    with: {
+      extractedExpenses: true,
+    },
+  });
+
+  if (!receiptFile) {
+    throw new Error("Failed to find receipt file with expense");
+  }
+
+  return receiptFile;
 }
