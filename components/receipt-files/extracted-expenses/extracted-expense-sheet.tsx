@@ -36,6 +36,7 @@ import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
+import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -191,7 +192,9 @@ export function ExtractedExpenseSheet({
           </SheetHeader>
 
           <div className="flex-1 min-h-0 px-4 overflow-y-auto">
-            {!expense ? (
+            {isLoading ? (
+              <ExtractedExpenseSkeleton />
+            ) : !expense ? (
               <div className="text-sm text-muted-foreground">
                 No extracted expense found for this receipt.
               </div>
@@ -302,7 +305,7 @@ export function ExtractedExpenseSheet({
                   </FieldGroup>
                 </FieldSet>
 
-                {expense.transportDetails && (
+                {expense?.transportDetails && (
                   <>
                     <FieldSeparator />
                     <FieldSet>
@@ -338,13 +341,12 @@ export function ExtractedExpenseSheet({
                     </FieldSet>
                   </>
                 )}
+                {expense && (
+                  <div className="pt-4 text-xs text-muted-foreground">
+                    Model version: {expense?.modelVersion}
+                  </div>
+                )}
               </FieldGroup>
-            )}
-
-            {expense && (
-              <div className="pt-4 text-xs text-muted-foreground">
-                Model version: {expense.modelVersion}
-              </div>
             )}
           </div>
 
