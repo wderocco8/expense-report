@@ -6,6 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+const statusVariantMap = {
+  pending: "pending",
+  processing: "processing",
+  complete: "complete",
+  failed: "failed",
+} as const;
+
 export const columns: ColumnDef<ExpenseReportJob>[] = [
   {
     accessorKey: "title",
@@ -14,7 +21,11 @@ export const columns: ColumnDef<ExpenseReportJob>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <Badge variant="outline">{row.original.status}</Badge>,
+    cell: ({ row }) => (
+      <Badge variant={statusVariantMap[row.original.status]}>
+        {row.original.status}
+      </Badge>
+    ),
   },
   {
     accessorKey: "processedFiles",
