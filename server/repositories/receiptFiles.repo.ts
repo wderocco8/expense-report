@@ -1,6 +1,7 @@
 import { NewReceiptFile, ReceiptFile, receiptFiles } from "@/server/db/schema";
 import { db } from "@/server/db/client";
 import { eq } from "drizzle-orm";
+import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";
 
 export async function createReceiptFile(
   data: NewReceiptFile
@@ -40,4 +41,21 @@ export async function getReceiptFileWithExpense(id: string) {
   }
 
   return receiptFile;
+}
+
+export async function updateReceiptFile(
+  id: string,
+  data: ReceiptFileUpdateInput
+): Promise<ReceiptFile> {
+  const [receipt] = await db
+    .update(receiptFiles)
+    .set({ ...data })
+    .where(eq(receiptFiles.id, id))
+    .returning();
+
+  if (!receipt) {
+    throw new Error("Failed to update receipt file");
+  }
+
+  return receipt;
 }

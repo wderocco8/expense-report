@@ -1,7 +1,7 @@
 import * as extractedExpensesRepo from "@/server/repositories/extractedExpenses.repo";
 import { ExtractedExpense, NewExtractedExpense } from "@/server/db/schema";
 import { extractReceiptFromImage } from "@/server/services/ocr.service";
-import { getReceiptFile } from "@/server/services/receipts.service";
+import { updateReceiptFile } from "@/server/services/receipts.service";
 import { getObjectBuffer } from "@/server/services/storage.service";
 import { ReceiptDTO } from "@/server/validators/receipt.zod";
 import { ExtractedExpenseUpdateInput } from "../validators/extractedExpense.zod";
@@ -39,8 +39,8 @@ export async function updateExtractedExpense(
 }
 
 export async function processReceipt(receiptId: string): Promise<void> {
-  // get receipt from database
-  const receipt = await getReceiptFile(receiptId);
+  // update status and get receipt
+  const receipt = await updateReceiptFile(receiptId, { status: "processing" });
 
   // stream file from s3 using s3Key
   const buffer = await getObjectBuffer(receipt.s3Key);
@@ -52,11 +52,18 @@ export async function processReceipt(receiptId: string): Promise<void> {
 
   if (!extracted.success || !extracted.data) {
     console.error(`Failed to extract receipt ${receiptId}: ${extracted.error}`);
+    await updateReceiptFile(receiptId, {
+      status: "failed",
+      errorMessage: `Failed to extract receipt ${receiptId}: ${extracted.error}`,
+    });
     return;
   }
 
   const dbRecord = mapReceiptToDb(extracted.data, receiptId);
   await createExtractedExpense(dbRecord);
+
+  // update status and get receipt
+  await updateReceiptFile(receiptId, { status: "complete" });
 }
 
 function mapReceiptToDb(

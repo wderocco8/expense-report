@@ -5,6 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
 
+const statusVariantMap = {
+  pending: "pending",
+  processing: "processing",
+  complete: "complete",
+  failed: "failed",
+} as const;
+
 export const columns = (
   onViewReceipt: (id: string) => void
 ): ColumnDef<ReceiptFileWithExpenses>[] => [
@@ -15,7 +22,11 @@ export const columns = (
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <Badge variant="outline">{row.original.status}</Badge>,
+    cell: ({ row }) => (
+      <Badge variant={statusVariantMap[row.original.status]}>
+        {row.original.status}
+      </Badge>
+    ),
   },
   {
     accessorKey: "createdAt",

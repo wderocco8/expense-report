@@ -3,6 +3,7 @@ import { uploadReceiptImage } from "@/server/services/storage.service";
 import { NewReceiptFile, ReceiptFile } from "@/server/db/schema";
 import * as receiptFilesRepo from "@/server/repositories/receiptFiles.repo";
 import { processReceipt } from "@/server/services/extractedExpenses.service";
+import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";
 
 /**
  * Ingests a receipt into the system.
@@ -57,6 +58,14 @@ export async function createReceiptFile(
   return job;
 }
 
+export async function updateReceiptFile(
+  id: string,
+  data: ReceiptFileUpdateInput
+): Promise<ReceiptFile> {
+  const receipt = await receiptFilesRepo.updateReceiptFile(id, data);
+  return receipt;
+}
+
 /**
  * Retrieves a ReceiptFile by its ID.
  *
@@ -68,7 +77,9 @@ export async function getReceiptFile(id: string): Promise<ReceiptFile> {
   return receiptFilesRepo.getReceiptFile(id);
 }
 
-export async function getReceiptFileWithExpense(id: string): Promise<ReceiptFile> {
+export async function getReceiptFileWithExpense(
+  id: string
+): Promise<ReceiptFile> {
   return receiptFilesRepo.getReceiptFile(id);
 }
 

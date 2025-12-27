@@ -29,3 +29,15 @@ export const ReceiptSchema = z.object({
 });
 
 export type ReceiptDTO = z.infer<typeof ReceiptSchema>;
+
+export const ReceiptFileUpdateSchema = z
+  .object({
+    jobId: z.uuid(),
+    s3Key: z.string(),
+    originalFilename: z.string(),
+    status: z.enum(["pending", "processing", "complete", "failed"]),
+    errorMessage: z.string(),
+  })
+  .partial();
+
+export type ReceiptFileUpdateInput = z.infer<typeof ReceiptFileUpdateSchema>;
