@@ -19,13 +19,13 @@ const badgeVariants = cva(
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         // custom variants
         pending:
-          "border-transparent bg-[var(--status-pending-bg)] text-[var(--status-pending-fg)]",
+          "border-[var(--status-pending-fg)]/20 bg-[var(--status-pending-bg)] text-[var(--status-pending-fg)]",
         processing:
-          "border-transparent bg-[var(--status-processing-bg)] text-[var(--status-processing-fg)]",
+          "border-[var(--status-processing-fg)]/20 bg-[var(--status-processing-bg)] text-[var(--status-processing-fg)]",
         complete:
-          "border-transparent bg-[var(--status-complete-bg)] text-[var(--status-complete-fg)]",
+          "border-[var(--status-complete-fg)]/20 bg-[var(--status-complete-bg)] text-[var(--status-complete-fg)]",
         failed:
-          "border-transparent bg-[var(--status-failed-bg)] text-[var(--status-failed-fg)]",
+          "border-[var(--status-failed-fg)]/20 bg-[var(--status-failed-bg)] text-[var(--status-failed-fg)]",
       },
     },
     defaultVariants: {
