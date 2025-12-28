@@ -77,14 +77,14 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   /* custom fields */
-  --status-pending-bg: oklch(0.96 0.04 88);
-  --status-pending-fg: oklch(0.62 0.04 88);
-  --status-processing-bg: oklch(0.92 0.04 214);
-  --status-processing-fg: oklch(0.58 0.04 214);
-  --status-complete-bg: oklch(0.94 0.05 147);
-  --status-complete-fg: oklch(0.56 0.05 147);
-  --status-failed-bg: oklch(0.89 0.05 16);
-  --status-failed-fg: oklch(0.55 0.05 16);
+  --status-pending-bg: oklch(0.98 0.016 79.4);
+  --status-pending-fg: oklch(0.41 0.123 38);
+  --status-processing-bg: oklch(0.97 0.015 251.2);
+  --status-processing-fg: oklch(0.38 0.145 265.5);
+  --status-complete-bg: oklch(0.98 0.022 167.5);
+  --status-complete-fg: oklch(0.38 0.075 169.6);
+  --status-failed-bg: oklch(0.97 0.015 12.4);
+  --status-failed-fg: oklch(0.41 0.159 10.2);
 }
 
 .dark {
@@ -120,14 +120,14 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   /* custom fields */
-  --status-pending-bg: oklch(0.78 0.1 87);
-  --status-pending-fg: oklch(0.38 0.08 87);
-  --status-processing-bg: oklch(0.74 0.06 213);
-  --status-processing-fg: oklch(0.36 0.05 213);
-  --status-complete-bg: oklch(0.76 0.12 145);
-  --status-complete-fg: oklch(0.34 0.09 145);
-  --status-failed-bg: oklch(0.75 0.14 21);
-  --status-failed-fg: oklch(0.36 0.11 21);
+  --status-pending-bg: oklch(0.34 0.06 79.4);
+  --status-pending-fg: oklch(0.86 0.12 79.4);
+  --status-processing-bg: oklch(0.32 0.07 251.2);
+  --status-processing-fg: oklch(0.88 0.14 251.5);
+  --status-complete-bg: oklch(0.33 0.06 167.5);
+  --status-complete-fg: oklch(0.86 0.1 167.5);
+  --status-failed-bg: oklch(0.31 0.08 12.4);
+  --status-failed-fg: oklch(0.88 0.16 12.2);
 }
 
 @layer base {
