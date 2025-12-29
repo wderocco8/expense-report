@@ -1,5 +1,5 @@
 import * as extractedExpensesRepo from "@/server/repositories/extractedExpenses.repo";
-import { ExtractedExpense, NewExtractedExpense } from "@/server/db/schema";
+import { ExtractedExpense, NewExtractedExpense } from "@/server/db/schema/app.schema";
 import { extractReceiptFromImage } from "@/server/services/ocr.service";
 import { updateReceiptFile } from "@/server/services/receipts.service";
 import { getObjectBuffer } from "@/server/services/storage.service";

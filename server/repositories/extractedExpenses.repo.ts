@@ -2,7 +2,7 @@ import {
   ExtractedExpense,
   extractedExpenses,
   NewExtractedExpense,
-} from "@/server/db/schema";
+} from "@/server/db/schema/app.schema";
 import { db } from "@/server/db/client";
 import { ExtractedExpenseUpdateInput } from "@/server/validators/extractedExpense.zod";
 import { and, eq } from "drizzle-orm";

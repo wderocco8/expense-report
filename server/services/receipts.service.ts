@@ -1,6 +1,6 @@
 import heicConvert from "heic-convert";
 import { uploadReceiptImage } from "@/server/services/storage.service";
-import { NewReceiptFile, ReceiptFile } from "@/server/db/schema";
+import { NewReceiptFile, ReceiptFile } from "@/server/db/schema/app.schema";
 import * as receiptFilesRepo from "@/server/repositories/receiptFiles.repo";
 import { processReceipt } from "@/server/services/extractedExpenses.service";
 import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";

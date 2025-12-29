@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
-import { ExtractedExpense, ReceiptFile } from "@/server/db/schema";
+import { ExtractedExpense, ReceiptFile } from "@/server/db/schema/app.schema";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";

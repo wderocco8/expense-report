@@ -4,7 +4,7 @@ import {
   expenseReportJobs,
   extractedExpenses,
   status,
-} from "@/server/db/schema";
+} from "@/server/db/schema/app.schema";
 import { eq } from "drizzle-orm";
 
 function generateJobTitle(title?: string): string {

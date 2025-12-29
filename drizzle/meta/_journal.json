@@ -15,6 +15,13 @@
       "when": 1766027860170,
       "tag": "0001_needy_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767038324474,
+      "tag": "0002_previous_deadpool",
+      "breakpoints": true
     }
   ]
 }

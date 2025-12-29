@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ExpenseReportJob } from "@/server/db/schema";
+import { ExpenseReportJob } from "@/server/db/schema/app.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";

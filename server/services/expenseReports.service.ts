@@ -5,7 +5,7 @@ import {
   getExpenseReportJobWithFiles,
   getExpenseReportJobWithReceiptAndExpense,
 } from "@/server/repositories/expenseReports.repo";
-import type { ExpenseReportJob } from "@/server/db/schema";
+import type { ExpenseReportJob } from "@/server/db/schema/app.schema";
 import { ExpenseReportWithFiles } from "@/server/types/expense-report-jobs";
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
 
