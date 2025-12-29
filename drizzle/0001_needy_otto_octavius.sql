@@ -1,1 +1,0 @@
-ALTER TABLE "receipt_files_table" RENAME COLUMN "s3_url" TO "s3_key";
