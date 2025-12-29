@@ -12,6 +12,7 @@ import {
   boolean,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { user } from "@/server/db/schema/auth.schema";
 
 // ------------ Enum definitions ------------
 
@@ -43,7 +44,9 @@ export const categoryEnum = pgEnum("category", [
 
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
-  // userId: uuid("user_id").notNull().defaultRandom(), // TODO
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   title: text("title").notNull().default("Expense report"),
   status: status("status").notNull().default("pending"),
   totalFiles: integer("total_files").notNull().default(0), // number of receipt_files created for job
@@ -55,7 +58,7 @@ export const expenseReportJobs = pgTable("expense_report_jobs_table", {
 export const receiptFiles = pgTable("receipt_files_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   jobId: uuid("job_id")
-    .references(() => expenseReportJobs.id)
+    .references(() => expenseReportJobs.id, { onDelete: "cascade" })
     .notNull(),
   s3Key: text("s3_key").notNull(),
   originalFilename: text("original_filename"),
@@ -69,9 +72,9 @@ export const extractedExpenses = pgTable(
   "extracted_expenses_table",
   {
     id: uuid("id").primaryKey().notNull().defaultRandom(),
-    receiptId: uuid("receipt_id")
-      .references(() => receiptFiles.id)
-      .notNull(),
+    receiptId: uuid("receipt_id").references(() => receiptFiles.id, {
+      onDelete: "cascade",
+    }), // TODO: add .notNull(),
     merchant: text("merchant"),
     description: text("description"),
     date: date("date"),

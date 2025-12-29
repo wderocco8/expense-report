@@ -1,6 +1,6 @@
 {
-  "id": "4c9ad7ea-7269-4321-9109-0e0e8d3ea0af",
-  "prevId": "5c8b482d-c2ad-4cc8-9ddb-a5d77004a2d2",
+  "id": "db6e6456-7414-4b51-9445-1a5d5b54e4f1",
+  "prevId": "4c9ad7ea-7269-4321-9109-0e0e8d3ea0af",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14,6 +14,12 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "title": {
           "name": "title",
@@ -60,7 +66,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "expense_report_jobs_table_user_id_user_id_fk": {
+          "name": "expense_report_jobs_table_user_id_user_id_fk",
+          "tableFrom": "expense_report_jobs_table",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -82,7 +102,7 @@
           "name": "receipt_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "merchant": {
           "name": "merchant",
@@ -177,7 +197,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -256,7 +276,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
