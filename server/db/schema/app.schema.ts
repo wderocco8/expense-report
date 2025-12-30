@@ -125,6 +125,15 @@ export const extractedExpenses = pgTable(
 
 // ------------ Relations definitions ------------
 
+// User → Job (1-to-many) and User → AuthUser (1-to-1)
+export const appUserRelations = relations(appUser, ({ many, one }) => ({
+  jobs: many(expenseReportJobs),
+  authUser: one(users, {
+    fields: [appUser.authUserId],
+    references: [users.id],
+  }),
+}));
+
 // Job → ReceiptFiles (1-to-many)
 export const expenseReportJobsRelations = relations(
   expenseReportJobs,
