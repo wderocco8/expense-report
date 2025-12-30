@@ -1,9 +1,92 @@
 {
-  "id": "39074664-5d5d-4550-9ff0-0fd51dc3ceaf",
+  "id": "7a6072f8-d697-478b-81bf-b77efcc9da70",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.app_user": {
+      "name": "app_user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "auth_user_id": {
+          "name": "auth_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "app_user_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "role": {
+          "name": "role",
+          "type": "app_user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'member'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "app_user_auth_user_id_users_id_fk": {
+          "name": "app_user_auth_user_id_users_id_fk",
+          "tableFrom": "app_user",
+          "tableTo": "users",
+          "columnsFrom": [
+            "auth_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "app_user_auth_user_id_unique": {
+          "name": "app_user_auth_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "auth_user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.expense_report_jobs_table": {
       "name": "expense_report_jobs_table",
       "schema": "",
@@ -17,7 +100,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "text",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -67,10 +150,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "expense_report_jobs_table_user_id_user_id_fk": {
-          "name": "expense_report_jobs_table_user_id_user_id_fk",
+        "expense_report_jobs_table_user_id_app_user_id_fk": {
+          "name": "expense_report_jobs_table_user_id_app_user_id_fk",
           "tableFrom": "expense_report_jobs_table",
-          "tableTo": "user",
+          "tableTo": "app_user",
           "columnsFrom": [
             "user_id"
           ],
@@ -102,7 +185,7 @@
           "name": "receipt_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "merchant": {
           "name": "merchant",
@@ -286,8 +369,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.account": {
-      "name": "account",
+    "public.accounts": {
+      "name": "accounts",
       "schema": "",
       "columns": {
         "id": {
@@ -371,8 +454,8 @@
         }
       },
       "indexes": {
-        "account_userId_idx": {
-          "name": "account_userId_idx",
+        "accounts_userId_idx": {
+          "name": "accounts_userId_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -388,10 +471,10 @@
         }
       },
       "foreignKeys": {
-        "account_user_id_user_id_fk": {
-          "name": "account_user_id_user_id_fk",
-          "tableFrom": "account",
-          "tableTo": "user",
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
@@ -408,8 +491,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.session": {
-      "name": "session",
+    "public.sessions": {
+      "name": "sessions",
       "schema": "",
       "columns": {
         "id": {
@@ -463,8 +546,8 @@
         }
       },
       "indexes": {
-        "session_userId_idx": {
-          "name": "session_userId_idx",
+        "sessions_userId_idx": {
+          "name": "sessions_userId_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -480,10 +563,10 @@
         }
       },
       "foreignKeys": {
-        "session_user_id_user_id_fk": {
-          "name": "session_user_id_user_id_fk",
-          "tableFrom": "session",
-          "tableTo": "user",
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
@@ -496,8 +579,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "session_token_unique": {
-          "name": "session_token_unique",
+        "sessions_token_unique": {
+          "name": "sessions_token_unique",
           "nullsNotDistinct": false,
           "columns": [
             "token"
@@ -508,8 +591,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.user": {
-      "name": "user",
+    "public.users": {
+      "name": "users",
       "schema": "",
       "columns": {
         "id": {
@@ -562,8 +645,8 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "user_email_unique": {
-          "name": "user_email_unique",
+        "users_email_unique": {
+          "name": "users_email_unique",
           "nullsNotDistinct": false,
           "columns": [
             "email"
@@ -574,8 +657,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.verification": {
-      "name": "verification",
+    "public.verifications": {
+      "name": "verifications",
       "schema": "",
       "columns": {
         "id": {
@@ -618,8 +701,8 @@
         }
       },
       "indexes": {
-        "verification_identifier_idx": {
-          "name": "verification_identifier_idx",
+        "verifications_identifier_idx": {
+          "name": "verifications_identifier_idx",
           "columns": [
             {
               "expression": "identifier",
@@ -643,6 +726,24 @@
     }
   },
   "enums": {
+    "public.app_user_role": {
+      "name": "app_user_role",
+      "schema": "public",
+      "values": [
+        "owner",
+        "admin",
+        "member"
+      ]
+    },
+    "public.app_user_status": {
+      "name": "app_user_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "active",
+        "suspended"
+      ]
+    },
     "public.category": {
       "name": "category",
       "schema": "public",

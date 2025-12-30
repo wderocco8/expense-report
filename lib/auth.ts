@@ -5,6 +5,7 @@ import { db } from "@/server/db/client";
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    usePlural: true,
   }),
   experimental: { joins: true },
 });

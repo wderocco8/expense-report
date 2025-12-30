@@ -12,7 +12,7 @@ import {
   boolean,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { user } from "@/server/db/schema/auth.schema";
+import { users } from "@/server/db/schema/auth.schema";
 
 // ------------ Enum definitions ------------
 
@@ -21,6 +21,18 @@ import { user } from "@/server/db/schema/auth.schema";
 // processing: at least one file pending or processing
 // complete: all files have status=done
 // failed: at least one file failed and user didn't retry
+
+export const appUserStatus = pgEnum("app_user_status", [
+  "pending",
+  "active",
+  "suspended",
+]);
+
+export const appUserRole = pgEnum("app_user_role", [
+  "owner",
+  "admin",
+  "member",
+]);
 
 export const status = pgEnum("status", [
   "pending",
@@ -42,11 +54,24 @@ export const categoryEnum = pgEnum("category", [
 
 // ------------ Table column definitions ------------
 
+export const appUser = pgTable("app_user", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  authUserId: text("auth_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  email: text("email").notNull(),
+  status: appUserStatus("status").notNull().default("pending"),
+  role: appUserRole("role").notNull().default("member"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  approvedAt: timestamp("approved_at"),
+});
+
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .references(() => appUser.id, { onDelete: "cascade" })
+    .notNull(),
   title: text("title").notNull().default("Expense report"),
   status: status("status").notNull().default("pending"),
   totalFiles: integer("total_files").notNull().default(0), // number of receipt_files created for job
@@ -72,9 +97,11 @@ export const extractedExpenses = pgTable(
   "extracted_expenses_table",
   {
     id: uuid("id").primaryKey().notNull().defaultRandom(),
-    receiptId: uuid("receipt_id").references(() => receiptFiles.id, {
-      onDelete: "cascade",
-    }), // TODO: add .notNull(),
+    receiptId: uuid("receipt_id")
+      .references(() => receiptFiles.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
     merchant: text("merchant"),
     description: text("description"),
     date: date("date"),
