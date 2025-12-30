@@ -8,6 +8,13 @@
       "when": 1767120128892,
       "tag": "0000_black_mattie_franklin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767134525728,
+      "tag": "0001_medical_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

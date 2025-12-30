@@ -64,6 +64,10 @@ export const appUser = pgTable("app_user", {
   status: appUserStatus("status").notNull().default("pending"),
   role: appUserRole("role").notNull().default("member"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
   approvedAt: timestamp("approved_at"),
 });
 
@@ -77,7 +81,10 @@ export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   totalFiles: integer("total_files").notNull().default(0), // number of receipt_files created for job
   processedFiles: integer("processed_files").notNull().default(0), // increment only when a receipt transitions to a terminal state
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
 });
 
 export const receiptFiles = pgTable("receipt_files_table", {
@@ -90,6 +97,10 @@ export const receiptFiles = pgTable("receipt_files_table", {
   status: status("status").notNull().default("pending"),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
   processedAt: timestamp("processed_at"),
 });
 
@@ -115,6 +126,10 @@ export const extractedExpenses = pgTable(
     modelVersion: text("model_version").notNull(),
     isCurrent: boolean("is_current").notNull().default(true),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
   },
   (t) => [
     uniqueIndex("uniq_active_receipt")
