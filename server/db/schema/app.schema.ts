@@ -54,27 +54,10 @@ export const categoryEnum = pgEnum("category", [
 
 // ------------ Table column definitions ------------
 
-export const appUser = pgTable("app_user", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  authUserId: text("auth_user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" })
-    .unique(),
-  email: text("email").notNull(),
-  status: appUserStatus("status").notNull().default("pending"),
-  role: appUserRole("role").notNull().default("member"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-  approvedAt: timestamp("approved_at"),
-});
-
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("user_id")
-    .references(() => appUser.id, { onDelete: "cascade" })
+    .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   title: text("title").notNull().default("Expense report"),
   status: status("status").notNull().default("pending"),
@@ -140,13 +123,9 @@ export const extractedExpenses = pgTable(
 
 // ------------ Relations definitions ------------
 
-// User → Job (1-to-many) and User → AuthUser (1-to-1)
-export const appUserRelations = relations(appUser, ({ many, one }) => ({
+// User → Job (1-to-many)
+export const appUsersRelations = relations(users, ({ many }) => ({
   jobs: many(expenseReportJobs),
-  authUser: one(users, {
-    fields: [appUser.authUserId],
-    references: [users.id],
-  }),
 }));
 
 // Job → ReceiptFiles (1-to-many)
