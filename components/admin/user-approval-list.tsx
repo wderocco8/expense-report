@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { UserWithRole } from "better-auth/plugins";
+import { toast } from "sonner"; // or your toast library
 
 export function UserApprovalList() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [loading, setLoading] = useState<string | null>(null);
 
   async function loadUsers() {
     const { data } = await authClient.admin.listUsers({
@@ -26,13 +28,37 @@ export function UserApprovalList() {
   }, []);
 
   async function approveUser(userId: string) {
-    await authClient.admin.unbanUser({ userId });
-    loadUsers();
+    setLoading(userId);
+    try {
+      await authClient.admin.unbanUser({ userId });
+
+      // ✅ Send approval email via your API route
+      await fetch("/api/send-approval-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      toast.success("User approved and notified");
+      await loadUsers();
+    } catch (error) {
+      toast.error("Failed to approve user");
+    } finally {
+      setLoading(null);
+    }
   }
 
   async function rejectUser(userId: string) {
-    await authClient.admin.removeUser({ userId });
-    loadUsers();
+    setLoading(userId);
+    try {
+      await authClient.admin.removeUser({ userId });
+      toast.success("User rejected");
+      await loadUsers();
+    } catch (error) {
+      toast.error("Failed to reject user");
+    } finally {
+      setLoading(null);
+    }
   }
 
   return (

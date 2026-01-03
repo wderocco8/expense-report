@@ -17,6 +17,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    autoSignIn: false, // NOTE: Don't try to sign in banned users
     // requireEmailVerification: true, // TODO: enable when needed
   },
   plugins: [
