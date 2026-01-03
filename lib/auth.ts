@@ -32,6 +32,16 @@ export const auth = betterAuth({
     user: {
       create: {
         async before(user) {
+          if (user.role === "admin") {
+            return {
+              data: {
+                ...user,
+                banned: false,
+                emailVerified: true,
+              },
+            };
+          }
+
           // Auto-ban all new users (except admins created via API)
           return {
             data: {

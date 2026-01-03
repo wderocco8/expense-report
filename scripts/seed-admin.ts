@@ -16,7 +16,6 @@ async function seedAdmin() {
         password,
         role: "admin", // Set admin role directly
         data: {
-          status: "active", // Set active status
           emailVerified: true, // Skip email verification for admin
         },
       },
