@@ -82,7 +82,6 @@ CREATE TABLE "users" (
 	"banned" boolean DEFAULT false,
 	"ban_reason" text,
 	"ban_expires" timestamp,
-	"status" text DEFAULT 'pending',
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint

@@ -1,5 +1,5 @@
 {
-  "id": "0e3d4b0b-c5a7-494d-9819-9c08e56f8715",
+  "id": "2d1203d1-77aa-4a36-8c75-a23ab6d4dcaa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -604,13 +604,6 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'pending'"
         }
       },
       "indexes": {},
