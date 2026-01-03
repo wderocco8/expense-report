@@ -120,8 +120,8 @@ export function SignupForm({
                   placeholder="John Doe"
                   {...register("name")}
                 />
+                <FieldError errors={errors.name ? [errors.name] : undefined} />
               </Field>
-              <FieldError errors={errors.name ? [errors.name] : undefined} />
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
@@ -194,7 +194,7 @@ export function SignupForm({
                 </Button>
               </Field>
               <FieldDescription className="text-center">
-                Already have an account? <a href="/sign-in">Sign in</a>
+                Already have an account? <a href="/login">Sign in</a>
               </FieldDescription>
             </FieldGroup>
           </form>

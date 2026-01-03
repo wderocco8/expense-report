@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function SignOutPage() {
+export default function LogoutPage() {
   const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export default function SignOutPage() {
   const signOut = async () => {
     const { error } = await authClient.signOut();
     if (!error) {
-      router.push("/sign-in");
+      router.push("/login");
     } else {
       setError(error.message ?? null);
     }
