@@ -15,7 +15,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const job = await createExpenseReport(parsed.data);
+    const job = await createExpenseReport({
+      title: parsed.data.title,
+    });
 
     return NextResponse.json(job, { status: 201 });
   } catch (err) {

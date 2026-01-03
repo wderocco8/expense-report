@@ -12,13 +12,12 @@ export const auth = betterAuth({
   experimental: { joins: true },
   advanced: {
     database: {
-      generateId: "uuid", // Use UUID generation
+      generateId: "uuid",
     },
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
-    autoSignIn: false, // Don't auto-sign in after signup
+    // requireEmailVerification: true, // TODO: enable when needed
   },
   plugins: [
     admin({

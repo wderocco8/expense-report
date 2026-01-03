@@ -8,8 +8,11 @@ import {
 import type { ExpenseReportJob } from "@/server/db/schema/app.schema";
 import { ExpenseReportWithFiles } from "@/server/types/expense-report-jobs";
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
+import { requireActiveUser } from "@/lib/auth-guard";
 
-export async function createExpenseReport(input?: {
+export async function createExpenseReport({
+  title,
+}: {
   title?: string;
 }): Promise<ExpenseReportJob> {
   // future hooks live here:
@@ -18,7 +21,12 @@ export async function createExpenseReport(input?: {
   // - defaults
   // - analytics
 
-  const job = await createExpenseReportJob(input?.title);
+  const user = await requireActiveUser();
+
+  const job = await createExpenseReportJob({
+    userId: user.user.id,
+    title,
+  });
 
   return job;
 }

@@ -3,6 +3,7 @@ import {
   ExpenseReportJob,
   expenseReportJobs,
   extractedExpenses,
+  NewExpenseReportJob,
   status,
 } from "@/server/db/schema/app.schema";
 import { eq } from "drizzle-orm";
@@ -19,11 +20,11 @@ function generateJobTitle(title?: string): string {
 }
 
 export async function createExpenseReportJob(
-  title?: string
+  data: NewExpenseReportJob
 ): Promise<ExpenseReportJob> {
   const [job] = await db
     .insert(expenseReportJobs)
-    .values({ title: generateJobTitle(title) })
+    .values({ ...data, title: generateJobTitle(data.title) })
     .returning();
 
   if (!job) {
