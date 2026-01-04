@@ -33,8 +33,13 @@ mc alias set local http://localhost:9000 minio minio123
 Create Bucket and Add Permissions
 Run these commands to create the bucket and allow public access to the bucket
 
+```sh
 mc mb local/expense-report-files # create bucket
+```
+
+```sh
 mc anonymous set download local/expense-report-files # set permissions
+```
 
 View MinIO Data
 To view your locally emulated data, MinIO offers a dashboard that can be found here:
@@ -43,18 +48,15 @@ http://localhost:9001
 
 Use the MINIO_ROOT_USER and MINIO_ROOT_PASSWORD found in zap/docker-compose.yml to login.
 
-
-
 ## If getting db connection errors
 
 ```sh
-[cause]: Error: getaddrinfo ENOTFOUND db.localtest.me 
+[cause]: Error: getaddrinfo ENOTFOUND db.localtest.me
 ```
 
 Add a hosts entry once, and you’ll never see this again.
 
 sudo nano /etc/hosts
-
 
 Add:
 

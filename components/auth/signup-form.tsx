@@ -83,7 +83,7 @@ export function SignupForm({
                 <Button
                   variant="outline"
                   className="mt-4"
-                  onClick={() => (window.location.href = "/sign-in")}
+                  onClick={() => (window.location.href = "/login")}
                 >
                   Go to Sign In
                 </Button>

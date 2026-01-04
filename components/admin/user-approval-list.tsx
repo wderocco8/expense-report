@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
 import { UserWithRole } from "better-auth/plugins";
-import { toast } from "sonner"; // or your toast library
+import { toast } from "sonner";
+import { UserApprovalsTable } from "@/components/admin/user-approvals-table";
 
 export function UserApprovalList() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
@@ -42,6 +42,7 @@ export function UserApprovalList() {
       toast.success("User approved and notified");
       await loadUsers();
     } catch (error) {
+      console.error("Error approving user", error);
       toast.error("Failed to approve user");
     } finally {
       setLoading(null);
@@ -55,6 +56,7 @@ export function UserApprovalList() {
       toast.success("User rejected");
       await loadUsers();
     } catch (error) {
+      console.error("Error rejecting user", error);
       toast.error("Failed to reject user");
     } finally {
       setLoading(null);
@@ -62,29 +64,10 @@ export function UserApprovalList() {
   }
 
   return (
-    <div className="space-y-4">
-      {users.map((user) => (
-        <div
-          key={user.id}
-          className="flex items-center justify-between p-4 border rounded"
-        >
-          <div>
-            <p className="font-medium">{user.name}</p>
-            <p className="text-sm text-gray-500">{user.email}</p>
-            {user.banReason && (
-              <p className="text-xs text-orange-600">
-                Reason: {user.banReason}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => approveUser(user.id)}>Approve</Button>
-            <Button variant="destructive" onClick={() => rejectUser(user.id)}>
-              Reject
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
+    <UserApprovalsTable
+      data={users}
+      onApprove={approveUser}
+      onDelete={rejectUser}
+    />
   );
 }
