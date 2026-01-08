@@ -1,6 +1,6 @@
 import type React from "react";
-import { AppSidebar } from "@/components/app-sidebar";
-import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { DynamicBreadcrumb } from "@/components/sidebar/dynamic-breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
