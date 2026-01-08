@@ -2,34 +2,30 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+export async function getCurrentUser() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) return null;
+  return session.user;
+}
+
 export async function requireAuth() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session?.user) {
-    redirect("/sign-in");
-  }
-
-  return session;
+  const user = await getCurrentUser();
+  if (!user) redirect("/sign-in");
+  return user;
 }
 
 export async function requireActiveUser() {
-  const session = await requireAuth();
-
-  if (session.user.banned) {
+  const user = await requireAuth();
+  if (user.banned) {
     redirect("/pending-approval");
   }
-
-  return session;
+  return user;
 }
 
 export async function requireAdmin() {
-  const session = await requireAuth();
-
-  if (session.user.role !== "admin") {
+  const user = await requireAuth();
+  if (user.role !== "admin") {
     redirect("/");
   }
-
-  return session;
+  return user;
 }
