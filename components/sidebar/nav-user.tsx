@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 
 export function NavUser({
   user,

@@ -14,6 +14,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function CreateExpenseReportJob() {
   const router = useRouter();
@@ -37,9 +38,11 @@ export default function CreateExpenseReportJob() {
 
     if (!res.ok) {
       // optional: toast / error boundary
+      toast.error("Failed to create job");
       return;
     }
 
+    toast.success("Successfully created job");
     reset();
     // TODO: add local state for optimistic UI
     router.refresh();

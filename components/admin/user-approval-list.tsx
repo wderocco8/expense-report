@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 import { UserWithRole } from "better-auth/plugins";
 import { toast } from "sonner";
 import { UserApprovalsTable } from "@/components/admin/user-approvals-table";

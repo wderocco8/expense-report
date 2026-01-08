@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { loginSchema, LoginValues } from "@/server/validators/login.zod";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {

@@ -1,5 +1,5 @@
 // app/api/setup/create-admin/route.ts
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db/client";
 import { users } from "@/server/db/schema/auth.schema";

@@ -12,7 +12,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 import { useForm } from "react-hook-form";
 import { signUpSchema, SignUpValues } from "@/server/validators/sign-up.zod";
 import { zodResolver } from "@hookform/resolvers/zod";
