@@ -11,12 +11,15 @@ export async function proxy(request: NextRequest) {
   // This is the recommended approach to optimistically redirect users
   // We recommend handling auth checks in each page/route
   if (!session) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    const returnTo = request.nextUrl.pathname + request.nextUrl.search;
+    loginUrl.searchParams.set("returnTo", returnTo);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/expense-report-jobs:path*"], // Specify the routes the middleware applies to
+  matcher: ["/expense-report-jobs/:path*"],
 };

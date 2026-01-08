@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { loginSchema, LoginValues } from "@/server/validators/login.zod";
 import { authClient } from "@/lib/auth/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Field,
@@ -19,12 +19,22 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import Link from "next/link";
+
+function safeReturnTo(returnTo: string | null) {
+  if (!returnTo) return "/expense-report-jobs";
+  if (!returnTo.startsWith("/")) return "/expense-report-jobs";
+  return returnTo;
+}
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const returnTo = safeReturnTo(searchParams.get("returnTo"));
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -46,7 +56,6 @@ export function LoginForm({
       {
         email: values.email,
         password: values.password,
-        callbackURL: "/expense-report-jobs",
       },
       {
         onError: (ctx) => {
@@ -56,7 +65,7 @@ export function LoginForm({
     );
 
     if (!error) {
-      router.push("/expense-report-jobs");
+      router.push(returnTo);
     }
   }
 
@@ -130,7 +139,7 @@ export function LoginForm({
                 </Button>
               </Field>
               <FieldDescription className="text-center">
-                Don&apos;t have an account? <a href="/sign-up">Sign up</a>
+                Don&apos;t have an account? <Link href="/sign-up">Sign up</Link>
               </FieldDescription>
             </FieldGroup>
           </form>
@@ -144,8 +153,9 @@ export function LoginForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
+        By clicking continue, you agree to our{" "}
+        <Link href="#">Terms of Service</Link> and{" "}
+        <Link href="#">Privacy Policy</Link>.
       </FieldDescription>
     </div>
   );
