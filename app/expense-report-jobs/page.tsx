@@ -6,9 +6,11 @@ export default async function ExpenseReportsPage() {
   const jobs = await getExpenseReports();
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <CreateExpenseReportJob />
-      <JobsTable data={jobs} />
+    <div className="w-full">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+        <CreateExpenseReportJob />
+        <JobsTable data={jobs} />
+      </div>
     </div>
   );
 }
