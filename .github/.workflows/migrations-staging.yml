@@ -3,7 +3,7 @@ name: Apply DB Migrations (Staging)
 on:
   push:
     branches:
-      - main
+      - staging
 
 jobs:
   migrations:
