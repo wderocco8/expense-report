@@ -16,7 +16,7 @@ jobs:
           node-version: 24
       - run: npm install -g npm@9
       - run: |
-          npm ci || cat /home/runner/.npm/_logs/*-debug-0.log
+          npm install || cat /home/runner/.npm/_logs/*-debug-0.log
       - name: Apply migrations
         run: npx drizzle-kit push
         env:
