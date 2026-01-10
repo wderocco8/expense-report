@@ -1,4 +1,4 @@
-name: Apply DB Migrations (Staging)
+name: Apply DB Migrations (staging)
 
 on:
   push:
@@ -27,3 +27,8 @@ jobs:
         # --frozen-lockfile is the pnpm equivalent of 'npm ci'
         # It ensures CI fails if someone forgot to update the lockfile
         run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: npx drizzle-kit push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
