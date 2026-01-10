@@ -2,15 +2,14 @@ import { NextResponse } from "next/server";
 import { createExpenseReport } from "@/server/services/expenseReports.service";
 import { ExpenseReportCreateSchema } from "@/server/validators/expenseReport.zod";
 import { z } from "zod";
-import { requireActiveUserApi } from "@/lib/auth/auth-api";
+import { requireApiAuth } from "@/lib/auth/api";
+import { authErrorResponse } from "@/lib/http/errors";
 
 export async function POST(req: Request) {
   try {
-    const auth = await requireActiveUserApi();
+    const auth = await requireApiAuth({ active: true });
 
-    if (!auth.ok) {
-      return NextResponse.json({ error: auth.reason }, { status: auth.status });
-    }
+    if (!auth.ok) return authErrorResponse(auth);
 
     const body = await req.json().catch(() => ({}));
 
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     const job = await createExpenseReport({
-      userId: auth.user.id,
+      userId: auth.session.user.id,
       title: parsed.data.title,
     });
 
