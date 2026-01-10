@@ -5,20 +5,21 @@ import { authClient } from "@/lib/auth/auth-client";
 import { UserWithRole } from "better-auth/plugins";
 import { toast } from "sonner";
 import { UserApprovalsTable } from "@/components/admin/user-approvals-table";
+import { PendingUsersResponse } from "@/types/admin";
 
 export function UserApprovalList() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
 
   async function loadUsers() {
-    const { data } = await authClient.admin.listUsers({
-      query: {
-        filterField: "banned",
-        filterValue: true,
-        filterOperator: "eq",
-      },
-    });
-    setUsers(data?.users || []);
+    const res = await fetch("/api/admin/pending-users");
+    if (!res.ok) {
+      toast.error("Failed to load users");
+      throw new Error("Failed to load users");
+    }
+
+    const data: PendingUsersResponse = await res.json();
+    setUsers(data.users);
   }
 
   useEffect(() => {

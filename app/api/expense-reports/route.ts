@@ -7,8 +7,8 @@ import { respondProblem } from "@/lib/http/respond";
 
 export async function POST(req: Request) {
   try {
-    const auth = await requireApiAuth({ active: true });
-    if (!auth.ok) return respondProblem(auth.problem);
+    const authResult = await requireApiAuth({ active: true });
+    if (!authResult.ok) return respondProblem(authResult.problem);
 
     const body = await req.json().catch(() => ({}));
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const job = await createExpenseReport({
-      userId: auth.session.user.id,
+      userId: authResult.session.user.id,
       title: parsed.data.title,
     });
 
