@@ -48,15 +48,19 @@ jobs:
 
       - run: pnpm add -g vercel
 
-      - name: Pull Vercel Environment Information
-        run: |
-          vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-          cp .vercel/.env.preview.local .env.local
+      - name: Pull Environment Variables
+        # This creates the .env.local file in your root directory.
+        # Next.js 16/Turbopack is hardcoded to look for this file name.
+        run: vercel env pull .env.local --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Build Project Artifacts
+      - name: Build Project
+        # No extra 'export' or 'dotenv' needed.
+        # Next.js loads .env.local automatically at the start of the build.
         run: pnpm run build
 
-      # - name: Build Project Artifacts
-      #   run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-
-      - run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel
+        # We deploy the build artifacts.
+        # Note: We don't use --prebuilt here because that expects the
+        # vercel-specific '.vercel/output' folder. 'vercel deploy' will
+        # handle the .next folder upload correctly.
+        run: vercel deploy --token=${{ secrets.VERCEL_TOKEN }}

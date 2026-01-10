@@ -7,6 +7,6 @@ export default defineConfig({
   out: "./drizzle", // Your migrations folder
   dialect: "postgresql",
   dbCredentials: {
-    url: databaseUrl || "",
+    url: databaseUrl ?? "",
   },
 });
