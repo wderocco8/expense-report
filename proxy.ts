@@ -22,4 +22,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: ["/expense-report-jobs/:path*", "/admin/:path*"],
+  // matcher: []
 };

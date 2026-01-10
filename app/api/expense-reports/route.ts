@@ -3,13 +3,12 @@ import { createExpenseReport } from "@/server/services/expenseReports.service";
 import { ExpenseReportCreateSchema } from "@/server/validators/expenseReport.zod";
 import { z } from "zod";
 import { requireApiAuth } from "@/lib/auth/api";
-import { authErrorResponse } from "@/lib/http/errors";
+import { respondProblem } from "@/lib/http/respond";
 
 export async function POST(req: Request) {
   try {
     const auth = await requireApiAuth({ active: true });
-
-    if (!auth.ok) return authErrorResponse(auth);
+    if (!auth.ok) return respondProblem(auth.problem);
 
     const body = await req.json().catch(() => ({}));
 

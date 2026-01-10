@@ -1,10 +1,20 @@
 import * as extractedExpensesRepo from "@/server/repositories/extractedExpenses.repo";
-import { ExtractedExpense, NewExtractedExpense } from "@/server/db/schema/app.schema";
+import {
+  ExtractedExpense,
+  NewExtractedExpense,
+} from "@/server/db/schema/app.schema";
 import { extractReceiptFromImage } from "@/server/services/ocr.service";
 import { updateReceiptFile } from "@/server/services/receipts.service";
 import { getObjectBuffer } from "@/server/services/storage.service";
 import { ReceiptDTO } from "@/server/validators/receipt.zod";
 import { ExtractedExpenseUpdateInput } from "../validators/extractedExpense.zod";
+
+// TODO: maybe add this to the updateReceiptFile model?
+type ReceiptFailureCode =
+  | "ocr_failed"
+  | "image_corrupt"
+  | "model_error"
+  | "storage_error";
 
 /**
  * Persists a new ExtractedExpense record to the database.

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { ingestReceipt } from "@/server/services/receipts.service";
+import { respondProblem } from "@/lib/http/respond";
+import { problem } from "@/lib/http/problems";
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -12,40 +14,35 @@ const VALID_FILE_TYPES = [
 ];
 
 export async function POST(req: Request) {
-  try {
-    const form = await req.formData();
-    const jobId = form.get("jobId") as string;
-    const files = form.getAll("files") as File[];
+  const form = await req.formData();
+  const jobId = form.get("jobId") as string;
+  const files = form.getAll("files") as File[];
 
-    if (files.length === 0) {
-      return new Response("No files uploaded", { status: 400 });
-    }
+  if (files.length === 0) {
+    return respondProblem(
+      problem(400, "receipt/no-files", "No files uploaded")
+    );
+  }
 
-    // Validate file-types
-    for (const file of files) {
-      if (!VALID_FILE_TYPES.includes(file.type)) {
-        throw new Error(
-          `${file.type} is not supported. Please use: ${VALID_FILE_TYPES.join(
-            ", "
-          )}`
-        );
-      }
-    }
-
-    for (const file of files) {
-      await ingestReceipt({ jobId, file });
-    }
-
-    return NextResponse.json({ success: true });
-    // return NextResponse.json({ success: true, results });
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("OCR error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    } else {
-      console.error("An unknown error occurred:", error);
+  // Validate file-types
+  for (const file of files) {
+    if (!VALID_FILE_TYPES.includes(file.type)) {
+      return respondProblem(
+        problem(
+          400,
+          "receipt/unsupported-file-type",
+          "Unsupported file type",
+          `Received ${file.type}`
+        )
+      );
     }
   }
+
+  for (const file of files) {
+    await ingestReceipt({ jobId, file });
+  }
+
+  return NextResponse.json({ success: true });
 }
 
 /**

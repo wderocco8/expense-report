@@ -1,11 +1,7 @@
 import { requireSession, AuthRequirements } from "@/lib/auth/require-session";
 import { getSession } from "@/lib/auth/session";
-
-const statusByFailure = {
-  unauthenticated: 401,
-  banned: 403,
-  unauthorized: 403,
-} as const;
+import { ProblemDetails } from "@/lib/http/problem";
+import { AuthProblems } from "@/lib/auth/auth.problems";
 
 export type ApiAuthResult =
   | {
@@ -14,8 +10,7 @@ export type ApiAuthResult =
     }
   | {
       ok: false;
-      status: 401 | 403;
-      reason: "unauthenticated" | "banned" | "unauthorized";
+      problem: ProblemDetails;
     };
 
 export async function requireApiAuth(
@@ -24,12 +19,14 @@ export async function requireApiAuth(
   const result = await requireSession(requirements);
 
   if (!result.ok) {
-    const reason = result.failure.type;
-    return {
-      ok: false,
-      status: statusByFailure[reason],
-      reason: reason,
-    };
+    switch (result.failure.type) {
+      case "unauthenticated":
+        return { ok: false, problem: AuthProblems.unauthenticated() };
+      case "banned":
+        return { ok: false, problem: AuthProblems.banned() };
+      case "unauthorized":
+        return { ok: false, problem: AuthProblems.unauthorized() };
+    }
   }
 
   return { ok: true, session: result.session } as const;
