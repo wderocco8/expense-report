@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import CreateExpenseReportJob from "@/components/expense-report-jobs/create-expense-report-job";
 import { JobsTable } from "@/components/expense-report-jobs/jobs-table";
 import { getExpenseReports } from "@/server/services/expenseReports.service";
