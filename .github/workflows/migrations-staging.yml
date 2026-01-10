@@ -12,35 +12,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # DEBUG STEP: This will prove what files are actually on the runner
-      - name: List files
-        run: ls -R
-
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          # This tells pnpm-setup to NOT look for the lockfile yet
-          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          # REMOVE the cache: 'pnpm' line temporarily to see if the install works
-          # We can re-add caching once we prove the file is being detected
-    # steps:
-    #   - name: Install pnpm
-    #     uses: pnpm/action-setup@v4
-    #     with:
-    #       version: 9 # Matches the current stable pnpm version
+          cache: "pnpm"
 
-    #   - name: Setup Node
-    #     uses: actions/setup-node@v4
-    #     with:
-    #       node-version: 22
-    #       cache: "pnpm" # Automatically caches based on pnpm-lock.yaml
-
-    #   - name: Install dependencies
-    #     # pnpm is strict and will use your new pnpm-lock.yaml
-    #     run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        # --frozen-lockfile is the pnpm equivalent of 'npm ci'
+        # It ensures CI fails if someone forgot to update the lockfile
+        run: pnpm install --frozen-lockfile
