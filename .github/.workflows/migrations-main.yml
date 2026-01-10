@@ -1,0 +1,21 @@
+name: Apply DB Migrations (Main)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Apply migrations
+        run: npx drizzle-kit push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_MAIN }}
