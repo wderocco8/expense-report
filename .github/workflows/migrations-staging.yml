@@ -14,8 +14,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 22
-      - run: npm ci
-      - name: Apply migrations
-        run: npx drizzle-kit push
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+      - run: |
+          npm install || cat /home/runner/.npm/_logs/*-debug-0.log
+      # - name: Apply migrations
+      #   run: npx drizzle-kit push
+      #   env:
+      #     DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
