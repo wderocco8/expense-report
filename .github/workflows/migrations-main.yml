@@ -1,4 +1,4 @@
-name: Apply DB Migrations (main)
+name: DB-Migrations-Main
 
 on:
   push:
@@ -32,4 +32,4 @@ jobs:
       - name: Apply migrations
         run: npx drizzle-kit push
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_MAIN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

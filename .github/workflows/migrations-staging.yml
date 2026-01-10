@@ -1,4 +1,4 @@
-name: Apply DB Migrations (staging)
+name: DB-Migrations-Staging
 
 on:
   push:
@@ -32,4 +32,4 @@ jobs:
       - name: Apply migrations
         run: npx drizzle-kit push
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
