@@ -54,6 +54,9 @@ jobs:
           cp .vercel/.env.preview.local .env.local
 
       - name: Build Project Artifacts
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm run build
+
+      # - name: Build Project Artifacts
+      #   run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
