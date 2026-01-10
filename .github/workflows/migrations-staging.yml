@@ -10,13 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9 # Matches the current stable pnpm version
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: |
-          npm install || cat /home/runner/.npm/_logs/*-debug-0.log
-      # - name: Apply migrations
-      #   run: npx drizzle-kit push
-      #   env:
-      #     DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+          cache: "pnpm" # Automatically caches based on pnpm-lock.yaml
+
+      - name: Install dependencies
+        # pnpm is strict and will use your new pnpm-lock.yaml
+        run: pnpm install --frozen-lockfile
