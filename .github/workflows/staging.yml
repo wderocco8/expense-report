@@ -1,0 +1,48 @@
+name: Staging-Pipeline
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        run: npx drizzle-kit push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: migrations
+    environment: staging
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm add -g vercel
+      - run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
