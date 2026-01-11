@@ -1,4 +1,8 @@
-import { NewReceiptFile, ReceiptFile, receiptFiles } from "@/server/db/schema/app.schema";
+import {
+  NewReceiptFile,
+  ReceiptFile,
+  receiptFiles,
+} from "@/server/db/schema/app.schema";
 import { db } from "@/server/db/client";
 import { eq } from "drizzle-orm";
 import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";
@@ -20,6 +24,19 @@ export async function getReceiptFile(id: string): Promise<ReceiptFile> {
     .select()
     .from(receiptFiles)
     .where(eq(receiptFiles.id, id));
+
+  if (!receiptFile) {
+    throw new Error("Failed to find receipt file");
+  }
+
+  return receiptFile;
+}
+
+export async function getReceiptFileWithJob(id: string) {
+  const receiptFile = await db.query.receiptFiles.findFirst({
+    where: eq(receiptFiles.id, id),
+    with: { job: true },
+  });
 
   if (!receiptFile) {
     throw new Error("Failed to find receipt file");

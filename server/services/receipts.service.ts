@@ -77,6 +77,10 @@ export async function getReceiptFile(id: string): Promise<ReceiptFile> {
   return receiptFilesRepo.getReceiptFile(id);
 }
 
+export async function getReceiptFileWithJob(id: string) {
+  return receiptFilesRepo.getReceiptFileWithJob(id);
+}
+
 export async function getReceiptFileWithExpense(
   id: string
 ): Promise<ReceiptFile> {
