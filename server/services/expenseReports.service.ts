@@ -37,9 +37,10 @@ export async function getExpenseReport(
 }
 
 export async function getExpenseReportWithFiles(
-  jobId: string
+  jobId: string,
+  userId: string
 ): Promise<ExpenseReportWithFiles> {
-  return getExpenseReportJobWithFiles(jobId);
+  return getExpenseReportJobWithFiles(jobId, userId);
 }
 
 export async function exportExpenseReport(jobId: string) {

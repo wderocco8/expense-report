@@ -6,7 +6,7 @@ import {
   NewExpenseReportJob,
   status,
 } from "@/server/db/schema/app.schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 function generateJobTitle(title?: string): string {
   if (title) return title;
@@ -58,9 +58,15 @@ export async function getExpenseReportJob(
   return job;
 }
 
-export async function getExpenseReportJobWithFiles(jobId: string) {
+export async function getExpenseReportJobWithFiles(
+  jobId: string,
+  userId: string
+) {
   const job = await db.query.expenseReportJobs.findFirst({
-    where: eq(expenseReportJobs.id, jobId),
+    where: and(
+      eq(expenseReportJobs.id, jobId),
+      eq(expenseReportJobs.userId, userId)
+    ),
     with: {
       receiptFiles: true,
     },
