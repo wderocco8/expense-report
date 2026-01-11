@@ -1,4 +1,3 @@
-// server/services/storage.service.ts
 import {
   S3Client,
   PutObjectCommand,
@@ -41,16 +40,6 @@ export async function uploadReceiptImage({
     })
   );
 }
-
-// export function getPublicObjectUrl(key: string) {
-//   if (S3_ENDPOINT) {
-//     // MinIO / local
-//     return `${S3_ENDPOINT}/${S3_BUCKET}/${key}`;
-//   }
-
-//   // AWS S3
-//   return `https://${S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`;
-// }
 
 async function streamToBuffer(stream: Readable): Promise<Buffer> {
   const chunks: Buffer[] = [];
