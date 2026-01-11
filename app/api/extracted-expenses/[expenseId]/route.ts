@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
 import { updateExtractedExpense } from "@/server/services/extractedExpenses.service";
+import { requireApiAuth } from "@/lib/auth/api";
+import { respondProblem } from "@/lib/http/respond";
 
 const ParamsSchema = z.object({
   expenseId: z.uuid(),
@@ -12,6 +14,11 @@ export async function PATCH(
   { params }: { params: Promise<{ expenseId: string }> }
 ) {
   try {
+    const authResult = await requireApiAuth({ role: "member" });
+    if (!authResult.ok) {
+      return respondProblem(authResult.problem);
+    }
+
     const { expenseId } = ParamsSchema.parse(await params);
 
     const json = await req.json();
