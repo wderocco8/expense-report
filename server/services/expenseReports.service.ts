@@ -24,8 +24,10 @@ export async function createExpenseReport({
   return job;
 }
 
-export async function getExpenseReports(): Promise<ExpenseReportJob[]> {
-  return getExpenseReportJobs();
+export async function getExpenseReports(
+  userId: string
+): Promise<ExpenseReportJob[]> {
+  return getExpenseReportJobs(userId);
 }
 
 export async function getExpenseReport(

@@ -34,8 +34,13 @@ export async function createExpenseReportJob(
   return job;
 }
 
-export async function getExpenseReportJobs(): Promise<ExpenseReportJob[]> {
-  return await db.select().from(expenseReportJobs);
+export async function getExpenseReportJobs(
+  userId: string
+): Promise<ExpenseReportJob[]> {
+  return await db
+    .select()
+    .from(expenseReportJobs)
+    .where(eq(expenseReportJobs.userId, userId));
 }
 
 export async function getExpenseReportJob(
