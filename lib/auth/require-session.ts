@@ -6,7 +6,7 @@ export type AuthFailure =
   | { type: "unauthorized" };
 
 export interface AuthRequirements {
-  role?: "admin" | "user";
+  role?: "admin" | "member";
   active?: boolean;
 }
 

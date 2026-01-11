@@ -1,3 +1,5 @@
+import { requireApiAuth } from "@/lib/auth/api";
+import { respondProblem } from "@/lib/http/respond";
 import { exportExpenseReport } from "@/server/services/expenseReports.service";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -11,6 +13,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireApiAuth({ role: "member" });
+    if (!authResult.ok) {
+      return respondProblem(authResult.problem);
+    }
+
     const { id } = ParamsSchema.parse(await params);
 
     const buffer = await exportExpenseReport(id);
@@ -23,8 +30,6 @@ export async function GET(
         "Content-Length": buffer.length.toString(),
       },
     });
-
-    return NextResponse.json({ status: 200 });
   } catch (err) {
     console.error("Failed to get expense report", err);
 

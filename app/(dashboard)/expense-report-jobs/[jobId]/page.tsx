@@ -1,4 +1,5 @@
 import { ReceiptFilesSection } from "@/components/receipt-files/receipt-files-section";
+import { requirePageAuth } from "@/lib/auth/page";
 import { getExpenseReportWithFiles } from "@/server/services/expenseReports.service";
 
 export default async function ExpenseReportPage({
@@ -6,6 +7,8 @@ export default async function ExpenseReportPage({
 }: {
   params: Promise<{ jobId: string }>;
 }) {
+  await requirePageAuth({ role: "member" });
+
   const { jobId } = await params;
   const job = await getExpenseReportWithFiles(jobId);
   return (

@@ -2,9 +2,11 @@ export const dynamic = "force-dynamic";
 
 import CreateExpenseReportJob from "@/components/expense-report-jobs/create-expense-report-job";
 import { JobsTable } from "@/components/expense-report-jobs/jobs-table";
+import { requirePageAuth } from "@/lib/auth/page";
 import { getExpenseReports } from "@/server/services/expenseReports.service";
 
 export default async function ExpenseReportsPage() {
+  await requirePageAuth({ role: "member" });
   const jobs = await getExpenseReports();
 
   return (

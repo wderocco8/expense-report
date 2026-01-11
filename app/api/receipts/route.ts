@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ingestReceipt } from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/http/problems";
+import { requireApiAuth } from "@/lib/auth/api";
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -14,6 +15,11 @@ const VALID_FILE_TYPES = [
 ];
 
 export async function POST(req: Request) {
+  const authResult = await requireApiAuth({ role: "member" });
+  if (!authResult.ok) {
+    return respondProblem(authResult.problem);
+  }
+
   const form = await req.formData();
   const jobId = form.get("jobId") as string;
   const files = form.getAll("files") as File[];
