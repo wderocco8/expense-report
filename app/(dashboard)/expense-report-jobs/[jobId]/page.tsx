@@ -7,10 +7,9 @@ export default async function ExpenseReportPage({
 }: {
   params: Promise<{ jobId: string }>;
 }) {
-  await requirePageAuth({ role: "member" });
-
+  const session = await requirePageAuth({ role: "member" });
   const { jobId } = await params;
-  const job = await getExpenseReportWithFiles(jobId);
+  const job = await getExpenseReportWithFiles(jobId, session.user.id);
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div>{job.title}</div>
