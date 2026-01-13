@@ -13,6 +13,11 @@ export type ApiAuthResult =
       problem: ProblemDetails;
     };
 
+/**
+ * Authenticates an API request and returns RFC 7807 Problem Details on failure.
+ * @see {@link requireSession} for the core validation logic.
+ * @returns An `ApiAuthResult`.
+ */
 export async function requireApiAuth(
   requirements?: AuthRequirements
 ): Promise<ApiAuthResult> {

@@ -8,7 +8,14 @@ export type AuthFailure =
 export type UserRole = "admin" | "member";
 
 export interface AuthRequirements {
+  /** * List of allowed roles. If omitted, any authenticated role is allowed.
+   * @example ["admin", "member"]
+   */
   roles?: UserRole[];
+
+  /** * Whether to check if the user is banned.
+   * @default true
+   */
   active?: boolean;
 }
 
