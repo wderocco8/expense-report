@@ -5,7 +5,7 @@ import { respondProblem } from "@/lib/http/respond";
 import { headers } from "next/headers";
 
 export async function GET() {
-  const authResult = await requireApiAuth({ role: "admin" });
+  const authResult = await requireApiAuth({ roles: ["admin"] });
   if (!authResult.ok) {
     return respondProblem(authResult.problem);
   }

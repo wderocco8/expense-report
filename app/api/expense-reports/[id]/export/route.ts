@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireApiAuth({ role: "member" });
+    const authResult = await requireApiAuth();
     if (!authResult.ok) {
       return respondProblem(authResult.problem);
     }

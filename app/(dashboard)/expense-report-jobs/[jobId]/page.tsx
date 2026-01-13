@@ -7,7 +7,7 @@ export default async function ExpenseReportPage({
 }: {
   params: Promise<{ jobId: string }>;
 }) {
-  const session = await requirePageAuth({ role: "member" });
+  const session = await requirePageAuth();
   const { jobId } = await params;
   const job = await getExpenseReportWithFiles(jobId, session.user.id);
   return (

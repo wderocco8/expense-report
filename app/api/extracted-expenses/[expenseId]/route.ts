@@ -14,7 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ expenseId: string }> }
 ) {
   try {
-    const authResult = await requireApiAuth({ role: "member" });
+  const authResult = await requireApiAuth();
     if (!authResult.ok) {
       return respondProblem(authResult.problem);
     }

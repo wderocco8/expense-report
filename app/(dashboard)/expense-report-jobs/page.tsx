@@ -6,7 +6,7 @@ import { requirePageAuth } from "@/lib/auth/page";
 import { getExpenseReports } from "@/server/services/expenseReports.service";
 
 export default async function ExpenseReportsPage() {
-  const session = await requirePageAuth({ role: "member" });
+  const session = await requirePageAuth();
   const jobs = await getExpenseReports(session.user.id);
 
   return (

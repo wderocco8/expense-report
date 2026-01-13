@@ -7,7 +7,7 @@ import { respondProblem } from "@/lib/http/respond";
 
 export async function POST(req: Request) {
   try {
-    const authResult = await requireApiAuth({ active: true });
+    const authResult = await requireApiAuth();
     if (!authResult.ok) return respondProblem(authResult.problem);
 
     const body = await req.json().catch(() => ({}));

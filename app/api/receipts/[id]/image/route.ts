@@ -15,7 +15,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireApiAuth({ active: true });
+    const authResult = await requireApiAuth();
     if (!authResult.ok) return respondProblem(authResult.problem);
 
     const { id } = ParamsSchema.parse(await params);

@@ -15,7 +15,7 @@ const VALID_FILE_TYPES = [
 ];
 
 export async function POST(req: Request) {
-  const authResult = await requireApiAuth({ role: "member" });
+  const authResult = await requireApiAuth();
   if (!authResult.ok) {
     return respondProblem(authResult.problem);
   }
