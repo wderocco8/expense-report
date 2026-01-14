@@ -9,12 +9,20 @@ export const auth = betterAuth({
     provider: "pg",
     usePlural: true,
   }),
+  baseURL: process.env.BETTER_AUTH_URL,
   experimental: { joins: true },
   advanced: {
     database: {
       generateId: "uuid",
     },
   },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
     autoSignIn: false, // NOTE: Don't try to sign in banned users
