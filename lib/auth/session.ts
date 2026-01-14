@@ -6,3 +6,6 @@ export async function getSession() {
     headers: await headers(),
   });
 }
+
+export type AuthSession = Awaited<ReturnType<typeof getSession>>;
+export type AuthUser = NonNullable<AuthSession>["user"];

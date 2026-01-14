@@ -9,6 +9,7 @@ import {
   SquareTerminal,
   Home,
   Workflow,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { NavProjects } from "@/components/sidebar/nav-projects";
@@ -21,13 +22,9 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { AuthUser } from "@/lib/auth/session";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   teams: [
     {
       name: "Open Expense",
@@ -136,17 +133,33 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  user: AuthUser | undefined;
+}
+
+export function AppSidebar({ user, ...props }: AppSidebarProps) {
+  const isAdmin = user?.role === "admin";
+  console.log("IS ADMIN", isAdmin);
+
+  const displayProjects = [...data.projects];
+  if (isAdmin) {
+    displayProjects.push({
+      name: "Admin Dashboard",
+      url: "/admin/dashboard",
+      icon: LayoutDashboard,
+    });
+  }
+
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavProjects projects={data.projects} />
+        <NavProjects projects={displayProjects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
