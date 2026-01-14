@@ -139,7 +139,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const isAdmin = user?.role === "admin";
-  console.log("IS ADMIN", isAdmin);
 
   const displayProjects = [...data.projects];
   if (isAdmin) {
