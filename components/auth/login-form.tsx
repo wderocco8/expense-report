@@ -21,6 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 
 function safeReturnTo(returnTo: string | null) {
   if (!returnTo) return "/expense-report-jobs";
@@ -177,9 +178,10 @@ export function LoginForm({
             </FieldGroup>
           </form>
           <div className="bg-muted relative hidden md:block">
-            <img
-              src="/placeholder.svg"
+            <Image
+              src="/images/auth.jpg"
               alt="Image"
+              fill
               className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
             />
           </div>
