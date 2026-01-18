@@ -69,6 +69,7 @@ export function ReceiptFilesSection({
         data={receiptFiles}
         onViewReceipt={setOpenReceiptId}
         onDeleteReceipt={(id) => setDeleteTargetId(id)}
+        openReceiptId={openReceiptId}
       />
 
       <Dialog
