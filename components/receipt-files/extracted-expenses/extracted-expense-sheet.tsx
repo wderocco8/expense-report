@@ -38,6 +38,7 @@ import { Spinner } from "@/components/ui/spinner";
 import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
 import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
 import { Badge } from "@/components/ui/badge";
+import UnsavedChangesDialog from "@/components/receipt-files/extracted-expenses/unsaved-changes-dialog";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -88,11 +89,11 @@ export function ExtractedExpenseSheet({
   hasPrev,
   hasNext,
 }: ExtractedExpenseSheetProps) {
-  const [localExpense, setLocalExpense] = useState<ExtractedExpense | null>(
-    null,
-  );
   const [dateOpen, setDateOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
+  const [pendingNav, setPendingNav] = useState<null | "prev" | "next">(null);
+  const [pendingClose, setPendingClose] = useState(false);
 
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -117,7 +118,7 @@ export function ExtractedExpenseSheet({
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
     reset,
     control,
   } = useForm<FormValues>({
@@ -135,24 +136,33 @@ export function ExtractedExpenseSheet({
   });
 
   useEffect(() => {
-    const source = localExpense ?? expense;
+    if (expense) {
+      reset({
+        category: expense.category,
+        merchant: expense.merchant ?? "",
+        description: expense.description ?? "",
+        amount: expense.amount,
+        date: expense.date ?? null,
+        transportDetails: expense.transportDetails ?? null,
+      });
+    }
+  }, [expense, reset]);
 
-    if (!source) return;
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+      }
+    };
 
-    reset({
-      category: source.category ?? "",
-      merchant: source.merchant ?? "",
-      description: source.description ?? "",
-      amount: source.amount,
-      date: source.date ?? null,
-      transportDetails: source.transportDetails ?? null,
-    });
-  }, [localExpense, expense, reset]);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isDirty]);
 
   async function onSubmit(values: FormValues) {
     if (!expense?.id) return;
-
-    setLocalExpense({ ...expense, ...values });
 
     const res = await fetch(`/api/extracted-expenses/${expense.id}`, {
       method: "PATCH",
@@ -162,21 +172,26 @@ export function ExtractedExpenseSheet({
 
     if (!res.ok) {
       toast.error("Encountered error updating expense");
-      setLocalExpense(null);
       return;
     }
 
-    mutate(); // ?
     toast.success("Expense has been updated");
-    // reset();
-    // TODO: add local state for optimistic UI
+    mutate({ ...expense, ...values }, false); // optimistic update
+    reset({ ...expense, ...values }); // reset form state to current values
   }
 
   return (
     <Sheet
       open={open}
       onOpenChange={(isOpen) => {
-        if (!isOpen) onClose();
+        if (!isOpen) {
+          if (isDirty) {
+            setPendingClose(true);
+            setUnsavedChangesOpen(true);
+          } else {
+            onClose();
+          }
+        }
       }}
     >
       <SheetContent className="flex flex-col" side="right-resize">
@@ -193,16 +208,31 @@ export function ExtractedExpenseSheet({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={onPrev}
+                  onClick={() => {
+                    if (isDirty) {
+                      setPendingNav("prev");
+                      setUnsavedChangesOpen(true);
+                    } else {
+                      onPrev();
+                    }
+                  }}
                   disabled={!hasPrev}
                 >
                   Prev
                 </Button>
+
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={onNext}
+                  onClick={() => {
+                    if (isDirty) {
+                      setPendingNav("next");
+                      setUnsavedChangesOpen(true);
+                    } else {
+                      onNext();
+                    }
+                  }}
                   disabled={!hasNext}
                 >
                   Next
@@ -397,7 +427,15 @@ export function ExtractedExpenseSheet({
           </div>
 
           <SheetFooter>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => reset()} // resets to the last fetched expense
+              disabled={!isDirty} // only active if there are changes
+            >
+              Reset
+            </Button>
+            <Button type="submit" disabled={isSubmitting || !isDirty}>
               {isSubmitting && <Spinner />}
               Update
             </Button>
@@ -407,6 +445,26 @@ export function ExtractedExpenseSheet({
           </SheetFooter>
         </form>
       </SheetContent>
+      <UnsavedChangesDialog
+        open={unsavedChangesOpen}
+        onOpenChange={setUnsavedChangesOpen}
+        onSubmit={() => {
+          setUnsavedChangesOpen(false);
+
+          if (pendingNav === "prev") onPrev();
+          else if (pendingNav === "next") onNext();
+          else if (pendingClose) onClose();
+
+          setPendingNav(null);
+          setPendingClose(false);
+          reset(expense);
+        }}
+        onCancel={() => {
+          setUnsavedChangesOpen(false);
+          setPendingNav(null);
+          setPendingClose(false);
+        }}
+      />
       <ReceiptPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
