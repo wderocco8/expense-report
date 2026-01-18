@@ -37,6 +37,8 @@ import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
 import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -178,17 +180,29 @@ export function ExtractedExpenseSheet({
             <SheetDescription>
               AI-extracted expense details from this receipt.
             </SheetDescription>
-            {image && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="mt-2 w-fit"
-                onClick={() => setPreviewOpen(true)}
-              >
-                View receipt
-              </Button>
-            )}
+
+            <div className="border-2 rounded-lg p-2 my-2 space-y-2">
+              <FieldLegend variant="label">Receipt Info</FieldLegend>
+
+              {receipt?.originalFilename && (
+                <div className="flex items-center space-x-2 text-muted-foreground">
+                  <div>File:</div>
+                  <Badge>{receipt.originalFilename}</Badge>
+                </div>
+              )}
+
+              {image && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2 w-fit"
+                  onClick={() => setPreviewOpen(true)}
+                >
+                  View receipt
+                </Button>
+              )}
+            </div>
           </SheetHeader>
 
           <div className="flex-1 min-h-0 px-4 overflow-y-auto">
