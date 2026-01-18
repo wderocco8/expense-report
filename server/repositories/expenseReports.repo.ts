@@ -101,23 +101,6 @@ export async function getExpenseReportJobWithReceiptAndExpense(jobId: string) {
   return job;
 }
 
-export async function updateJobStatus(
-  jobId: string,
-  jobStatus: (typeof status.enumValues)[number],
-): Promise<ExpenseReportJob> {
-  const [job] = await db
-    .update(expenseReportJobs)
-    .set({ status: jobStatus, updatedAt: new Date() })
-    .where(eq(expenseReportJobs.id, jobId))
-    .returning();
-
-  if (!job) {
-    throw new Error("Job not found");
-  }
-
-  return job;
-}
-
 export async function getExpenseReportJobsWithProgress(userId: string) {
   const jobs = await getExpenseReportJobs(userId);
 
