@@ -34,6 +34,16 @@ export function ReceiptFilesSection({
 
   const receipt = openReceiptId ? receiptMap.get(openReceiptId) : null;
 
+  const currentIndex = receiptFiles.findIndex((r) => r.id === openReceiptId);
+
+  const goPrev = () => {
+    if (currentIndex > 0) setOpenReceiptId(receiptFiles[currentIndex - 1].id);
+  };
+  const goNext = () => {
+    if (currentIndex < receiptFiles.length - 1)
+      setOpenReceiptId(receiptFiles[currentIndex + 1].id);
+  };
+
   async function confirmDeleteReceipt() {
     if (!deleteTargetId) return;
 
@@ -88,6 +98,10 @@ export function ReceiptFilesSection({
         receipt={receipt}
         open={!!openReceiptId}
         onClose={() => setOpenReceiptId(null)}
+        onPrev={goPrev}
+        onNext={goNext}
+        hasPrev={currentIndex > 0}
+        hasNext={currentIndex < receiptFiles.length - 1}
       />
     </>
   );

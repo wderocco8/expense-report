@@ -37,7 +37,6 @@ import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
 import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 const CATEGORY_OPTIONS = [
@@ -70,15 +69,25 @@ function formatMoney(value: string): string {
 
 type ReceiptImage = { url: string };
 
+type ExtractedExpenseSheetProps = {
+  receipt: ReceiptFile | null | undefined;
+  open: boolean;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  hasPrev: boolean;
+  hasNext: boolean;
+};
+
 export function ExtractedExpenseSheet({
   receipt,
   open,
   onClose,
-}: {
-  receipt: ReceiptFile | null | undefined;
-  open: boolean;
-  onClose: () => void;
-}) {
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
+}: ExtractedExpenseSheetProps) {
   const [localExpense, setLocalExpense] = useState<ExtractedExpense | null>(
     null,
   );
@@ -176,7 +185,28 @@ export function ExtractedExpenseSheet({
           className="flex flex-col flex-1 min-h-0"
         >
           <SheetHeader>
-            <SheetTitle>Extracted Expense</SheetTitle>
+            <div className="flex justify-between items-center mt-6">
+              <SheetTitle>Extracted Expense</SheetTitle>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onPrev}
+                  disabled={!hasPrev}
+                >
+                  Prev
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onNext}
+                  disabled={!hasNext}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
             <SheetDescription>
               AI-extracted expense details from this receipt.
             </SheetDescription>
