@@ -1,12 +1,9 @@
-import {
-  createExpenseReportJob,
-  getExpenseReportJobs,
-  getExpenseReportJob,
-  getExpenseReportJobWithFiles,
-  getExpenseReportJobWithReceiptAndExpense,
-} from "@/server/repositories/expenseReports.repo";
+import * as expenseReportJobsRepo from "@/server/repositories/expenseReports.repo";
 import type { ExpenseReportJob } from "@/server/db/schema/app.schema";
-import { ExpenseReportWithFiles } from "@/server/types/expense-report-jobs";
+import {
+  ExpenseReportJobsWithProgress,
+  ExpenseReportWithFiles,
+} from "@/server/types/expense-report-jobs";
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
 
 export async function createExpenseReport({
@@ -16,7 +13,7 @@ export async function createExpenseReport({
   userId: string;
   title?: string;
 }): Promise<ExpenseReportJob> {
-  const job = await createExpenseReportJob({
+  const job = await expenseReportJobsRepo.createExpenseReportJob({
     userId: userId,
     title,
   });
@@ -27,23 +24,30 @@ export async function createExpenseReport({
 export async function getExpenseReports(
   userId: string
 ): Promise<ExpenseReportJob[]> {
-  return getExpenseReportJobs(userId);
+  return expenseReportJobsRepo.getExpenseReportJobs(userId);
 }
 
 export async function getExpenseReport(
   jobId: string
 ): Promise<ExpenseReportJob> {
-  return getExpenseReportJob(jobId);
+  return expenseReportJobsRepo.getExpenseReportJob(jobId);
 }
 
 export async function getExpenseReportWithFiles(
   jobId: string,
   userId: string
 ): Promise<ExpenseReportWithFiles> {
-  return getExpenseReportJobWithFiles(jobId, userId);
+  return expenseReportJobsRepo.getExpenseReportJobWithFiles(jobId, userId);
 }
 
 export async function exportExpenseReport(jobId: string) {
-  const job = await getExpenseReportJobWithReceiptAndExpense(jobId);
+  const job =
+    await expenseReportJobsRepo.getExpenseReportJobWithReceiptAndExpense(jobId);
   return buildExpenseReportWorkbook(job);
+}
+
+export async function getExpenseReportJobsWithProgress(
+  userId: string
+): Promise<ExpenseReportJobsWithProgress> {
+  return expenseReportJobsRepo.getExpenseReportJobsWithProgress(userId);
 }

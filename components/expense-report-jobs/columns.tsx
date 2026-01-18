@@ -1,10 +1,11 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ExpenseReportJob } from "@/server/db/schema/app.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { ExpenseReportJobsWithProgress } from "@/server/types/expense-report-jobs";
+import { deriveJobStatus } from "@/domain/expense-reports/status";
 
 const statusVariantMap = {
   pending: "pending",
@@ -13,7 +14,7 @@ const statusVariantMap = {
   failed: "failed",
 } as const;
 
-export const columns: ColumnDef<ExpenseReportJob>[] = [
+export const columns: ColumnDef<ExpenseReportJobsWithProgress[number]>[] = [
   {
     accessorKey: "title",
     header: "Title",
@@ -21,19 +22,20 @@ export const columns: ColumnDef<ExpenseReportJob>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={statusVariantMap[row.original.status]}>
-        {row.original.status}
-      </Badge>
-    ),
+    cell: ({ row }) => {
+      const status = deriveJobStatus(row.original.progress);
+      return <Badge variant={statusVariantMap[status]}>{status}</Badge>;
+    },
   },
   {
     accessorKey: "processedFiles",
     header: "Processed Receipts",
+    cell: ({ row }) => row.original.progress.processed,
   },
   {
     accessorKey: "totalFiles",
     header: "Total Receipts",
+    cell: ({ row }) => row.original.progress.total,
   },
   {
     accessorKey: "createdAt",

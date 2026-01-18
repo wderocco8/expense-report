@@ -60,9 +60,6 @@ export const expenseReportJobs = pgTable("expense_report_jobs_table", {
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   title: text("title").notNull().default("Expense report"),
-  status: status("status").notNull().default("pending"),
-  totalFiles: integer("total_files").notNull().default(0), // number of receipt_files created for job
-  processedFiles: integer("processed_files").notNull().default(0), // increment only when a receipt transitions to a terminal state
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -118,7 +115,7 @@ export const extractedExpenses = pgTable(
     uniqueIndex("uniq_active_receipt")
       .on(t.receiptId)
       .where(sql`${t.isCurrent} = true`),
-  ]
+  ],
 );
 
 // ------------ Relations definitions ------------
@@ -133,7 +130,7 @@ export const expenseReportJobsRelations = relations(
   expenseReportJobs,
   ({ many }) => ({
     receiptFiles: many(receiptFiles),
-  })
+  }),
 );
 
 // ReceiptFiles → Job (many-to-1) and → ExtractedExpenses (1-to-many)
@@ -145,7 +142,7 @@ export const receiptFilesRelations = relations(
       references: [expenseReportJobs.id],
     }),
     extractedExpenses: many(extractedExpenses),
-  })
+  }),
 );
 
 // ExtractedExpenses → Job + ReceiptFile
@@ -156,7 +153,7 @@ export const extractedExpensesRelations = relations(
       fields: [extractedExpenses.receiptId],
       references: [receiptFiles.id],
     }),
-  })
+  }),
 );
 
 // ------------ Type-safe helpers ------------

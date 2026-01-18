@@ -1,4 +1,5 @@
 import {
+  getExpenseReportJobsWithProgress,
   getExpenseReportJobWithFiles,
   getExpenseReportJobWithReceiptAndExpense,
 } from "@/server/repositories/expenseReports.repo";
@@ -12,4 +13,8 @@ export type ReceiptFileWithExpenses =
 
 export type ExpenseReportWithReceiptAndExpense = Awaited<
   ReturnType<typeof getExpenseReportJobWithReceiptAndExpense>
+>;
+
+export type ExpenseReportJobsWithProgress = Awaited<
+  ReturnType<typeof getExpenseReportJobsWithProgress>
 >;

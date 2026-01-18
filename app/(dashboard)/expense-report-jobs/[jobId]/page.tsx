@@ -10,11 +10,14 @@ export default async function ExpenseReportPage({
   const session = await requirePageAuth();
   const { jobId } = await params;
   const job = await getExpenseReportWithFiles(jobId, session.user.id);
+  const numProcessed = job.receiptFiles.filter(
+    (r) => r.status == "complete" || r.status == "failed",
+  ).length;
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div>{job.title}</div>
       <div>
-        Progress: {job.processedFiles} / {job.totalFiles} receipts processed
+        Progress: {numProcessed} / {job.receiptFiles.length} receipts processed
       </div>
       <ReceiptFilesSection jobId={job.id} receiptFiles={job.receiptFiles} />
     </div>
