@@ -78,7 +78,7 @@ export function ExtractedExpenseSheet({
   onClose: () => void;
 }) {
   const [localExpense, setLocalExpense] = useState<ExtractedExpense | null>(
-    null
+    null,
   );
   const [dateOpen, setDateOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -94,12 +94,12 @@ export function ExtractedExpenseSheet({
       open && receipt?.id
         ? `/api/receipts/${receipt.id}/extracted-expense`
         : null,
-    fetcher
+    fetcher,
   );
 
   const { data: image, isLoading: isLoadingImage } = useSWR<ReceiptImage>(
     receipt?.id ? `/api/receipts/${receipt.id}/image` : null,
-    fetcher
+    fetcher,
   );
 
   type FormValues = z.infer<typeof ExtractedExpenseUpdateSchema>;
@@ -291,7 +291,7 @@ export function ExtractedExpenseSheet({
                                     field.onChange(
                                       date
                                         ? date.toISOString().slice(0, 10)
-                                        : null
+                                        : null,
                                     );
                                     setDateOpen(false);
                                   }}

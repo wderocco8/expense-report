@@ -7,6 +7,15 @@ import { ExtractedExpenseSheet } from "@/components/receipt-files/extracted-expe
 import UploadReceipts from "@/components/receipt-files/upload-receipts";
 import ExportReceipts from "@/components/receipt-files/export-receipts";
 import { toast } from "sonner";
+import {
+  DialogHeader,
+  DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export function ReceiptFilesSection({
   jobId,
@@ -16,6 +25,7 @@ export function ReceiptFilesSection({
   receiptFiles: ReceiptFileWithExpenses[];
 }) {
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const receiptMap = useMemo(
     () => new Map(receiptFiles.map((r) => [r.id, r])),
@@ -24,11 +34,16 @@ export function ReceiptFilesSection({
 
   const receipt = openReceiptId ? receiptMap.get(openReceiptId) : null;
 
-  async function deleteReceipt(id: string) {
+  async function confirmDeleteReceipt() {
+    if (!deleteTargetId) return;
+
     try {
-      const res = await fetch(`/api/receipts/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/receipts/${deleteTargetId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("Failed to delete receipt");
-      // reload the page to reflect changes
+      setDeleteTargetId(null);
+      toast.success("Successfully deleted receipt");
       window.location.reload();
     } catch (err) {
       console.error(err);
@@ -43,8 +58,32 @@ export function ReceiptFilesSection({
       <ReceiptFilesTable
         data={receiptFiles}
         onViewReceipt={setOpenReceiptId}
-        onDeleteReceipt={deleteReceipt}
+        onDeleteReceipt={(id) => setDeleteTargetId(id)}
       />
+
+      <Dialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => !open && setDeleteTargetId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Do you really want to delete this
+              receipt?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTargetId(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteReceipt}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ExtractedExpenseSheet
         receipt={receipt}
         open={!!openReceiptId}
