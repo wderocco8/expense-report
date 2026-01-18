@@ -8,7 +8,6 @@ import {
   date,
   pgEnum,
   jsonb,
-  integer,
   boolean,
   uniqueIndex,
 } from "drizzle-orm/pg-core";

@@ -3,6 +3,7 @@ import { ingestReceipt } from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/http/problems";
 import { requireApiAuth } from "@/lib/auth/api";
+import { MAX_FILES_PER_UPLOAD } from "@/domain/expense-reports/constants";
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -14,6 +15,7 @@ const VALID_FILE_TYPES = [
   "image/heif",
 ];
 
+// TODO: replace this with real rate limiting eventually
 export async function POST(req: Request) {
   const authResult = await requireApiAuth();
   if (!authResult.ok) {
@@ -26,7 +28,17 @@ export async function POST(req: Request) {
 
   if (files.length === 0) {
     return respondProblem(
-      problem(400, "receipt/no-files", "No files uploaded")
+      problem(400, "receipt/no-files", "No files uploaded"),
+    );
+  }
+
+  if (files.length > MAX_FILES_PER_UPLOAD ) {
+    return respondProblem(
+      problem(
+        400,
+        "receipt/too-many-files",
+        `You can upload at most ${MAX_FILES_PER_UPLOAD} receipts at once`,
+      ),
     );
   }
 
@@ -38,8 +50,8 @@ export async function POST(req: Request) {
           400,
           "receipt/unsupported-file-type",
           "Unsupported file type",
-          `Received ${file.type}`
-        )
+          `Received ${file.type}`,
+        ),
       );
     }
   }
