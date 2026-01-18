@@ -54,8 +54,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          BETTER_AUTH_URL: https://expense-report-wderocco7-william-de-roccos-projects.vercel.app/
-          NEXT_PUBLIC_APP_URL: https://expense-report-wderocco7-william-de-roccos-projects.vercel.app/
+          BETTER_AUTH_URL: https://expense-report-seven.vercel.app/
+          NEXT_PUBLIC_APP_URL: https://expense-report-seven.vercel.app/
 
       - name: Deploy to Vercel
         run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
