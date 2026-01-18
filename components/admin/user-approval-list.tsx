@@ -33,7 +33,6 @@ export function UserApprovalList() {
     try {
       await authClient.admin.unbanUser({ userId });
 
-      // ✅ Send approval email via your API route
       await fetch("/api/send-approval-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

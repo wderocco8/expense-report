@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";
 
 export async function createReceiptFile(
-  data: NewReceiptFile
+  data: NewReceiptFile,
 ): Promise<ReceiptFile> {
   const [receiptFile] = await db.insert(receiptFiles).values(data).returning();
 
@@ -62,7 +62,7 @@ export async function getReceiptFileWithExpense(id: string) {
 
 export async function updateReceiptFile(
   id: string,
-  data: ReceiptFileUpdateInput
+  data: ReceiptFileUpdateInput,
 ): Promise<ReceiptFile> {
   const [receipt] = await db
     .update(receiptFiles)
@@ -75,4 +75,17 @@ export async function updateReceiptFile(
   }
 
   return receipt;
+}
+
+export async function deleteReceiptFile(id: string): Promise<ReceiptFile> {
+  const [deleted] = await db
+    .delete(receiptFiles)
+    .where(eq(receiptFiles.id, id))
+    .returning();
+
+  if (!deleted) {
+    throw new Error("Failed to delete receipt file");
+  }
+
+  return deleted;
 }

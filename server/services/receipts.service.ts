@@ -1,5 +1,8 @@
 import heicConvert from "heic-convert";
-import { uploadReceiptImage } from "@/server/services/storage.service";
+import {
+  deleteS3Object,
+  uploadReceiptImage,
+} from "@/server/services/storage.service";
 import { NewReceiptFile, ReceiptFile } from "@/server/db/schema/app.schema";
 import * as receiptFilesRepo from "@/server/repositories/receiptFiles.repo";
 import { processReceipt } from "@/server/services/extractedExpenses.service";
@@ -52,7 +55,7 @@ export async function ingestReceipt({
  * @returns The created ReceiptFile record
  */
 export async function createReceiptFile(
-  data: NewReceiptFile
+  data: NewReceiptFile,
 ): Promise<ReceiptFile> {
   const job = await receiptFilesRepo.createReceiptFile(data);
   return job;
@@ -60,7 +63,7 @@ export async function createReceiptFile(
 
 export async function updateReceiptFile(
   id: string,
-  data: ReceiptFileUpdateInput
+  data: ReceiptFileUpdateInput,
 ): Promise<ReceiptFile> {
   const receipt = await receiptFilesRepo.updateReceiptFile(id, data);
   return receipt;
@@ -82,9 +85,34 @@ export async function getReceiptFileWithJob(id: string) {
 }
 
 export async function getReceiptFileWithExpense(
-  id: string
+  id: string,
 ): Promise<ReceiptFile> {
   return receiptFilesRepo.getReceiptFile(id);
+}
+
+/**
+ * Deletes a receipt file from the database and its associated S3 object
+ * @param id - ID of the receipt file to delete
+ * @returns The deleted ReceiptFile record
+ */
+export async function deleteReceiptFileWithS3(
+  id: string,
+): Promise<ReceiptFile | null> {
+  // First, get the receipt to know its S3 key
+  const receipt = await receiptFilesRepo.getReceiptFile(id);
+
+  // Delete the S3 object
+  try {
+    await deleteS3Object(receipt.s3Key);
+  } catch (err) {
+    console.error("Failed to delete S3 object", err);
+    return null;
+  }
+
+  // Delete the DB record
+  const deleted = await receiptFilesRepo.deleteReceiptFile(id);
+
+  return deleted;
 }
 
 /**
@@ -146,8 +174,8 @@ async function buildReceiptUpload({
     file.type === "image/jpeg"
       ? "jpg"
       : file.type === "image/png"
-      ? "png"
-      : "img";
+        ? "png"
+        : "img";
   const key = `receipts/${jobId}/${crypto.randomUUID()}.${extension}`;
   const contentType = file.type;
 
