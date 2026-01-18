@@ -190,6 +190,7 @@ export function ExtractedExpenseSheet({
 
               <div className="flex gap-2">
                 <Button
+                  type="button"
                   size="sm"
                   variant="outline"
                   onClick={onPrev}
@@ -198,6 +199,7 @@ export function ExtractedExpenseSheet({
                   Prev
                 </Button>
                 <Button
+                  type="button"
                   size="sm"
                   variant="outline"
                   onClick={onNext}
