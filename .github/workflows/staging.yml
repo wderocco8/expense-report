@@ -20,7 +20,7 @@ jobs:
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - name: Apply migrations
-        run: npx drizzle-kit push
+        run: npx drizzle-kit migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
