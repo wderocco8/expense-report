@@ -4,12 +4,21 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/server/db/client";
 import { nextCookies } from "better-auth/next-js";
 
+const isPreview = process.env.VERCEL_ENV === "preview";
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     usePlural: true,
   }),
-  baseURL: process.env.BETTER_AUTH_URL,
+
+  // NOTE: use this to handle Vercel preview deployments (Invalid Origin bug)
+  ...(isPreview ? {} : { baseURL: process.env.BETTER_AUTH_URL }),
+  trustedOrigins: [
+    "http://localhost:3000",
+    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+  ],
+
   experimental: { joins: true },
   advanced: {
     database: {
