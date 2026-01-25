@@ -1,4 +1,3 @@
-// app/api/setup/create-admin/route.ts
 import { auth } from "@/lib/auth/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { db, users } from "@repo/db";
