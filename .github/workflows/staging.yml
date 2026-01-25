@@ -20,7 +20,7 @@ jobs:
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - name: Apply migrations
-        run: npx drizzle-kit migrate
+        run: pnpm --filter web exec drizzle-kit migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -49,7 +49,7 @@ jobs:
       - name: Build Project
         # No extra 'export' or 'dotenv' needed.
         # Next.js loads .env.local automatically at the start of the build.
-        run: pnpm run build
+        run: pnpm --filter web run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
