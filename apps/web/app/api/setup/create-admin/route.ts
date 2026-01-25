@@ -1,8 +1,7 @@
 // app/api/setup/create-admin/route.ts
 import { auth } from "@/lib/auth/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db/client";
-import { users } from "@/server/db/schema/auth.schema";
+import { db, users } from "@repo/db";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -13,7 +12,7 @@ export async function POST(req: NextRequest) {
   if (!setupSecret) {
     return NextResponse.json(
       { error: "Setup endpoint is disabled" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -29,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (existingAdmin) {
     return NextResponse.json(
       { error: "Admin already exists" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -40,14 +39,14 @@ export async function POST(req: NextRequest) {
   if (!email || !name || !password) {
     return NextResponse.json(
       { error: "Missing required fields: email, name, password" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (password.length < 12) {
     return NextResponse.json(
       { error: "Password must be at least 12 characters" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

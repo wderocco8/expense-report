@@ -2,7 +2,7 @@ import {
   getExpenseReportJobsWithProgress,
   getExpenseReportJobWithFiles,
   getExpenseReportJobWithReceiptAndExpense,
-} from "@/server/repositories/expenseReports.repo";
+} from "@repo/db";
 
 export type ExpenseReportWithFiles = Awaited<
   ReturnType<typeof getExpenseReportJobWithFiles>

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ExpenseReportJobsWithProgress } from "@/server/types/expense-report-jobs";
-import { deriveJobStatus } from "@/domain/expense-reports/status";
+import { deriveJobStatus } from "@repo/shared";
 
 const statusVariantMap = {
   pending: "pending",

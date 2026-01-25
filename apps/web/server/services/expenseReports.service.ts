@@ -1,5 +1,13 @@
-import * as expenseReportJobsRepo from "@/server/repositories/expenseReports.repo";
-import type { ExpenseReportJob } from "@/server/db/schema/app.schema";
+import {
+  createExpenseReportJob as repoCreateExpenseReportJob,
+  getExpenseReportJobs as repoGetExpenseReportJobs,
+  getExpenseReportJob as repoGetExpenseReportJob,
+  getExpenseReportJobWithFiles as repoGetExpenseReportJobWithFiles,
+  getExpenseReportJobWithReceiptAndExpense as repoGetExpenseReportJobWithReceiptAndExpense,
+  getExpenseReportJobsWithProgress as repoGetExpenseReportJobsWithProgress,
+  type ExpenseReportJob,
+} from "@repo/db";
+
 import {
   ExpenseReportJobsWithProgress,
   ExpenseReportWithFiles,
@@ -13,7 +21,7 @@ export async function createExpenseReport({
   userId: string;
   title?: string;
 }): Promise<ExpenseReportJob> {
-  const job = await expenseReportJobsRepo.createExpenseReportJob({
+  const job = await repoCreateExpenseReportJob({
     userId: userId,
     title,
   });
@@ -22,32 +30,31 @@ export async function createExpenseReport({
 }
 
 export async function getExpenseReports(
-  userId: string
+  userId: string,
 ): Promise<ExpenseReportJob[]> {
-  return expenseReportJobsRepo.getExpenseReportJobs(userId);
+  return repoGetExpenseReportJobs(userId);
 }
 
 export async function getExpenseReport(
-  jobId: string
+  jobId: string,
 ): Promise<ExpenseReportJob> {
-  return expenseReportJobsRepo.getExpenseReportJob(jobId);
+  return repoGetExpenseReportJob(jobId);
 }
 
 export async function getExpenseReportWithFiles(
   jobId: string,
-  userId: string
+  userId: string,
 ): Promise<ExpenseReportWithFiles> {
-  return expenseReportJobsRepo.getExpenseReportJobWithFiles(jobId, userId);
+  return repoGetExpenseReportJobWithFiles(jobId, userId);
 }
 
 export async function exportExpenseReport(jobId: string) {
-  const job =
-    await expenseReportJobsRepo.getExpenseReportJobWithReceiptAndExpense(jobId);
+  const job = await repoGetExpenseReportJobWithReceiptAndExpense(jobId);
   return buildExpenseReportWorkbook(job);
 }
 
 export async function getExpenseReportJobsWithProgress(
-  userId: string
+  userId: string,
 ): Promise<ExpenseReportJobsWithProgress> {
-  return expenseReportJobsRepo.getExpenseReportJobsWithProgress(userId);
+  return repoGetExpenseReportJobsWithProgress(userId);
 }

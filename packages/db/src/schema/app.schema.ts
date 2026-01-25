@@ -11,7 +11,7 @@ import {
   boolean,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { users } from "@/server/db/schema/auth.schema";
+import { users } from "../schema/auth.schema";
 
 // ------------ Enum definitions ------------
 

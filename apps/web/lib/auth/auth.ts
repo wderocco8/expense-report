@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@/server/db/client";
+import { db } from "@repo/db";
 import { nextCookies } from "better-auth/next-js";
 
 const isPreview = process.env.VERCEL_ENV === "preview";

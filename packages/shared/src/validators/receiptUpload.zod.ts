@@ -1,4 +1,4 @@
-import { MAX_FILES_PER_UPLOAD } from "@/domain/expense-reports/constants";
+import { MAX_FILES_PER_UPLOAD } from "../domain/expense-reports/constants";
 import { z } from "zod";
 
 export const ReceiptUploadSchema = z.object({

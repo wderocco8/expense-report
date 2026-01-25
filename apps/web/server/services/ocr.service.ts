@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { ReceiptDTO, ReceiptSchema } from "@/server/validators/receipt.zod";
+import { ReceiptDTO, ReceiptSchema } from "@repo/shared";
 import { ResponseTextConfig } from "openai/resources/responses/responses.mjs";
 
 const client = new OpenAI({

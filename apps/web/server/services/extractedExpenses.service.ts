@@ -1,13 +1,16 @@
-import * as extractedExpensesRepo from "@/server/repositories/extractedExpenses.repo";
 import {
-  ExtractedExpense,
-  NewExtractedExpense,
-} from "@/server/db/schema/app.schema";
+  createExtractedExpense as repoCreateExtractedExpense,
+  getCurrentExtractedExpenseForReceipt as repoGetCurrentExtractedExpenseForReceipt,
+  updateExtractedExpense as repoUpdateExtractedExpense,
+  type ExtractedExpense,
+  type NewExtractedExpense,
+} from "@repo/db";
+
+import { ExtractedExpenseUpdateInput, ReceiptDTO } from "@repo/shared";
+
 import { extractReceiptFromImage } from "@/server/services/ocr.service";
 import { updateReceiptFile } from "@/server/services/receipts.service";
 import { getObjectBuffer } from "@/server/services/storage.service";
-import { ReceiptDTO } from "@/server/validators/receipt.zod";
-import { ExtractedExpenseUpdateInput } from "../validators/extractedExpense.zod";
 
 // TODO: maybe add this to the updateReceiptFile model?
 type ReceiptFailureCode =
@@ -23,28 +26,24 @@ type ReceiptFailureCode =
  * @returns The created ExtractedExpense record
  */
 export async function createExtractedExpense(
-  data: NewExtractedExpense
+  data: NewExtractedExpense,
 ): Promise<ExtractedExpense> {
-  const expense = await extractedExpensesRepo.createExtractedExpense(data);
+  const expense = await repoCreateExtractedExpense(data);
   return expense;
 }
 
 export async function getCurrentExtractedExpenseForReceipt(
-  receiptId: string
+  receiptId: string,
 ): Promise<ExtractedExpense> {
-  const expense =
-    await extractedExpensesRepo.getCurrentExtractedExpenseForReceipt(receiptId);
+  const expense = await repoGetCurrentExtractedExpenseForReceipt(receiptId);
   return expense;
 }
 
 export async function updateExtractedExpense(
   expenseId: string,
-  data: ExtractedExpenseUpdateInput
+  data: ExtractedExpenseUpdateInput,
 ): Promise<ExtractedExpense> {
-  const expense = await extractedExpensesRepo.updateExtractedExpense(
-    expenseId,
-    data
-  );
+  const expense = await repoUpdateExtractedExpense(expenseId, data);
   return expense;
 }
 
@@ -57,7 +56,7 @@ export async function processReceipt(receiptId: string): Promise<void> {
 
   const extracted = await extractReceiptFromImage(buffer);
   console.log(
-    `extracted file for receiptId (${receiptId}): ${extracted.data?.amount} ${extracted.data?.category} ${extracted.data?.date} ${extracted.data?.description} ${extracted.data?.merchant} ${extracted.data?.transportDetails}`
+    `extracted file for receiptId (${receiptId}): ${extracted.data?.amount} ${extracted.data?.category} ${extracted.data?.date} ${extracted.data?.description} ${extracted.data?.merchant} ${extracted.data?.transportDetails}`,
   );
 
   if (!extracted.success || !extracted.data) {
@@ -78,7 +77,7 @@ export async function processReceipt(receiptId: string): Promise<void> {
 
 function mapReceiptToDb(
   receipt: ReceiptDTO,
-  receiptId: string
+  receiptId: string,
 ): NewExtractedExpense {
   return {
     receiptId,

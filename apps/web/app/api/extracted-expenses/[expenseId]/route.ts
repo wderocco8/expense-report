@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
+import { ExtractedExpenseUpdateSchema } from "@repo/shared";
 import { updateExtractedExpense } from "@/server/services/extractedExpenses.service";
 import { requireApiAuth } from "@/lib/auth/api";
 import { respondProblem } from "@/lib/http/respond";
@@ -11,10 +11,10 @@ const ParamsSchema = z.object({
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ expenseId: string }> }
+  { params }: { params: Promise<{ expenseId: string }> },
 ) {
   try {
-  const authResult = await requireApiAuth();
+    const authResult = await requireApiAuth();
     if (!authResult.ok) {
       return respondProblem(authResult.problem);
     }
@@ -28,7 +28,7 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json(
         { error: z.treeifyError(parsed.error) },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -40,7 +40,7 @@ export async function PATCH(
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

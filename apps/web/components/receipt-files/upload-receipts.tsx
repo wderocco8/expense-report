@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import {
   ReceiptUploadInput,
   ReceiptUploadSchema,
-} from "@/server/validators/receiptUpload.zod";
+} from "@repo/shared";
 
 export default function UploadReceipts({ jobId }: { jobId: string }) {
   const router = useRouter();

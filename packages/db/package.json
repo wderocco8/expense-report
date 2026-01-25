@@ -1,0 +1,24 @@
+{
+  "name": "@repo/db",
+  "version": "0.0.0",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "db:migrate": "dotenv -e .env.migrations -- drizzle-kit migrate",
+    "db:generate": "dotenv -e .env.migrations -- drizzle-kit generate",
+    "db:push": "dotenv -e .env.migrations -- drizzle-kit push",
+    "db:studio": "dotenv -e .env.migrations -- drizzle-kit studio"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@repo/shared": "workspace:*",
+    "dotenv": "^17.2.3",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-orm": "^0.45.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "drizzle-kit": "^0.31.8"
+  }
+}

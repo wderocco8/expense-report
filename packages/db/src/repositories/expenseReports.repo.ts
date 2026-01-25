@@ -1,4 +1,4 @@
-import { db } from "@/server/db/client";
+import { db } from "../client";
 import {
   ExpenseReportJob,
   expenseReportJobs,
@@ -6,7 +6,7 @@ import {
   NewExpenseReportJob,
   receiptFiles,
   status,
-} from "@/server/db/schema/app.schema";
+} from "../schema";
 import { and, eq, sql } from "drizzle-orm";
 
 function generateJobTitle(title?: string): string {

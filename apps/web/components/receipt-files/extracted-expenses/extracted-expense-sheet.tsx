@@ -21,7 +21,7 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ExtractedExpenseUpdateSchema } from "@/server/validators/extractedExpense.zod";
+import { ExtractedExpenseUpdateSchema } from "@repo/shared";
 import { useEffect, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
-import { ExtractedExpense, ReceiptFile } from "@/server/db/schema/app.schema";
+import { ExtractedExpense, ReceiptFile } from "@repo/db";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";

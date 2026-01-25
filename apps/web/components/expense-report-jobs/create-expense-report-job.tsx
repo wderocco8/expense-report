@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExpenseReportCreateSchema } from "@/server/validators/expenseReport.zod";
+import { ExpenseReportCreateSchema } from "@repo/shared";
 import { z } from "zod";
 import {
   Field,

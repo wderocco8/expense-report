@@ -3,7 +3,7 @@ import { ingestReceipt } from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/http/problems";
 import { requireApiAuth } from "@/lib/auth/api";
-import { MAX_FILES_PER_UPLOAD } from "@/domain/expense-reports/constants";
+import { MAX_FILES_PER_UPLOAD } from "@repo/shared";
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (files.length > MAX_FILES_PER_UPLOAD ) {
+  if (files.length > MAX_FILES_PER_UPLOAD) {
     return respondProblem(
       problem(
         400,

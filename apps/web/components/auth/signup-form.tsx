@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth-client";
 import { useForm } from "react-hook-form";
-import { signUpSchema, SignUpValues } from "@/server/validators/sign-up.zod";
+import { signUpSchema, SignUpValues } from "@repo/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

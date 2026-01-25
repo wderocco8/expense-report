@@ -1,12 +1,20 @@
+import {
+  createReceiptFile as reopCreateReceiptFile,
+  updateReceiptFile as repoUpdateReceiptFile,
+  getReceiptFile as repoGetReceiptFile,
+  getReceiptFileWithJob as repoGetReceiptFileWithJob,
+  deleteReceiptFile as repoDeleteReceiptFile,
+} from "@repo/db";
+
+import { ReceiptFileUpdateInput } from "@repo/shared";
+
 import heicConvert from "heic-convert";
 import {
   deleteS3Object,
   uploadReceiptImage,
 } from "@/server/services/storage.service";
-import { NewReceiptFile, ReceiptFile } from "@/server/db/schema/app.schema";
-import * as receiptFilesRepo from "@/server/repositories/receiptFiles.repo";
+import { NewReceiptFile, ReceiptFile } from "@repo/db/src/schema";
 import { processReceipt } from "@/server/services/extractedExpenses.service";
-import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";
 
 /**
  * Ingests a receipt into the system.
@@ -57,7 +65,7 @@ export async function ingestReceipt({
 export async function createReceiptFile(
   data: NewReceiptFile,
 ): Promise<ReceiptFile> {
-  const job = await receiptFilesRepo.createReceiptFile(data);
+  const job = await reopCreateReceiptFile(data);
   return job;
 }
 
@@ -65,7 +73,7 @@ export async function updateReceiptFile(
   id: string,
   data: ReceiptFileUpdateInput,
 ): Promise<ReceiptFile> {
-  const receipt = await receiptFilesRepo.updateReceiptFile(id, data);
+  const receipt = await repoUpdateReceiptFile(id, data);
   return receipt;
 }
 
@@ -77,17 +85,17 @@ export async function updateReceiptFile(
  * @throws If no receipt file with the given ID exists
  */
 export async function getReceiptFile(id: string): Promise<ReceiptFile> {
-  return receiptFilesRepo.getReceiptFile(id);
+  return repoGetReceiptFile(id);
 }
 
 export async function getReceiptFileWithJob(id: string) {
-  return receiptFilesRepo.getReceiptFileWithJob(id);
+  return repoGetReceiptFileWithJob(id);
 }
 
 export async function getReceiptFileWithExpense(
   id: string,
 ): Promise<ReceiptFile> {
-  return receiptFilesRepo.getReceiptFile(id);
+  return repoGetReceiptFile(id);
 }
 
 /**
@@ -99,7 +107,7 @@ export async function deleteReceiptFileWithS3(
   id: string,
 ): Promise<ReceiptFile | null> {
   // First, get the receipt to know its S3 key
-  const receipt = await receiptFilesRepo.getReceiptFile(id);
+  const receipt = await repoGetReceiptFile(id);
 
   // Delete the S3 object
   try {
@@ -110,7 +118,7 @@ export async function deleteReceiptFileWithS3(
   }
 
   // Delete the DB record
-  const deleted = await receiptFilesRepo.deleteReceiptFile(id);
+  const deleted = await repoDeleteReceiptFile(id);
 
   return deleted;
 }

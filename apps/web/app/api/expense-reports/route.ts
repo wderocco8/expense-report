@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createExpenseReport } from "@/server/services/expenseReports.service";
-import { ExpenseReportCreateSchema } from "@/server/validators/expenseReport.zod";
+import { ExpenseReportCreateSchema } from "@repo/shared";
 import { z } from "zod";
 import { requireApiAuth } from "@/lib/auth/api";
 import { respondProblem } from "@/lib/http/respond";

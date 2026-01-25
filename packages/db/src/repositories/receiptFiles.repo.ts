@@ -1,11 +1,7 @@
-import {
-  NewReceiptFile,
-  ReceiptFile,
-  receiptFiles,
-} from "@/server/db/schema/app.schema";
-import { db } from "@/server/db/client";
+import { NewReceiptFile, ReceiptFile, receiptFiles } from "../schema";
+import { db } from "../client";
 import { eq } from "drizzle-orm";
-import { ReceiptFileUpdateInput } from "@/server/validators/receipt.zod";
+import { ReceiptFileUpdateInput } from "@repo/shared";
 
 export async function createReceiptFile(
   data: NewReceiptFile,

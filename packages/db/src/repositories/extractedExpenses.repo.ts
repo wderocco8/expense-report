@@ -2,13 +2,13 @@ import {
   ExtractedExpense,
   extractedExpenses,
   NewExtractedExpense,
-} from "@/server/db/schema/app.schema";
-import { db } from "@/server/db/client";
-import { ExtractedExpenseUpdateInput } from "@/server/validators/extractedExpense.zod";
+} from "../schema";
+import { db } from "../client";
+import { ExtractedExpenseUpdateInput } from "@repo/shared";
 import { and, eq } from "drizzle-orm";
 
 export async function createExtractedExpense(
-  data: NewExtractedExpense
+  data: NewExtractedExpense,
 ): Promise<ExtractedExpense> {
   const [expense] = await db.insert(extractedExpenses).values(data).returning();
 
@@ -20,18 +20,18 @@ export async function createExtractedExpense(
 }
 
 export async function getCurrentExtractedExpenseForReceipt(
-  receiptId: string
+  receiptId: string,
 ): Promise<ExtractedExpense> {
   const expense = await db.query.extractedExpenses.findFirst({
     where: and(
       eq(extractedExpenses.receiptId, receiptId),
-      eq(extractedExpenses.isCurrent, true)
+      eq(extractedExpenses.isCurrent, true),
     ),
   });
 
   if (!expense) {
     throw new Error(
-      `Failed to find current extracted expense for receipt: ${receiptId}`
+      `Failed to find current extracted expense for receipt: ${receiptId}`,
     );
   }
 
@@ -40,7 +40,7 @@ export async function getCurrentExtractedExpenseForReceipt(
 
 export async function updateExtractedExpense(
   expenseId: string,
-  data: ExtractedExpenseUpdateInput
+  data: ExtractedExpenseUpdateInput,
 ): Promise<ExtractedExpense> {
   const [expense] = await db
     .update(extractedExpenses)
