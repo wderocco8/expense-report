@@ -176,12 +176,18 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.975.0
         version: 3.975.0
+      '@repo/services':
+        specifier: workspace:*
+        version: link:../../packages/services
       aws-cdk-lib:
         specifier: ^2.236.0
         version: 2.236.0(constructs@10.4.5)
       constructs:
         specifier: ^10.4.5
         version: 10.4.5
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       path:
         specifier: ^0.12.7
         version: 0.12.7

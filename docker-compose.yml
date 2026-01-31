@@ -18,6 +18,10 @@ services:
 
   neon-proxy:
     image: ghcr.io/timowilhelm/local-neon-http-proxy:main
+    networks:
+      default:
+        aliases:
+          - db.localtest.me # Internal Docker DNS
     environment:
       PG_CONNECTION_STRING: postgres://postgres:postgres@postgres:5432/main
     ports:
@@ -28,7 +32,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: minio_expense_report
+    container_name: minio-expense-report
     ports:
       - "9000:9000" # S3 API
       - "9001:9001" # Web console
@@ -48,6 +52,8 @@ services:
     environment:
       - DEBUG=${DEBUG:-1}
       - LAMBDA_IGNORE_ARCHITECTURE=1 # Add this - stops re-pulling
+      - LAMBDA_DOCKER_NETWORK=${COMPOSE_PROJECT_NAME:-receipt-processor}_default
+      - LAMBDA_DOCKER_FLAGS=-e NODE_ENV=development
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
