@@ -8,6 +8,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "../../packages/db/drizzle.config.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "../../packages/db/drizzle.config.ts", "../../packages/services/src/ocr.service.ts"],
   "exclude": ["node_modules"]
 }

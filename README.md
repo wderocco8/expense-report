@@ -61,3 +61,24 @@ sudo nano /etc/hosts
 Add:
 
 127.0.0.1 db.localtest.me
+
+## Worker config
+
+1. Pull the Lambda runtime image:
+
+```bash
+   docker pull public.ecr.aws/lambda/nodejs:20
+```
+
+2. Start services:
+
+```bash
+   docker-compose up -d
+```
+
+3. Deploy worker:
+
+```bash
+   cd apps/worker
+   pnpm deploy:local
+```

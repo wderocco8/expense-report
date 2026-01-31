@@ -14,7 +14,7 @@ import {
   uploadReceiptImage,
 } from "@/server/services/storage.service";
 import { NewReceiptFile, ReceiptFile } from "@repo/db/src/schema";
-import { processReceipt } from "@/server/services/extractedExpenses.service";
+import { enqueueReceiptProcessing } from "@/server/services/queue.service";
 
 /**
  * Ingests a receipt into the system.
@@ -53,7 +53,8 @@ export async function ingestReceipt({
   });
 
   // NOTE: process receipts asynchronously (no await keyword)
-  processReceipt(receipt.id);
+  // processReceipt(receipt.id);
+  await enqueueReceiptProcessing(receipt.id);
 }
 
 /**

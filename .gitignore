@@ -46,3 +46,11 @@ next-env.d.ts
 
 # model outputs
 output
+
+# LocalStack
+volume
+
+# AWS CDK
+dist
+cdk.out
+function.zip

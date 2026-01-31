@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "../../",
+    "noEmit": true,
+    "lib": ["ES2022"],
+    "types": ["node", "@types/aws-lambda"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "@repo/shared": ["../../packages/shared/index.ts"],
+      "@repo/db": ["../../packages/db/index.ts"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "../../packages/shared/index.ts",
+    "../../packages/db/index.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
