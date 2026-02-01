@@ -53,4 +53,5 @@ volume
 # AWS CDK
 dist
 cdk.out
+cdk-outputs.json
 function.zip

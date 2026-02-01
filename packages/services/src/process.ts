@@ -1,5 +1,6 @@
 import {
   createExtractedExpense,
+  getReceiptFile,
   NewExtractedExpense,
   updateReceiptFile,
 } from "@repo/db";
@@ -9,6 +10,17 @@ import { getObjectBuffer } from "./storage.service";
 import { extractReceiptFromImage } from "./ocr.service";
 
 export async function processReceipt(receiptId: string): Promise<void> {
+  // check if already processed (idempotency check)
+  const idemReceipt = await getReceiptFile(receiptId);
+
+  if (
+    idemReceipt.status === "complete" ||
+    idemReceipt.status === "processing"
+  ) {
+    console.log(`Receipt ${receiptId} already ${idemReceipt.status}, skipping`);
+    return;
+  }
+
   // update status and get receipt
   const receipt = await updateReceiptFile(receiptId, { status: "processing" });
 
