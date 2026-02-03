@@ -47,14 +47,15 @@ export class WorkerStack extends cdk.Stack {
       environment: {
         NODE_ENV: isLocal ? "development" : "production",
         // For local, these come from your .env.local via process.env
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+        DATABASE_URL: process.env.DATABASE_URL || "",
+        S3_REGION: process.env.S3_REGION || "",
+        S3_ACCESS_KEY: process.env.S3_ACCESS_KEY || "",
+        S3_SECRET_KEY: process.env.S3_SECRET_KEY || "",
+        S3_BUCKET: process.env.S3_BUCKET || "",
+
         ...(isLocal && {
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
-          DATABASE_URL: process.env.DATABASE_URL || "",
           S3_ENDPOINT: process.env.S3_ENDPOINT || "",
-          S3_REGION: process.env.S3_REGION || "",
-          S3_ACCESS_KEY: process.env.S3_ACCESS_KEY || "",
-          S3_SECRET_KEY: process.env.S3_SECRET_KEY || "",
-          S3_BUCKET: process.env.S3_BUCKET || "",
         }),
       },
     });
