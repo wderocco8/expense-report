@@ -43,7 +43,6 @@ export class WorkerStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, "../../dist")),
       timeout: cdk.Duration.seconds(120), // 2 minutes
       memorySize: 1024, // Adjust for faster processing
-      reservedConcurrentExecutions: 10,
       environment: {
         NODE_ENV: isLocal ? "development" : "production",
         // For local, these come from your .env.local via process.env
