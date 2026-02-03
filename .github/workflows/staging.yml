@@ -67,11 +67,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -89,23 +87,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      - name: Install AWS CDK
-        run: npm install -g aws-cdk
-
-      - name: Bootstrap CDK (if needed)
-        run: |
-          cd apps/worker
-          cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-2 || echo "Already bootstrapped"
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-
       - name: Deploy Worker Stack
         run: |
           cd apps/worker
-          cdk deploy WorkerStack-staging --require-approval never
+          npx cdk deploy WorkerStack-staging --require-approval never
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          # These env vars are passed to CDK, which injects them into Lambda
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           S3_REGION: ${{ secrets.S3_REGION }}
