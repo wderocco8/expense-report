@@ -8,6 +8,7 @@ const SQS_SECRET_ACCESS_KEY = process.env.SQS_SECRET_ACCESS_KEY;
 
 const client = new SQSClient({
   region: AWS_REGION,
+  useQueueUrlAsEndpoint: true,
   ...(SQS_ENDPOINT ? { endpoint: SQS_ENDPOINT } : {}),
   credentials: {
     accessKeyId: SQS_ACCESS_KEY_ID!,
