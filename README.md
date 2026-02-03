@@ -82,4 +82,3 @@ Add:
    cd apps/worker
    pnpm deploy:local
 ```
-
