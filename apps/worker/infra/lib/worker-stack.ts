@@ -15,16 +15,17 @@ export class WorkerStack extends cdk.Stack {
 
     const visibilityTimeout = props?.visibilityTimeoutSeconds || 300;
     const isLocal = this.stackName.includes("local");
+    const stage = this.stackName.split("-").pop();
 
     // Create Dead Letter Queue (DLQ) for failed messages
     const receiptDLQ = new sqs.Queue(this, "ReceiptDLQ", {
-      queueName: "receipts-dlq",
+      queueName: `receipts-dlq-${stage}`,
       retentionPeriod: cdk.Duration.days(14),
     });
 
     // Create SQS Queue (with DLQ fallback)
     const receiptQueue = new sqs.Queue(this, "ReceiptQueue", {
-      queueName: "receipts",
+      queueName: `receipts-${stage}`,
       visibilityTimeout: cdk.Duration.seconds(visibilityTimeout),
 
       deadLetterQueue: {
