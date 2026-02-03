@@ -1,61 +1,101 @@
-# name: Main-Pipeline
+name: Main-Pipeline
 
-# on:
-#   push:
-#     branches:
-#       - main
+on:
+  push:
+    branches:
+      - main
 
-# jobs:
-#   migrations:
-#     runs-on: ubuntu-latest
-#     environment: main
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: pnpm/action-setup@v4
-#         with:
-#           version: 9
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: 22
-#           cache: "pnpm"
-#       - run: pnpm install --frozen-lockfile
-#       - name: Apply migrations
-#         run: npx drizzle-kit migrate
-#         env:
-#           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    environment: main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations
+        run: pnpm --filter @repo/db exec drizzle-kit migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-#   deploy:
-#     runs-on: ubuntu-latest
-#     needs: migrations
-#     environment: main
-#     env:
-#       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-#       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  deploy-web:
+    runs-on: ubuntu-latest
+    needs: migrations
+    environment: main
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-#     steps:
-#       - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-#       - uses: pnpm/action-setup@v4
-#         with:
-#           version: 9
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false # let package.json drive version
 
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: 22
-#           cache: "pnpm"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
 
-#       - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-#       - name: Build Project
-#         # No extra 'export' or 'dotenv' needed.
-#         # Next.js loads .env.local automatically at the start of the build.
-#         run: pnpm run build
-#         env:
-#           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-#           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-#           BETTER_AUTH_URL: https://expense-report-seven.vercel.app/
-#           NEXT_PUBLIC_APP_URL: https://expense-report-seven.vercel.app/
+      - name: Build Project
+        # No extra 'export' or 'dotenv' needed.
+        # Next.js loads .env.local automatically at the start of the build.
+        run: pnpm --filter web run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BETTER_AUTH_URL: https://expense-report-seven.vercel.app/
+          NEXT_PUBLIC_APP_URL: https://expense-report-seven.vercel.app/
 
-#       - name: Deploy to Vercel
-#         run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  deploy-worker:
+    runs-on: ubuntu-latest
+    needs: migrations
+    environment: main
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build Lambda
+        run: pnpm --filter worker run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Deploy Worker Stack
+        run: |
+          cd apps/worker
+          npx cdk deploy WorkerStack-prod --require-approval never
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
