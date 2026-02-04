@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ingestReceipt } from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
-import { problem } from "@/lib/http/problems";
+import { problem } from "@/lib/problems/problems";
 import { requireApiAuth } from "@/lib/auth/api";
 import { MAX_FILES_PER_UPLOAD } from "@repo/shared";
 

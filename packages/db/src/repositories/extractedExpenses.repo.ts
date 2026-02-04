@@ -21,21 +21,13 @@ export async function createExtractedExpense(
 
 export async function getCurrentExtractedExpenseForReceipt(
   receiptId: string,
-): Promise<ExtractedExpense> {
-  const expense = await db.query.extractedExpenses.findFirst({
+): Promise<ExtractedExpense | undefined> {
+  return db.query.extractedExpenses.findFirst({
     where: and(
       eq(extractedExpenses.receiptId, receiptId),
       eq(extractedExpenses.isCurrent, true),
     ),
   });
-
-  if (!expense) {
-    throw new Error(
-      `Failed to find current extracted expense for receipt: ${receiptId}`,
-    );
-  }
-
-  return expense;
 }
 
 export async function updateExtractedExpense(
