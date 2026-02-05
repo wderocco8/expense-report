@@ -1,4 +1,4 @@
-import { problem } from "@/lib/problems/problems";
+import { extractedExpenseProblems } from "@/lib/problems/domain/extractedExpense";
 import {
   createExtractedExpense as repoCreateExtractedExpense,
   getCurrentExtractedExpenseForReceipt as repoGetCurrentExtractedExpenseForReceipt,
@@ -33,13 +33,9 @@ export async function getCurrentExtractedExpenseForReceipt(
   receiptId: string,
 ): Promise<ExtractedExpense> {
   const expense = await repoGetCurrentExtractedExpenseForReceipt(receiptId);
+
   if (!expense) {
-    throw problem(
-      404,
-      "/problems/extracted-expense/not-found",
-      "Extracted expense not found",
-      `No current extracted expense exists for receipt ${receiptId}`,
-    );
+    throw extractedExpenseProblems.notFoundByReceipt(receiptId);
   }
 
   return expense;
@@ -50,5 +46,10 @@ export async function updateExtractedExpense(
   data: ExtractedExpenseUpdateInput,
 ): Promise<ExtractedExpense> {
   const expense = await repoUpdateExtractedExpense(expenseId, data);
+
+  if (!expense) {
+    throw extractedExpenseProblems.notFoundById(expenseId);
+  }
+
   return expense;
 }

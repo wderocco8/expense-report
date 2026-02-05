@@ -1,6 +1,6 @@
-import { ProblemDetails } from "@/lib/problems/problem";
+import { ProblemDetails } from "@/lib/problems/problemDetails";
 import { respondProblem } from "@/lib/http/respond";
-import { problem } from "@/lib/problems/problems";
+import { problem } from "@/lib/problems/problem";
 import { AppRouteHandlerRoutes } from "@/.next/dev/types/routes";
 
 type NextRouteHandler<R extends AppRouteHandlerRoutes> = (

@@ -1,4 +1,4 @@
-import { problem } from "@/lib/problems/problems";
+import { problem } from "@/lib/problems/problem";
 
 export const AuthProblems = {
   unauthenticated: () =>

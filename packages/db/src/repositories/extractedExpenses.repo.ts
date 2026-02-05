@@ -11,11 +11,6 @@ export async function createExtractedExpense(
   data: NewExtractedExpense,
 ): Promise<ExtractedExpense> {
   const [expense] = await db.insert(extractedExpenses).values(data).returning();
-
-  if (!expense) {
-    throw new Error("Failed to create extracted expense");
-  }
-
   return expense;
 }
 
@@ -39,10 +34,6 @@ export async function updateExtractedExpense(
     .set({ ...data })
     .where(eq(extractedExpenses.id, expenseId))
     .returning();
-
-  if (!expense) {
-    throw new Error("Failed to update extracted expense");
-  }
 
   return expense;
 }

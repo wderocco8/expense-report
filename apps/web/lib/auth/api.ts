@@ -1,6 +1,6 @@
 import { requireSession, AuthRequirements } from "@/lib/auth/require-session";
 import { getSession } from "@/lib/auth/session";
-import { ProblemDetails } from "@/lib/problems/problem";
+import { ProblemDetails } from "@/lib/problems/problemDetails";
 import { AuthProblems } from "@/lib/auth/auth.problems";
 
 export type ApiAuthResult =
