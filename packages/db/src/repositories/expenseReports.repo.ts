@@ -5,7 +5,6 @@ import {
   extractedExpenses,
   NewExpenseReportJob,
   receiptFiles,
-  status,
 } from "../schema";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -27,11 +26,6 @@ export async function createExpenseReportJob(
     .insert(expenseReportJobs)
     .values({ ...data, title: generateJobTitle(data.title) })
     .returning();
-
-  if (!job) {
-    throw new Error("Failed to create expense report job");
-  }
-
   return job;
 }
 
@@ -52,10 +46,6 @@ export async function getExpenseReportJob(
     .from(expenseReportJobs)
     .where(eq(expenseReportJobs.id, jobId));
 
-  if (!job) {
-    throw new Error("Failed to find expense report job");
-  }
-
   return job;
 }
 
@@ -72,10 +62,6 @@ export async function getExpenseReportJobWithFiles(
       receiptFiles: true,
     },
   });
-
-  if (!job) {
-    throw new Error("Expense report job not found");
-  }
 
   return job;
 }
@@ -94,13 +80,10 @@ export async function getExpenseReportJobWithReceiptAndExpense(jobId: string) {
     },
   });
 
-  if (!job) {
-    throw new Error("Expense report job not found");
-  }
-
   return job;
 }
 
+// TODO: this function seems very unoptimized
 export async function getExpenseReportJobsWithProgress(userId: string) {
   const jobs = await getExpenseReportJobs(userId);
 

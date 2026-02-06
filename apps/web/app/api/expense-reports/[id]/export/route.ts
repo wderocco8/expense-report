@@ -1,5 +1,6 @@
 import { requireApiAuth } from "@/lib/auth/api";
 import { respondProblem } from "@/lib/http/respond";
+import { withProblems } from "@/lib/problems/wrapper";
 import { exportExpenseReport } from "@/server/services/expenseReports.service";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -8,10 +9,7 @@ const ParamsSchema = z.object({
   id: z.uuid(),
 });
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withProblems(async (req, { params }) => {
   try {
     const authResult = await requireApiAuth();
     if (!authResult.ok) {
@@ -35,7 +33,7 @@ export async function GET(
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
+});

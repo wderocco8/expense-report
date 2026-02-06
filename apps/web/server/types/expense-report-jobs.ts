@@ -4,8 +4,8 @@ import {
   getExpenseReportJobWithReceiptAndExpense,
 } from "@repo/db";
 
-export type ExpenseReportWithFiles = Awaited<
-  ReturnType<typeof getExpenseReportJobWithFiles>
+export type ExpenseReportWithFiles = NonNullable<
+  Awaited<ReturnType<typeof getExpenseReportJobWithFiles>>
 >;
 
 export type ReceiptFileWithExpenses =

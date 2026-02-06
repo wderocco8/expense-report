@@ -13,6 +13,7 @@ import {
   ExpenseReportWithFiles,
 } from "@/server/types/expense-report-jobs";
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
+import { expenseReportJobProblems } from "@/lib/problems/domain/expenseReportJob";
 
 export async function createExpenseReport({
   userId,
@@ -38,18 +39,35 @@ export async function getExpenseReports(
 export async function getExpenseReport(
   jobId: string,
 ): Promise<ExpenseReportJob> {
-  return repoGetExpenseReportJob(jobId);
+  const job = repoGetExpenseReportJob(jobId);
+
+  if (!job) {
+    throw expenseReportJobProblems.notFoundById(jobId);
+  }
+
+  return job;
 }
 
 export async function getExpenseReportWithFiles(
   jobId: string,
   userId: string,
 ): Promise<ExpenseReportWithFiles> {
-  return repoGetExpenseReportJobWithFiles(jobId, userId);
+  const job = await repoGetExpenseReportJobWithFiles(jobId, userId);
+
+  if (!job) {
+    throw expenseReportJobProblems.notFoundById(jobId);
+  }
+
+  return job;
 }
 
 export async function exportExpenseReport(jobId: string) {
   const job = await repoGetExpenseReportJobWithReceiptAndExpense(jobId);
+
+  if (!job) {
+    throw expenseReportJobProblems.notFoundById(jobId);
+  }
+
   return buildExpenseReportWorkbook(job);
 }
 
