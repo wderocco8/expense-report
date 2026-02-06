@@ -7,11 +7,6 @@ export async function createReceiptFile(
   data: NewReceiptFile,
 ): Promise<ReceiptFile> {
   const [receiptFile] = await db.insert(receiptFiles).values(data).returning();
-
-  if (!receiptFile) {
-    throw new Error("Failed to create receipt file");
-  }
-
   return receiptFile;
 }
 
@@ -21,10 +16,6 @@ export async function getReceiptFile(id: string): Promise<ReceiptFile> {
     .from(receiptFiles)
     .where(eq(receiptFiles.id, id));
 
-  if (!receiptFile) {
-    throw new Error("Failed to find receipt file");
-  }
-
   return receiptFile;
 }
 
@@ -33,10 +24,6 @@ export async function getReceiptFileWithJob(id: string) {
     where: eq(receiptFiles.id, id),
     with: { job: true },
   });
-
-  if (!receiptFile) {
-    throw new Error("Failed to find receipt file");
-  }
 
   return receiptFile;
 }
@@ -48,10 +35,6 @@ export async function getReceiptFileWithExpense(id: string) {
       extractedExpenses: true,
     },
   });
-
-  if (!receiptFile) {
-    throw new Error("Failed to find receipt file with expense");
-  }
 
   return receiptFile;
 }
@@ -66,10 +49,6 @@ export async function updateReceiptFile(
     .where(eq(receiptFiles.id, id))
     .returning();
 
-  if (!receipt) {
-    throw new Error("Failed to update receipt file");
-  }
-
   return receipt;
 }
 
@@ -78,10 +57,6 @@ export async function deleteReceiptFile(id: string): Promise<ReceiptFile> {
     .delete(receiptFiles)
     .where(eq(receiptFiles.id, id))
     .returning();
-
-  if (!deleted) {
-    throw new Error("Failed to delete receipt file");
-  }
 
   return deleted;
 }

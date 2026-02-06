@@ -11,8 +11,8 @@ export type ExpenseReportWithFiles = NonNullable<
 export type ReceiptFileWithExpenses =
   ExpenseReportWithFiles["receiptFiles"][number];
 
-export type ExpenseReportWithReceiptAndExpense = Awaited<
-  ReturnType<typeof getExpenseReportJobWithReceiptAndExpense>
+export type ExpenseReportWithReceiptAndExpense = NonNullable<
+  Awaited<ReturnType<typeof getExpenseReportJobWithReceiptAndExpense>>
 >;
 
 export type ExpenseReportJobsWithProgress = Awaited<

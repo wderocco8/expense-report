@@ -6,6 +6,6 @@ export const expenseReportJobProblems = {
       404,
       "/problems/expense-report-job/not-found",
       "Expense report job not found",
-      `No current expense report job exists for receipt ${id}`,
+      `No current expense report job exists with ${id}`,
     ),
 };

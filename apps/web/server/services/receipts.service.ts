@@ -15,6 +15,7 @@ import {
 } from "@/server/services/storage.service";
 import { NewReceiptFile, ReceiptFile } from "@repo/db/src/schema";
 import { enqueueReceiptProcessing } from "@/server/services/queue.service";
+import { receiptFileProblems } from "@/lib/problems/domain/receiptFile";
 
 /**
  * Ingests a receipt into the system.
@@ -52,8 +53,6 @@ export async function ingestReceipt({
     s3Key: key,
   });
 
-  // NOTE: process receipts asynchronously (no await keyword)
-  // processReceipt(receipt.id);
   await enqueueReceiptProcessing(receipt.id);
 }
 
@@ -75,6 +74,11 @@ export async function updateReceiptFile(
   data: ReceiptFileUpdateInput,
 ): Promise<ReceiptFile> {
   const receipt = await repoUpdateReceiptFile(id, data);
+
+  if (!receipt) {
+    throw receiptFileProblems.notFoundById(id);
+  }
+
   return receipt;
 }
 
@@ -86,17 +90,35 @@ export async function updateReceiptFile(
  * @throws If no receipt file with the given ID exists
  */
 export async function getReceiptFile(id: string): Promise<ReceiptFile> {
-  return repoGetReceiptFile(id);
+  const receipt = repoGetReceiptFile(id);
+
+  if (!receipt) {
+    throw receiptFileProblems.notFoundById(id);
+  }
+
+  return receipt;
 }
 
 export async function getReceiptFileWithJob(id: string) {
-  return repoGetReceiptFileWithJob(id);
+  const receipt = repoGetReceiptFileWithJob(id);
+
+  if (!receipt) {
+    throw receiptFileProblems.notFoundById(id);
+  }
+
+  return receipt;
 }
 
 export async function getReceiptFileWithExpense(
   id: string,
 ): Promise<ReceiptFile> {
-  return repoGetReceiptFile(id);
+  const receipt = repoGetReceiptFile(id);
+
+  if (!receipt) {
+    throw receiptFileProblems.notFoundById(id);
+  }
+
+  return receipt;
 }
 
 /**
@@ -106,20 +128,19 @@ export async function getReceiptFileWithExpense(
  */
 export async function deleteReceiptFileWithS3(
   id: string,
-): Promise<ReceiptFile | null> {
+): Promise<ReceiptFile> {
   // First, get the receipt to know its S3 key
   const receipt = await repoGetReceiptFile(id);
 
-  // Delete the S3 object
-  try {
-    await deleteS3Object(receipt.s3Key);
-  } catch (err) {
-    console.error("Failed to delete S3 object", err);
-    return null;
+  if (!receipt) {
+    throw receiptFileProblems.notFoundById(id);
   }
 
-  // Delete the DB record
   const deleted = await repoDeleteReceiptFile(id);
+
+  deleteS3Object(receipt.s3Key).catch((err) => {
+    console.error("S3 cleanup failed for receipt", id, err);
+  });
 
   return deleted;
 }
