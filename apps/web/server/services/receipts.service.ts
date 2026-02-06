@@ -100,7 +100,7 @@ export async function getReceiptFile(id: string): Promise<ReceiptFile> {
 }
 
 export async function getReceiptFileWithJob(id: string) {
-  const receipt = repoGetReceiptFileWithJob(id);
+  const receipt = await repoGetReceiptFileWithJob(id);
 
   if (!receipt) {
     throw receiptFileProblems.notFoundById(id);
