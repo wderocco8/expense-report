@@ -16,6 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { UploadReceiptsSheet } from "./upload-receipts-sheet";
 
 export function ReceiptFilesSection({
   jobId,
@@ -24,6 +25,8 @@ export function ReceiptFilesSection({
   jobId: string;
   receiptFiles: ReceiptFileWithExpenses[];
 }) {
+  const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
+
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -65,6 +68,9 @@ export function ReceiptFilesSection({
     <>
       <ExportReceipts jobId={jobId} />
       <UploadReceipts jobId={jobId} />
+      <Button type="button" onClick={() => setUploadSheetOpen(true)}>
+        Create Expense
+      </Button>
       <ReceiptFilesTable
         data={receiptFiles}
         onViewReceipt={setOpenReceiptId}
@@ -94,6 +100,11 @@ export function ReceiptFilesSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UploadReceiptsSheet
+        open={uploadSheetOpen}
+        onOpenChange={setUploadSheetOpen}
+      />
 
       <ExtractedExpenseSheet
         receipt={receipt}
