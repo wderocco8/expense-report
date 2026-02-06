@@ -1,11 +1,10 @@
 import { ProblemDetails } from "@/lib/problems/problemDetails";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/problems/problem";
-import { AppRouteHandlerRoutes } from "@/.next/dev/types/routes";
 
-type NextRouteHandler<R extends AppRouteHandlerRoutes> = (
+type NextRouteHandler<TContext = unknown> = (
   req: Request,
-  ctx: RouteContext<R>,
+  ctx: TContext,
 ) => Promise<Response>;
 
 function isProblemDetails(err: unknown): err is ProblemDetails {
@@ -18,9 +17,9 @@ function isProblemDetails(err: unknown): err is ProblemDetails {
   );
 }
 
-export function withProblems<R extends AppRouteHandlerRoutes>(
-  handler: NextRouteHandler<R>,
-): NextRouteHandler<R> {
+export function withProblems<TContext = unknown>(
+  handler: NextRouteHandler<TContext>,
+): NextRouteHandler<TContext> {
   return async (req, ctx) => {
     try {
       return await handler(req, ctx);

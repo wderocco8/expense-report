@@ -6,17 +6,17 @@ import { requireApiAuth } from "@/lib/auth/api";
 import { respondProblem } from "@/lib/http/respond";
 import { withProblems } from "@/lib/problems/wrapper";
 
-const ParamsSchema = z.object({
-  expenseId: z.uuid(),
-});
+type RouteCtx = {
+  params: Promise<{ expenseId: string }>;
+};
 
-export const PATCH = withProblems(async (req, { params }) => {
+export const PATCH = withProblems<RouteCtx>(async (req, { params }) => {
   const authResult = await requireApiAuth();
   if (!authResult.ok) {
     return respondProblem(authResult.problem);
   }
 
-  const { expenseId } = ParamsSchema.parse(await params);
+  const expenseId = z.uuid().parse((await params).expenseId);
 
   const json = await req.json();
 
