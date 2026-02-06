@@ -3,8 +3,9 @@ import { requireApiAuth } from "@/lib/auth/api";
 import { auth } from "@/lib/auth/auth";
 import { respondProblem } from "@/lib/http/respond";
 import { headers } from "next/headers";
+import { withProblems } from "@/lib/problems/wrapper";
 
-export async function GET() {
+export const GET = withProblems(async () => {
   const authResult = await requireApiAuth({ roles: ["admin"] });
   if (!authResult.ok) {
     return respondProblem(authResult.problem);
@@ -20,4 +21,4 @@ export async function GET() {
   });
 
   return NextResponse.json({ users });
-}
+});

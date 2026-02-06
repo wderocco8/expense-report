@@ -4,6 +4,7 @@ import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/problems/problem";
 import { requireApiAuth } from "@/lib/auth/api";
 import { MAX_FILES_PER_UPLOAD } from "@repo/shared";
+import { withProblems } from "@/lib/problems/wrapper";
 
 export const runtime = "nodejs"; // required to read binary files
 
@@ -16,7 +17,7 @@ const VALID_FILE_TYPES = [
 ];
 
 // TODO: replace this with real rate limiting eventually
-export async function POST(req: Request) {
+export const POST = withProblems(async (req) => {
   const authResult = await requireApiAuth();
   if (!authResult.ok) {
     return respondProblem(authResult.problem);
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ success: true });
-}
+});
 
 /**
  * TODO: Validation
