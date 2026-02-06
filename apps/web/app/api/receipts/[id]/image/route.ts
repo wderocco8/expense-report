@@ -7,15 +7,15 @@ import { getSignedReceiptUrl } from "@/server/services/storage.service";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const ParamsSchema = z.object({
-  id: z.uuid(),
-});
+type RouteCtx = {
+  params: Promise<{ id: string }>;
+};
 
-export const GET = withProblems(async (req, { params }) => {
+export const GET = withProblems<RouteCtx>(async (req, { params }) => {
   const authResult = await requireApiAuth();
   if (!authResult.ok) return respondProblem(authResult.problem);
 
-  const { id } = ParamsSchema.parse(await params);
+  const id = z.uuid().parse((await params).id);
 
   const receipt = await getReceiptFileWithJob(id);
 
