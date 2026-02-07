@@ -1,6 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetClose,
@@ -9,8 +7,9 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Pencil, ScanText } from "lucide-react";
 
 type UploadReceiptsSheetProps = {
   open: boolean;
@@ -23,28 +22,34 @@ export function UploadReceiptsSheet({
 }: UploadReceiptsSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
-        <Button variant="outline">Open</Button>
-      </SheetTrigger>
       <SheetContent side="right-resize">
         <SheetHeader>
-          <SheetTitle>Edit profile</SheetTitle>
+          <SheetTitle>Upload Expense</SheetTitle>
           <SheetDescription>
             Make changes to your profile here. Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
-        <div className="grid flex-1 auto-rows-min gap-6 px-4">
-          <div className="grid gap-3">
-            <Label htmlFor="sheet-demo-name">Name</Label>
-            <Input id="sheet-demo-name" defaultValue="Pedro Duarte" />
-          </div>
-          <div className="grid gap-3">
-            <Label htmlFor="sheet-demo-username">Username</Label>
-            <Input id="sheet-demo-username" defaultValue="@peduarte" />
-          </div>
+
+        <div className="px-4">
+          <Tabs defaultValue="scan" className="w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="manual">
+                <Pencil />
+                Manual
+              </TabsTrigger>
+              <TabsTrigger value="scan">
+                <ScanText />
+                Scan
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="manual">
+              Make changes to your manual here.
+            </TabsContent>
+            <TabsContent value="scan">Change your scan here.</TabsContent>
+          </Tabs>
         </div>
+
         <SheetFooter>
-          <Button type="submit">Save changes</Button>
           <SheetClose asChild>
             <Button variant="outline">Close</Button>
           </SheetClose>
