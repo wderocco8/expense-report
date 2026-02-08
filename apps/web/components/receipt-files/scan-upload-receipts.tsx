@@ -18,23 +18,21 @@ import {
   ReceiptUploadSchema,
 } from "@repo/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { useForm, useWatch } from "react-hook-form";
+import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 interface ScanUploadReceiptsProps {
   jobId: string;
   onSuccess: () => void;
+  onSubmittingChange: (v: boolean) => void;
 }
 
 export function ScanUploadReceipts({
   jobId,
   onSuccess,
+  onSubmittingChange,
 }: ScanUploadReceiptsProps) {
   const router = useRouter();
 
@@ -43,7 +41,7 @@ export function ScanUploadReceipts({
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-    watch,
+    control,
     setError,
     setValue,
   } = useForm<ReceiptUploadInput>({
@@ -54,7 +52,10 @@ export function ScanUploadReceipts({
     },
   });
 
-  const files = watch("files");
+  const files = useWatch({
+    control,
+    name: "files",
+  });
   const fileError = errors.files;
 
   const onSubmit = async (values: ReceiptUploadInput) => {
@@ -78,6 +79,10 @@ export function ScanUploadReceipts({
     onSuccess();
   };
 
+  useEffect(() => {
+    onSubmittingChange(isSubmitting);
+  }, [isSubmitting, onSubmittingChange]);
+
   return (
     <form
       id="scan-upload-form"
@@ -88,8 +93,6 @@ export function ScanUploadReceipts({
 
       <FieldGroup className="h-full">
         <Field className="h-full" data-invalid={!!fileError}>
-          <FieldLabel>Receipts</FieldLabel>
-
           <FileUpload
             value={files}
             onValueChange={(v) =>

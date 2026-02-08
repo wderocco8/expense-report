@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pencil, ScanText } from "lucide-react";
 import { ScanUploadReceipts } from "@/components/receipt-files/scan-upload-receipts";
 import { useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 type UploadReceiptsSheetProps = {
   open: boolean;
@@ -25,6 +26,7 @@ export function UploadReceiptsSheet({
   jobId,
 }: UploadReceiptsSheetProps) {
   const [tab, setTab] = useState<"scan" | "manual">("scan");
+  const [scanSubmitting, setScanSubmitting] = useState(false);
 
   const handleSuccess = () => {
     onOpenChange(false);
@@ -61,14 +63,23 @@ export function UploadReceiptsSheet({
               Make changes to your manual here.
             </TabsContent>
             <TabsContent value="scan" className="flex-1">
-              <ScanUploadReceipts jobId={jobId} onSuccess={handleSuccess} />
+              <ScanUploadReceipts
+                jobId={jobId}
+                onSuccess={handleSuccess}
+                onSubmittingChange={setScanSubmitting}
+              />
             </TabsContent>
           </Tabs>
         </div>
 
         <SheetFooter>
           {tab === "scan" && (
-            <Button type="submit" form="scan-upload-form">
+            <Button
+              type="submit"
+              form="scan-upload-form"
+              disabled={scanSubmitting}
+            >
+              {scanSubmitting && <Spinner data-icon="inline-start" />}
               Upload
             </Button>
           )}
