@@ -8,6 +8,7 @@ export default function ExportReceipts({ jobId }: { jobId: string }) {
       onClick={() => {
         window.location.href = `/api/expense-reports/${jobId}/export`;
       }}
+      variant="outline"
     >
       Download Excel
     </Button>
