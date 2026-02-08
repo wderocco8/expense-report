@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pencil, ScanText } from "lucide-react";
 import { ScanUploadReceipts } from "@/components/receipt-files/scan-upload-receipts";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type UploadReceiptsSheetProps = {
   open: boolean;
@@ -25,33 +24,9 @@ export function UploadReceiptsSheet({
   onOpenChange,
   jobId,
 }: UploadReceiptsSheetProps) {
-  const [scanFiles, setScanFiles] = useState<File[]>([]);
-  // const [manualData, setManualData] = useState<ManualData | null>(null);
   const [tab, setTab] = useState<"scan" | "manual">("scan");
 
-  const router = useRouter();
-
-  const handleUpload = async () => {
-    const formData = new FormData();
-
-    formData.append("jobId", jobId);
-
-    if (tab === "scan") {
-      scanFiles.forEach((f) => formData.append("files", f));
-    }
-
-    // if (tab === "manual") {
-    //   formData.append("manual", JSON.stringify(manualData));
-    // }
-
-    const res = await fetch("/api/receipts", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) return;
-
-    router.refresh();
+  const handleSuccess = () => {
     onOpenChange(false);
   };
 
@@ -86,16 +61,22 @@ export function UploadReceiptsSheet({
               Make changes to your manual here.
             </TabsContent>
             <TabsContent value="scan" className="flex-1">
-              <ScanUploadReceipts
-                files={scanFiles}
-                onFilesChange={setScanFiles}
-              />
+              <ScanUploadReceipts jobId={jobId} onSuccess={handleSuccess} />
             </TabsContent>
           </Tabs>
         </div>
 
         <SheetFooter>
-          <Button onClick={handleUpload}>Upload</Button>
+          {tab === "scan" && (
+            <Button type="submit" form="scan-upload-form">
+              Upload
+            </Button>
+          )}
+          {tab === "manual" && (
+            <Button type="submit" form="manual-form">
+              Save
+            </Button>
+          )}
           <SheetClose asChild>
             <Button variant="outline">Close</Button>
           </SheetClose>
