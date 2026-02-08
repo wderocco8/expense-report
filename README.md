@@ -60,7 +60,16 @@ sudo nano /etc/hosts
 
 Add:
 
-127.0.0.1 db.localtest.me
+```sh
+127.0.0.1       db.localtest.me
+127.0.0.1       localhost.localstack.cloud
+127.0.0.1       sqs.us-east-2.localhost
+127.0.0.1       s3.us-east-2.localhost
+127.0.0.1       lambda.us-east-2.localhost
+127.0.0.1       cloudformation.us-east-2.localhost
+127.0.0.1       sts.us-east-2.localhost
+127.0.0.1       iam.us-east-2.localhost
+```
 
 ## Worker config
 

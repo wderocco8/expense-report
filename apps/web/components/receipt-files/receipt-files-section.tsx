@@ -104,6 +104,7 @@ export function ReceiptFilesSection({
       <UploadReceiptsSheet
         open={uploadSheetOpen}
         onOpenChange={setUploadSheetOpen}
+        jobId={jobId}
       />
 
       <ExtractedExpenseSheet
