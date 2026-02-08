@@ -34,7 +34,7 @@ export function UploadReceiptsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right-resize">
+      <SheetContent side="right-resize" className="flex flex-col">
         <SheetHeader>
           <SheetTitle>Upload Expense</SheetTitle>
           <SheetDescription>
@@ -42,10 +42,10 @@ export function UploadReceiptsSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="px-4 h-full">
+        <div className="px-4 flex-1 min-h-0 overflow-hidden">
           <Tabs
             defaultValue="scan"
-            className="flex h-full w-full flex-col gap-6"
+            className="flex h-full w-full flex-col gap-6 min-h-0"
             value={tab}
             onValueChange={(v) => setTab(v as "scan" | "manual")}
           >
@@ -62,7 +62,7 @@ export function UploadReceiptsSheet({
             <TabsContent value="manual" className="flex-1">
               Make changes to your manual here.
             </TabsContent>
-            <TabsContent value="scan" className="flex-1">
+            <TabsContent value="scan" className="flex-1 min-h-0">
               <ScanUploadReceipts
                 jobId={jobId}
                 onSuccess={handleSuccess}

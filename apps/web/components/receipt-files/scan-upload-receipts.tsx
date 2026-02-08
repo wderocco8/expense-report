@@ -104,9 +104,9 @@ export function ScanUploadReceipts({
               setError("files", { message });
             }}
             multiple
-            className="flex h-full w-full flex-col gap-4"
+            className="flex h-full w-full flex-col gap-4 min-h-0"
           >
-            <FileUploadDropzone className="flex-1">
+            <FileUploadDropzone className="flex-1 min-h-80">
               <div className="flex flex-col items-center gap-1">
                 <div className="flex items-center justify-center rounded-full border p-2.5">
                   <Upload className="size-6 text-muted-foreground" />
@@ -123,7 +123,11 @@ export function ScanUploadReceipts({
               </FileUploadTrigger>
             </FileUploadDropzone>
 
-            <FileUploadList>
+            <div className="text-sm text-muted-foreground">
+              {files.length} / {MAX_FILES_PER_UPLOAD} selected
+            </div>
+
+            <FileUploadList className="overflow-y-auto">
               {files.map((file, i) => (
                 <FileUploadItem key={i} value={file}>
                   <FileUploadItemPreview />
