@@ -12,7 +12,7 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ExtractedExpenseUpdateSchema } from "@repo/shared";
+import { ReceiptFileAddSchema } from "@repo/shared";
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -65,7 +65,7 @@ export function ManualUploadReceipt({
 }: ManulUploadReceiptProps) {
   const [dateOpen, setDateOpen] = useState(false);
 
-  type FormValues = z.infer<typeof ExtractedExpenseUpdateSchema>;
+  type FormValues = z.input<typeof ReceiptFileAddSchema>;
   const {
     register,
     handleSubmit,
@@ -73,32 +73,36 @@ export function ManualUploadReceipt({
     reset,
     control,
   } = useForm<FormValues>({
-    resolver: zodResolver(ExtractedExpenseUpdateSchema),
+    resolver: zodResolver(ReceiptFileAddSchema),
   });
 
   async function onSubmit(values: FormValues) {
-    const res = await fetch(`/api/receipt-files`, {
-      // TODO: add new endpoint
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+    const formData = new FormData();
+
+    formData.append("payload", JSON.stringify(values.payload));
+    formData.append("image", values.image);
+
+    const res = await fetch(`/api/expense-reports/${jobId}/receipts`, {
+      method: "POST",
+      body: formData,
     });
 
     if (!res.ok) {
-      toast.error("Encountered error updating expense");
+      toast.error("Encountered error creating expense");
       return;
     }
 
-    toast.success("Expense has been updated");
+    toast.success("Expense has been created");
     reset({ ...values }); // reset form state to current values
   }
 
   return (
     <form
+      id="manual-upload-form"
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col flex-1 h-full"
     >
-      <div className="flex-1 px-4 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <FieldGroup>
           <FieldSet>
             <FieldLegend variant="label">Expense Details</FieldLegend>
@@ -107,41 +111,60 @@ export function ManualUploadReceipt({
             </FieldDescription>
 
             <FieldGroup>
-              <Field data-invalid={!!errors.category}>
+              <Field data-invalid={!!errors.image}>
+                <FieldLabel>Receipt Image</FieldLabel>
+
+                <Controller
+                  name="image"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        field.onChange(file);
+                      }}
+                    />
+                  )}
+                />
+              </Field>
+
+              <Field data-invalid={!!errors?.payload?.category}>
                 <FieldLabel>Category</FieldLabel>
                 <FormCombobox
                   control={control}
-                  name="category"
+                  name="payload.category"
                   options={CATEGORY_OPTIONS}
                   placeholder="Select category"
                 />
               </Field>
 
-              <Field data-invalid={!!errors.merchant}>
+              <Field data-invalid={!!errors?.payload?.merchant}>
                 <FieldLabel htmlFor="merchant">Merchant</FieldLabel>
                 <Input
                   id="merchant"
-                  aria-invalid={!!errors.merchant}
-                  {...register("merchant")}
+                  aria-invalid={!!errors?.payload?.merchant}
+                  {...register("payload.merchant")}
                 />
               </Field>
 
-              <Field data-invalid={!!errors.description}>
+              <Field data-invalid={!!errors?.payload?.description}>
                 <FieldLabel htmlFor="description">Description</FieldLabel>
                 <Input
                   id="description"
-                  aria-invalid={!!errors.description}
-                  {...register("description")}
+                  aria-invalid={!!errors?.payload?.description}
+                  {...register("payload.description")}
                 />
               </Field>
 
-              <Field data-invalid={!!errors.amount}>
+              <Field data-invalid={!!errors?.payload?.amount}>
                 <FieldLabel htmlFor="amount">Amount</FieldLabel>
                 <Input
                   id="amount"
                   inputMode="decimal"
-                  aria-invalid={!!errors.amount}
-                  {...register("amount", {
+                  aria-invalid={!!errors?.payload?.amount}
+                  {...register("payload.amount", {
                     onBlur: (e) => {
                       const formatted = formatMoney(e.target.value);
                       e.target.value = formatted;
@@ -150,11 +173,11 @@ export function ManualUploadReceipt({
                 />
               </Field>
 
-              <Field data-invalid={!!errors.date}>
+              <Field data-invalid={!!errors?.payload?.date}>
                 <FieldLabel htmlFor="date">Date</FieldLabel>
 
                 <Controller
-                  name="date"
+                  name="payload.date"
                   control={control}
                   render={({ field }) => {
                     const date = field.value
@@ -165,7 +188,7 @@ export function ManualUploadReceipt({
                       <Popover
                         open={dateOpen}
                         onOpenChange={setDateOpen}
-                        aria-invalid={!!errors.date}
+                        aria-invalid={!!errors?.payload?.date}
                       >
                         <PopoverTrigger asChild>
                           <Button
@@ -209,22 +232,24 @@ export function ManualUploadReceipt({
             </FieldDescription>
 
             <FieldGroup>
-              <Field data-invalid={!!errors.transportDetails?.mode}>
+              <Field data-invalid={!!errors?.payload?.transportDetails?.mode}>
                 <FieldLabel htmlFor="mode">Mode</FieldLabel>
                 <FormCombobox
                   control={control}
-                  name="transportDetails.mode"
+                  name="payload.transportDetails.mode"
                   options={TRANSPORT_MODE_OPTIONS}
                   placeholder="Select transport mode"
                 />
               </Field>
 
-              <Field data-invalid={!!errors.transportDetails?.mileage}>
+              <Field
+                data-invalid={!!errors?.payload?.transportDetails?.mileage}
+              >
                 <FieldLabel htmlFor="mileage">Mileage</FieldLabel>
                 <Input
                   id="mileage"
-                  aria-invalid={!!errors.transportDetails?.mileage}
-                  {...register("transportDetails.mileage")}
+                  aria-invalid={!!errors?.payload?.transportDetails?.mileage}
+                  {...register("payload.transportDetails.mileage")}
                 />
               </Field>
             </FieldGroup>

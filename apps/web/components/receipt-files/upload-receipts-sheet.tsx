@@ -28,6 +28,7 @@ export function UploadReceiptsSheet({
 }: UploadReceiptsSheetProps) {
   const [tab, setTab] = useState<"scan" | "manual">("scan");
   const [scanSubmitting, setScanSubmitting] = useState(false);
+  const [manualSubmitting, setManualSubmitting] = useState(false);
 
   const handleSuccess = () => {
     onOpenChange(false);
@@ -71,7 +72,7 @@ export function UploadReceiptsSheet({
               <ScanUploadReceipts
                 jobId={jobId}
                 onSuccess={handleSuccess}
-                onSubmittingChange={setScanSubmitting}
+                onSubmittingChange={setManualSubmitting}
               />
             </TabsContent>
           </Tabs>
@@ -89,7 +90,12 @@ export function UploadReceiptsSheet({
             </Button>
           )}
           {tab === "manual" && (
-            <Button type="submit" form="manual-form">
+            <Button
+              type="submit"
+              form="manual-upload-form"
+              disabled={manualSubmitting}
+            >
+              {manualSubmitting && <Spinner data-icon="inline-start" />}
               Save
             </Button>
           )}
