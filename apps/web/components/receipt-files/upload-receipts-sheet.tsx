@@ -13,6 +13,7 @@ import { Pencil, ScanText } from "lucide-react";
 import { ScanUploadReceipts } from "@/components/receipt-files/scan-upload-receipts";
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { ManualUploadReceipt } from "@/components/receipt-files/manual-upload-receipt";
 
 type UploadReceiptsSheetProps = {
   open: boolean;
@@ -59,8 +60,12 @@ export function UploadReceiptsSheet({
                 Scan
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="manual" className="flex-1">
-              Make changes to your manual here.
+            <TabsContent value="manual" className="flex-1 min-h-0">
+              <ManualUploadReceipt
+                jobId={jobId}
+                onSuccess={handleSuccess}
+                onSubmittingChange={setScanSubmitting}
+              />
             </TabsContent>
             <TabsContent value="scan" className="flex-1 min-h-0">
               <ScanUploadReceipts

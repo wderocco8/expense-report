@@ -124,7 +124,7 @@ export function ScanUploadReceipts({
             </FileUploadDropzone>
 
             <div className="text-sm text-muted-foreground">
-              {files.length} / {MAX_FILES_PER_UPLOAD} selected
+              {files.length} / {MAX_FILES_PER_UPLOAD} attached
             </div>
 
             <FileUploadList className="overflow-y-auto">
