@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ingestReceipt } from "@/server/services/receipts.service";
+import { queueIngestReceipt } from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/problems/problem";
 import { requireApiAuth } from "@/lib/auth/api";
@@ -50,7 +50,7 @@ export const POST = withProblems(async (req) => {
   }
 
   for (const file of files) {
-    await ingestReceipt({ jobId, file });
+    await queueIngestReceipt({ jobId, file });
   }
 
   return NextResponse.json({ success: true });

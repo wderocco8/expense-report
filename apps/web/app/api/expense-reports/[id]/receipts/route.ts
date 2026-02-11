@@ -4,6 +4,7 @@ import { requireApiAuth } from "@/lib/auth/api";
 import { withProblems } from "@/lib/problems/wrapper";
 import z from "zod";
 import { ReceiptFileAddSchema } from "@repo/shared";
+import { manualUpload } from "@/server/services/expenseReports.service";
 
 type RouteCtx = {
   params: Promise<{ id: string }>;
@@ -32,8 +33,11 @@ export const POST = withProblems<RouteCtx>(async (req, { params }) => {
     image,
   });
 
-  console.log(parsed);
-  
+  await manualUpload({
+    jobId: id,
+    file: image,
+    expensePayload: parsed.payload,
+  });
 
   return NextResponse.json({ success: true });
 });
