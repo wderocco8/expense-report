@@ -13,7 +13,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ReceiptFileAddSchema } from "@repo/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -23,6 +23,7 @@ import {
 import { ChevronDownIcon } from "lucide-react";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -63,6 +64,8 @@ export function ManualUploadReceipt({
   onSuccess,
   onSubmittingChange,
 }: ManulUploadReceiptProps) {
+  const router = useRouter();
+
   const [dateOpen, setDateOpen] = useState(false);
 
   type FormValues = z.input<typeof ReceiptFileAddSchema>;
@@ -92,9 +95,15 @@ export function ManualUploadReceipt({
       return;
     }
 
-    toast.success("Expense has been created");
-    reset({ ...values }); // reset form state to current values
+    reset();
+    // TODO: add local state for optimistic UI
+    router.refresh();
+    onSuccess();
   }
+
+  useEffect(() => {
+    onSubmittingChange(isSubmitting);
+  }, [isSubmitting, onSubmittingChange]);
 
   return (
     <form

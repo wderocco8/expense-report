@@ -65,14 +65,14 @@ export function UploadReceiptsSheet({
               <ManualUploadReceipt
                 jobId={jobId}
                 onSuccess={handleSuccess}
-                onSubmittingChange={setScanSubmitting}
+                onSubmittingChange={setManualSubmitting}
               />
             </TabsContent>
             <TabsContent value="scan" className="flex-1 min-h-0">
               <ScanUploadReceipts
                 jobId={jobId}
                 onSuccess={handleSuccess}
-                onSubmittingChange={setManualSubmitting}
+                onSubmittingChange={setScanSubmitting}
               />
             </TabsContent>
           </Tabs>
