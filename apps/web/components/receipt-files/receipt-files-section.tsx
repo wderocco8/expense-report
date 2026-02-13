@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { ReceiptFilesTable } from "@/components/receipt-files/receipt-files-table";
 import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
 import { ExtractedExpenseSheet } from "@/components/receipt-files/extracted-expenses/extracted-expense-sheet";
-import UploadReceipts from "@/components/receipt-files/upload-receipts";
 import ExportReceipts from "@/components/receipt-files/export-receipts";
 import { toast } from "sonner";
 import {
@@ -16,6 +15,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { UploadReceiptsSheet } from "./upload-receipts-sheet";
 
 export function ReceiptFilesSection({
   jobId,
@@ -24,6 +24,8 @@ export function ReceiptFilesSection({
   jobId: string;
   receiptFiles: ReceiptFileWithExpenses[];
 }) {
+  const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
+
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -63,8 +65,12 @@ export function ReceiptFilesSection({
 
   return (
     <>
-      <ExportReceipts jobId={jobId} />
-      <UploadReceipts jobId={jobId} />
+      <div className="flex gap-2">
+        <Button type="button" onClick={() => setUploadSheetOpen(true)}>
+          Create Expense
+        </Button>
+        <ExportReceipts jobId={jobId} />
+      </div>
       <ReceiptFilesTable
         data={receiptFiles}
         onViewReceipt={setOpenReceiptId}
@@ -94,6 +100,12 @@ export function ReceiptFilesSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UploadReceiptsSheet
+        open={uploadSheetOpen}
+        onOpenChange={setUploadSheetOpen}
+        jobId={jobId}
+      />
 
       <ExtractedExpenseSheet
         receipt={receipt}

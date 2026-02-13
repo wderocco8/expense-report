@@ -28,7 +28,35 @@ import { receiptFileProblems } from "@/lib/problems/domain/receiptFile";
  * @param params.file - Receipt file to ingest
  * @returns The created ReceiptFile record
  */
+export async function queueIngestReceipt({
+  jobId,
+  file,
+}: {
+  jobId: string;
+  file: File;
+}) {
+  const receipt = await ingestReceipt({ jobId, file });
+  await enqueueReceiptProcessing(receipt.id);
+}
+
 export async function ingestReceipt({
+  jobId,
+  file,
+}: {
+  jobId: string;
+  file: File;
+}) {
+  const key = await persistReceiptFile({ jobId, file });
+  const receipt = await createReceiptFile({
+    jobId,
+    originalFilename: file.name,
+    s3Key: key,
+  });
+
+  return receipt;
+}
+
+export async function persistReceiptFile({
   jobId,
   file,
 }: {
@@ -47,13 +75,7 @@ export async function ingestReceipt({
     key,
   });
 
-  const receipt = await createReceiptFile({
-    jobId,
-    originalFilename: file.name,
-    s3Key: key,
-  });
-
-  await enqueueReceiptProcessing(receipt.id);
+  return key;
 }
 
 /**

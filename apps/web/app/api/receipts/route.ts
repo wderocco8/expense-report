@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
-import { ingestReceipt } from "@/server/services/receipts.service";
+import { queueIngestReceipt } from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/problems/problem";
 import { requireApiAuth } from "@/lib/auth/api";
-import { MAX_FILES_PER_UPLOAD } from "@repo/shared";
+import { MAX_FILES_PER_UPLOAD, VALID_FILE_TYPES } from "@repo/shared";
 import { withProblems } from "@/lib/problems/wrapper";
 
 export const runtime = "nodejs"; // required to read binary files
-
-const VALID_FILE_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-];
 
 // TODO: replace this with real rate limiting eventually
 export const POST = withProblems(async (req) => {
@@ -58,7 +50,7 @@ export const POST = withProblems(async (req) => {
   }
 
   for (const file of files) {
-    await ingestReceipt({ jobId, file });
+    await queueIngestReceipt({ jobId, file });
   }
 
   return NextResponse.json({ success: true });

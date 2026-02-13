@@ -6,6 +6,7 @@ import {
   getExpenseReportJobWithReceiptAndExpense as repoGetExpenseReportJobWithReceiptAndExpense,
   getExpenseReportJobsWithProgress as repoGetExpenseReportJobsWithProgress,
   type ExpenseReportJob,
+  createExtractedExpense,
 } from "@repo/db";
 
 import {
@@ -14,6 +15,8 @@ import {
 } from "@/server/types/expense-report-jobs";
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
 import { expenseReportJobProblems } from "@/lib/problems/domain/expenseReportJob";
+import { createReceiptFile, persistReceiptFile } from "./receipts.service";
+import { ReceiptDTO, mapReceiptToDb } from "@repo/shared";
 
 export async function createExpenseReport({
   userId,
@@ -75,4 +78,26 @@ export async function getExpenseReportJobsWithProgress(
   userId: string,
 ): Promise<ExpenseReportJobsWithProgress> {
   return repoGetExpenseReportJobsWithProgress(userId);
+}
+
+export async function manualUpload({
+  jobId,
+  file,
+  expensePayload,
+}: {
+  jobId: string;
+  file: File;
+  expensePayload: ReceiptDTO;
+}) {
+  const key = await persistReceiptFile({ jobId, file });
+  const receipt = await createReceiptFile({
+    jobId,
+    originalFilename: file.name,
+    s3Key: key,
+    status: "complete",
+  });
+
+  const dbExpense = await mapReceiptToDb(expensePayload, receipt.id);
+
+  await createExtractedExpense(dbExpense);
 }

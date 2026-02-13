@@ -1,13 +1,12 @@
 import {
   createExtractedExpense,
   getReceiptFile,
-  NewExtractedExpense,
   updateReceiptFile,
 } from "@repo/db";
-import { ReceiptDTO } from "@repo/shared";
 
 import { getObjectBuffer } from "./storage.service";
 import { extractReceiptFromImage } from "./ocr.service";
+import { mapReceiptToDb } from "@repo/shared";
 
 export async function processReceipt(receiptId: string): Promise<void> {
   // check if already processed (idempotency check)
@@ -46,34 +45,4 @@ export async function processReceipt(receiptId: string): Promise<void> {
 
   // update status and get receipt
   await updateReceiptFile(receiptId, { status: "complete" });
-}
-
-function mapReceiptToDb(
-  receipt: ReceiptDTO,
-  receiptId: string,
-): NewExtractedExpense {
-  return {
-    receiptId,
-    merchant: receipt.merchant ?? null,
-    description: receipt.description ?? null,
-    date: normalizeDate(receipt.date),
-    amount: receipt.amount.toString(),
-    category: receipt.category,
-    transportDetails:
-      receipt.category === "transport" ? receipt.transportDetails : null,
-    rawJson: receipt, // store raw OCR output
-    modelVersion: "gpt-4o-mini", // or from config
-    isCurrent: true,
-  };
-}
-
-function normalizeDate(dateStr: string): string | null {
-  const parsed = Date.parse(dateStr);
-  if (isNaN(parsed)) return null; // fallback to null if unfixable
-
-  const d = new Date(parsed);
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
 }

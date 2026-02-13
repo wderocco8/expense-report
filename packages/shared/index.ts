@@ -6,3 +6,4 @@ export * from "./src/validators/receiptUpload.zod";
 export * from "./src/validators/sign-up.zod";
 export * from "./src/domain/expense-reports/constants";
 export * from "./src/domain/expense-reports/status";
+export * from "./src/domain/extracted-expenses/transform";
