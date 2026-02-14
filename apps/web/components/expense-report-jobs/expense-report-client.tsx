@@ -14,12 +14,14 @@ export function ExpenseReportClient({ initialJob }: ExpenseReportClientProps) {
     queryFn: () =>
       fetch(`/api/expense-reports/${initialJob.id}`).then((r) => r.json()),
     initialData: initialJob,
-    refetchInterval: (data) => {
-      // const hasProcessing = data.receiptFiles.some(
-      //   (r) => r.status === "processing",
-      // );
-      // return hasProcessing ? 3000 : false;
-      return 5000;
+    refetchInterval: (query) => {
+      const job = query.state.data;
+      if (!job) return 30000;
+
+      const incompleteStatus = job?.receiptFiles.some(
+        (r) => r.status === "pending" || r.status === "processing",
+      );
+      return incompleteStatus ? 3000 : 30000;
     },
   });
 
