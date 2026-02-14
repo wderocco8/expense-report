@@ -29,6 +29,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
+    "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-table": "^8.21.3",
     "@vercel/analytics": "^1.6.1",
     "better-auth": "^1.4.9",

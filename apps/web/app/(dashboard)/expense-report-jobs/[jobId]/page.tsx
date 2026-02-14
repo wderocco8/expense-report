@@ -1,4 +1,4 @@
-import { ReceiptFilesSection } from "@/components/receipt-files/receipt-files-section";
+import { ExpenseReportClient } from "@/components/expense-report-jobs/expense-report-client";
 import { requirePageAuth } from "@/lib/auth/page";
 import { getExpenseReportWithFiles } from "@/server/services/expenseReports.service";
 
@@ -9,17 +9,8 @@ export default async function ExpenseReportPage({
 }) {
   const session = await requirePageAuth();
   const { jobId } = await params;
+
   const job = await getExpenseReportWithFiles(jobId, session.user.id);
-  const numProcessed = job.receiptFiles.filter(
-    (r) => r.status == "complete" || r.status == "failed",
-  ).length;
-  return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div>{job.title}</div>
-      <div>
-        Progress: {numProcessed} / {job.receiptFiles.length} receipts processed
-      </div>
-      <ReceiptFilesSection jobId={job.id} receiptFiles={job.receiptFiles} />
-    </div>
-  );
+
+  return <ExpenseReportClient initialJob={job} />;
 }
