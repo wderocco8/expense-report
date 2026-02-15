@@ -2,44 +2,56 @@ import { ExpenseReportWithReceiptAndExpense } from "@/server/types/expense-repor
 import { getObjectBuffer } from "@/server/services/storage.service";
 import ExcelJS from "exceljs";
 
+/* -------------------------------------------------------------------------- */
+/*                                   Helpers                                  */
+/* -------------------------------------------------------------------------- */
+
 function toExcelImageBuffer(buf: Buffer): ExcelJS.Buffer {
   return buf as unknown as ExcelJS.Buffer;
 }
 
-export async function buildExpenseReportWorkbook(
+const CATEGORY_LIST = [
+  "tolls/parking",
+  "hotel",
+  "transport",
+  "fuel",
+  "meals",
+  "phone",
+  "supplies",
+  "misc",
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/*                           Expenses Sheet Builder                           */
+/* -------------------------------------------------------------------------- */
+
+async function buildExpensesSheet(
+  workbook: ExcelJS.Workbook,
   job: ExpenseReportWithReceiptAndExpense,
 ) {
-  const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Expenses");
 
-  // ----------------------------
-  // 1: Prepare Row Data
-  // ----------------------------
+  const tableRows = job.receiptFiles
+    .map((receipt) => {
+      const expense = receipt.extractedExpenses[0];
+      if (!expense) return null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tableRows: any[] = [];
+      return [
+        expense.date ? new Date(expense.date) : null,
+        expense.merchant ?? null,
+        expense.description ?? null,
+        expense.category ?? null,
+        expense.amount != null ? Number(expense.amount) : null,
+        expense.transportDetails?.mode ?? null,
+        expense.transportDetails?.mileage ?? null,
+        receipt.originalFilename ?? null,
+        receipt.status ?? null,
+        null,
+      ];
+    })
+    .filter(Boolean);
 
-  for (const receipt of job.receiptFiles) {
-    const expense = receipt.extractedExpenses[0];
-    if (!expense) continue;
-
-    tableRows.push([
-      expense.date ? new Date(expense.date) : null,
-      expense.merchant ?? null,
-      expense.description ?? null,
-      expense.category ?? null,
-      expense.amount != null ? Number(expense.amount) : null,
-      expense.transportDetails?.mode ?? null,
-      expense.transportDetails?.mileage ?? null,
-      receipt.originalFilename ?? null,
-      receipt.status ?? null,
-      null, // placeholder for receipt image column
-    ]);
-  }
-
-  // ----------------------------
-  // 2: Create Excel Table
-  // ----------------------------
+  /* ----------------------------- Create Table ----------------------------- */
 
   sheet.addTable({
     name: "ExpensesTable",
@@ -62,67 +74,71 @@ export async function buildExpenseReportWorkbook(
       { name: "Receipt Status" },
       { name: "Receipt" },
     ],
-    rows: tableRows,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rows: tableRows as any[],
   });
 
-  const lastRow = sheet.rowCount;
+  formatExpensesSheet(sheet);
+  applyExpensesDataValidation(sheet);
+  await addReceiptImages(workbook, sheet, job);
+}
 
-  // ----------------------------
-  // 3: Column Formatting
-  // ----------------------------
+/* -------------------------------------------------------------------------- */
+/*                           Expenses Sheet Helpers                           */
+/* -------------------------------------------------------------------------- */
 
+function formatExpensesSheet(sheet: ExcelJS.Worksheet) {
   sheet.columns.forEach((column) => {
     column.alignment = { wrapText: true, vertical: "top" };
   });
 
-  sheet.getColumn("A").width = 14; // Date
-  sheet.getColumn("B").width = 20; // Merchant
-  sheet.getColumn("C").width = 30; // Description
-  sheet.getColumn("D").width = 18; // Category
-  sheet.getColumn("E").width = 14; // Amount
-  sheet.getColumn("F").width = 14; // Transport
-  sheet.getColumn("G").width = 10; // Mileage
-  sheet.getColumn("H").width = 24; // Filename
-  sheet.getColumn("I").width = 14; // Status
-  sheet.getColumn("J").width = 30; // Receipt
+  sheet.getColumn("A").width = 14;
+  sheet.getColumn("B").width = 20;
+  sheet.getColumn("C").width = 30;
+  sheet.getColumn("D").width = 18;
+  sheet.getColumn("E").width = 14;
+  sheet.getColumn("F").width = 14;
+  sheet.getColumn("G").width = 10;
+  sheet.getColumn("H").width = 24;
+  sheet.getColumn("I").width = 14;
+  sheet.getColumn("J").width = 30;
 
   sheet.getColumn("A").numFmt = "mm/dd/yyyy";
-  sheet.getColumn("E").numFmt = "$#,##0.00"; // Amount column
+  sheet.getColumn("E").numFmt = "$#,##0.00";
 
   sheet.views = [{ state: "frozen", ySplit: 1 }];
+}
 
-  // ----------------------------
-  // 4: Data Validation
-  // ----------------------------
+function applyExpensesDataValidation(sheet: ExcelJS.Worksheet) {
+  const lastRow = sheet.rowCount;
 
   for (let i = 2; i <= lastRow; i++) {
-    // Category dropdown (Column D)
     sheet.getCell(`D${i}`).dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [
-        '"tolls/parking,hotel,transport,fuel,meals,phone,supplies,misc"',
-      ],
+      formulae: [`"${CATEGORY_LIST.join(",")}"`],
     };
 
-    // Transport Mode dropdown (Column F)
     sheet.getCell(`F${i}`).dataValidation = {
       type: "list",
       allowBlank: true,
       formulae: ['"train,car,plane"'],
     };
   }
+}
 
-  // ----------------------------
-  // 5: Add Images
-  // ----------------------------
-
+async function addReceiptImages(
+  workbook: ExcelJS.Workbook,
+  sheet: ExcelJS.Worksheet,
+  job: ExpenseReportWithReceiptAndExpense,
+) {
   for (let i = 0; i < job.receiptFiles.length; i++) {
     const receipt = job.receiptFiles[i];
     const expense = receipt.extractedExpenses[0];
     if (!expense) continue;
 
     const buffer = await getObjectBuffer(receipt.s3Key);
+
     const imageId = workbook.addImage({
       buffer: toExcelImageBuffer(buffer),
       extension: "jpeg",
@@ -137,37 +153,25 @@ export async function buildExpenseReportWorkbook(
 
     sheet.getRow(rowNumber).height = 150;
   }
+}
 
-  // ----------------------------
-  // 6: Summary Sheet (Formatted Table)
-  // ----------------------------
+/* -------------------------------------------------------------------------- */
+/*                            Summary Sheet Builder                           */
+/* -------------------------------------------------------------------------- */
 
+function buildSummarySheet(workbook: ExcelJS.Workbook) {
   const summarySheet = workbook.addWorksheet("Summary");
 
-  // Categories
-  const categories = [
-    "tolls/parking",
-    "hotel",
-    "transport",
-    "fuel",
-    "meals",
-    "phone",
-    "supplies",
-    "misc",
-  ];
-
-  // Build rows first
-  const summaryRows = categories.map((category) => [
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const summaryRows: any[] = CATEGORY_LIST.map((category) => [
     category,
     {
       formula: `SUMIF(ExpensesTable[Category], "${category}", ExpensesTable[Amount])`,
     },
   ]);
 
-  // Add TOTAL row
   summaryRows.push(["TOTAL", { formula: `SUM(ExpensesTable[Amount])` }]);
 
-  // Create Table
   summarySheet.addTable({
     name: "SummaryTable",
     ref: "A1",
@@ -181,17 +185,25 @@ export async function buildExpenseReportWorkbook(
     rows: summaryRows,
   });
 
-  // Column Formatting
   summarySheet.getColumn("A").width = 22;
   summarySheet.getColumn("B").width = 18;
   summarySheet.getColumn("B").numFmt = "$#,##0.00";
 
-  // Bold TOTAL row
-  const totalRowNumber = summarySheet.rowCount;
-  summarySheet.getRow(totalRowNumber).font = { bold: true };
+  summarySheet.getRow(summarySheet.rowCount).font = { bold: true };
+  summarySheet.views = [{ state: "frozen", ySplit: 1 }];
+}
 
-  // Freeze header
-  summarySheet.views = [{ state: "frozen", ySplit: 2 }];
+/* -------------------------------------------------------------------------- */
+/*                              Public Entrypoint                             */
+/* -------------------------------------------------------------------------- */
+
+export async function buildExpenseReportWorkbook(
+  job: ExpenseReportWithReceiptAndExpense,
+) {
+  const workbook = new ExcelJS.Workbook();
+
+  await buildExpensesSheet(workbook, job);
+  buildSummarySheet(workbook);
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
