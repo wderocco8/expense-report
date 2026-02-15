@@ -7,11 +7,12 @@ function toExcelImageBuffer(buf: Buffer): ExcelJS.Buffer {
 }
 
 export async function buildExpenseReportWorkbook(
-  job: ExpenseReportWithReceiptAndExpense
+  job: ExpenseReportWithReceiptAndExpense,
 ) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Expenses");
 
+  // column definitions
   sheet.columns = [
     { header: "Date", key: "date", width: 12 },
     { header: "Merchant", key: "merchant", width: 20 },
@@ -24,13 +25,16 @@ export async function buildExpenseReportWorkbook(
 
     { header: "Original Filename", key: "filename", width: 24 },
     { header: "Receipt Status", key: "status", width: 12 },
-    { header: "Processed At", key: "processedAt", width: 18 },
-
-    { header: "Model Version", key: "modelVersion", width: 14 },
 
     { header: "Receipt", key: "receipt", width: 30 },
   ];
 
+  // cell formatting
+  for (const column of sheet.columns) {
+    column.alignment = { wrapText: true, vertical: "top" };
+  }
+
+  // views
   sheet.views = [{ state: "frozen", ySplit: 1 }];
   sheet.getColumn("amount").numFmt = "$#,##0.00";
   sheet.autoFilter = {
@@ -38,6 +42,7 @@ export async function buildExpenseReportWorkbook(
     to: "L1",
   };
 
+  // insert data
   for (const receipt of job.receiptFiles) {
     const buffer = await getObjectBuffer(receipt.s3Key);
     const imageId = workbook.addImage({
@@ -56,15 +61,13 @@ export async function buildExpenseReportWorkbook(
       merchant: expense.merchant,
       description: expense.description,
       category: expense.category,
-      amount: expense.amount,
+      amount: expense.amount != null ? Number(expense.amount) : null,
 
       transportMode: expense.transportDetails?.mode ?? null,
       mileage: expense.transportDetails?.mileage ?? null,
 
       filename: receipt.originalFilename,
       status: receipt.status,
-      processedAt: receipt.processedAt,
-      modelVersion: expense.modelVersion,
     });
 
     const rowNumber = row.number;
