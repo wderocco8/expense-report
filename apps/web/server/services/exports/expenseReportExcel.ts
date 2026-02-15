@@ -12,78 +12,91 @@ export async function buildExpenseReportWorkbook(
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Expenses");
 
-  // column definitions
-  sheet.columns = [
-    { header: "Date", key: "date", width: 12 },
-    { header: "Merchant", key: "merchant", width: 20 },
-    { header: "Description", key: "description", width: 30 },
-    { header: "Category", key: "category", width: 18 },
-    { header: "Amount", key: "amount", width: 12 },
+  // ----------------------------
+  // 1: Prepare Row Data
+  // ----------------------------
 
-    { header: "Transport Mode", key: "transportMode", width: 14 },
-    { header: "Mileage", key: "mileage", width: 10 },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tableRows: any[] = [];
 
-    { header: "Original Filename", key: "filename", width: 24 },
-    { header: "Receipt Status", key: "status", width: 12 },
-
-    { header: "Receipt", key: "receipt", width: 30 },
-  ];
-
-  // cell formatting
-  for (const column of sheet.columns) {
-    column.alignment = { wrapText: true, vertical: "top" };
-  }
-
-  // views
-  sheet.views = [{ state: "frozen", ySplit: 1 }];
-  sheet.getColumn("amount").numFmt = "$#,##0.00";
-  sheet.autoFilter = {
-    from: "A1",
-    to: "L1",
-  };
-
-  // insert data
   for (const receipt of job.receiptFiles) {
-    const buffer = await getObjectBuffer(receipt.s3Key);
-    const imageId = workbook.addImage({
-      buffer: toExcelImageBuffer(buffer),
-      extension: "jpeg", // TODO: should this be determined from s3?
-    });
-
     const expense = receipt.extractedExpenses[0];
-    if (!expense) {
-      console.error("Failed to extract expense for receipt");
-      continue;
-    }
+    if (!expense) continue;
 
-    const row = sheet.addRow({
-      date: expense.date,
-      merchant: expense.merchant,
-      description: expense.description,
-      category: expense.category,
-      amount: expense.amount != null ? Number(expense.amount) : null,
-
-      transportMode: expense.transportDetails?.mode ?? null,
-      mileage: expense.transportDetails?.mileage ?? null,
-
-      filename: receipt.originalFilename,
-      status: receipt.status,
-    });
-
-    const rowNumber = row.number;
-
-    sheet.addImage(imageId, {
-      tl: { col: 9, row: rowNumber - 1 }, // adjust for new columns
-      ext: { width: 150, height: 200 },
-    });
-
-    sheet.getRow(rowNumber).height = 150;
+    tableRows.push([
+      expense.date ? new Date(expense.date) : null,
+      expense.merchant ?? null,
+      expense.description ?? null,
+      expense.category ?? null,
+      expense.amount != null ? Number(expense.amount) : null,
+      expense.transportDetails?.mode ?? null,
+      expense.transportDetails?.mileage ?? null,
+      receipt.originalFilename ?? null,
+      receipt.status ?? null,
+      null, // placeholder for receipt image column
+    ]);
   }
+
+  // ----------------------------
+  // 2: Create Excel Table
+  // ----------------------------
+
+  sheet.addTable({
+    name: "ExpensesTable",
+    ref: "A1",
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: "TableStyleMedium2",
+      showRowStripes: true,
+    },
+    columns: [
+      { name: "Date" },
+      { name: "Merchant" },
+      { name: "Description" },
+      { name: "Category" },
+      { name: "Amount" },
+      { name: "Transport Mode" },
+      { name: "Mileage" },
+      { name: "Original Filename" },
+      { name: "Receipt Status" },
+      { name: "Receipt" },
+    ],
+    rows: tableRows,
+  });
 
   const lastRow = sheet.rowCount;
 
-  // category dropdown
+  // ----------------------------
+  // 3: Column Formatting
+  // ----------------------------
+
+  sheet.columns.forEach((column) => {
+    column.alignment = { wrapText: true, vertical: "top" };
+  });
+
+  sheet.getColumn("A").width = 14; // Date
+  sheet.getColumn("B").width = 20; // Merchant
+  sheet.getColumn("C").width = 30; // Description
+  sheet.getColumn("D").width = 18; // Category
+  sheet.getColumn("E").width = 14; // Amount
+  sheet.getColumn("F").width = 14; // Transport
+  sheet.getColumn("G").width = 10; // Mileage
+  sheet.getColumn("H").width = 24; // Filename
+  sheet.getColumn("I").width = 14; // Status
+  sheet.getColumn("J").width = 30; // Receipt
+
+  sheet.getColumn("A").numFmt = "mm/dd/yyyy";
+  sheet.getColumn("E").numFmt = "$#,##0.00"; // Amount column
+
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  // ----------------------------
+  // 4: Data Validation
+  // ----------------------------
+
   for (let i = 2; i <= lastRow; i++) {
+    // Category dropdown (Column D)
     sheet.getCell(`D${i}`).dataValidation = {
       type: "list",
       allowBlank: true,
@@ -91,10 +104,8 @@ export async function buildExpenseReportWorkbook(
         '"tolls/parking,hotel,transport,fuel,meals,phone,supplies,misc"',
       ],
     };
-  }
 
-  // transport-mode dropdown
-  for (let i = 2; i <= lastRow; i++) {
+    // Transport Mode dropdown (Column F)
     sheet.getCell(`F${i}`).dataValidation = {
       type: "list",
       allowBlank: true,
@@ -102,19 +113,38 @@ export async function buildExpenseReportWorkbook(
     };
   }
 
-  const summaryStartCol = 14; // Column N
-  const summaryStartRow = 1;
+  // ----------------------------
+  // 5: Add Images
+  // ----------------------------
 
-  // Title
-  sheet.getCell(summaryStartRow, summaryStartCol).value = "Category Summary";
-  sheet.getCell(summaryStartRow, summaryStartCol).font = { bold: true };
+  for (let i = 0; i < job.receiptFiles.length; i++) {
+    const receipt = job.receiptFiles[i];
+    const expense = receipt.extractedExpenses[0];
+    if (!expense) continue;
 
-  // Headers
-  sheet.getCell(summaryStartRow + 1, summaryStartCol).value = "Category";
-  sheet.getCell(summaryStartRow + 1, summaryStartCol + 1).value = "Total";
+    const buffer = await getObjectBuffer(receipt.s3Key);
+    const imageId = workbook.addImage({
+      buffer: toExcelImageBuffer(buffer),
+      extension: "jpeg",
+    });
 
-  sheet.getRow(summaryStartRow + 1).font = { bold: true };
+    const rowNumber = i + 2;
 
+    sheet.addImage(imageId, {
+      tl: { col: 9, row: rowNumber - 1 },
+      ext: { width: 150, height: 200 },
+    });
+
+    sheet.getRow(rowNumber).height = 150;
+  }
+
+  // ----------------------------
+  // 6: Summary Sheet (Formatted Table)
+  // ----------------------------
+
+  const summarySheet = workbook.addWorksheet("Summary");
+
+  // Categories
   const categories = [
     "tolls/parking",
     "hotel",
@@ -126,30 +156,42 @@ export async function buildExpenseReportWorkbook(
     "misc",
   ];
 
-  let currentRow = summaryStartRow + 2;
+  // Build rows first
+  const summaryRows = categories.map((category) => [
+    category,
+    {
+      formula: `SUMIF(ExpensesTable[Category], "${category}", ExpensesTable[Amount])`,
+    },
+  ]);
 
-  for (const category of categories) {
-    sheet.getCell(currentRow, summaryStartCol).value = category;
+  // Add TOTAL row
+  summaryRows.push(["TOTAL", { formula: `SUM(ExpensesTable[Amount])` }]);
 
-    sheet.getCell(currentRow, summaryStartCol + 1).value = {
-      formula: `SUMIF(D2:D${lastRow}, "${category}", E2:E${lastRow})`,
-    };
+  // Create Table
+  summarySheet.addTable({
+    name: "SummaryTable",
+    ref: "A1",
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: "TableStyleMedium2",
+      showRowStripes: true,
+    },
+    columns: [{ name: "Category" }, { name: "Total" }],
+    rows: summaryRows,
+  });
 
-    sheet.getCell(currentRow, summaryStartCol + 1).numFmt = "$#,##0.00";
+  // Column Formatting
+  summarySheet.getColumn("A").width = 22;
+  summarySheet.getColumn("B").width = 18;
+  summarySheet.getColumn("B").numFmt = "$#,##0.00";
 
-    currentRow++;
-  }
+  // Bold TOTAL row
+  const totalRowNumber = summarySheet.rowCount;
+  summarySheet.getRow(totalRowNumber).font = { bold: true };
 
-  // Grand Total Row
-  sheet.getCell(currentRow, summaryStartCol).value = "TOTAL";
-  sheet.getCell(currentRow, summaryStartCol).font = { bold: true };
-
-  sheet.getCell(currentRow, summaryStartCol + 1).value = {
-    formula: `SUM(E2:E${lastRow})`,
-  };
-
-  sheet.getCell(currentRow, summaryStartCol + 1).numFmt = "$#,##0.00";
-  sheet.getCell(currentRow, summaryStartCol + 1).font = { bold: true };
+  // Freeze header
+  summarySheet.views = [{ state: "frozen", ySplit: 2 }];
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
