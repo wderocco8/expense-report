@@ -37,8 +37,8 @@ import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
 import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
-import { Badge } from "@/components/ui/badge";
 import UnsavedChangesDialog from "@/components/receipt-files/extracted-expenses/unsaved-changes-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -253,32 +253,34 @@ export function ExtractedExpenseSheet({
             <SheetDescription>
               AI-extracted expense details from this receipt.
             </SheetDescription>
-
-            <div className="border-2 rounded-lg p-2 my-2 space-y-2">
-              <FieldLegend variant="label">Receipt Info</FieldLegend>
-
-              {receipt?.originalFilename && (
-                <div className="flex items-center space-x-2 text-muted-foreground">
-                  <div>File:</div>
-                  <Badge>{receipt.originalFilename}</Badge>
-                </div>
-              )}
-
-              {image && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="mt-2 w-fit"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  View receipt
-                </Button>
-              )}
-            </div>
           </SheetHeader>
 
           <div className="flex-1 min-h-0 px-4 overflow-y-auto">
+            <div className="mb-4">
+              <div
+                className="relative w-full h-72 overflow-hidden rounded-lg border cursor-pointer group"
+                onClick={() => image?.url && setPreviewOpen(true)}
+              >
+                {isLoadingImage ? (
+                  <Skeleton className="absolute inset-0" />
+                ) : // <div className="absolute inset-0 animate-pulse bg-muted" />
+                image?.url ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.url}
+                      alt={receipt?.originalFilename ?? "Receipt"}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                    No image available
+                  </div>
+                )}
+              </div>
+            </div>
             {isLoading ? (
               <ExtractedExpenseSkeleton />
             ) : !expense ? (
@@ -298,6 +300,7 @@ export function ExtractedExpenseSheet({
                       <FieldLabel>Category</FieldLabel>
                       <FormCombobox
                         control={control}
+                        disabled={isSubmitting}
                         name="category"
                         options={CATEGORY_OPTIONS}
                         placeholder="Select category"
@@ -308,6 +311,7 @@ export function ExtractedExpenseSheet({
                       <FieldLabel htmlFor="merchant">Merchant</FieldLabel>
                       <Input
                         id="merchant"
+                        disabled={isSubmitting}
                         aria-invalid={!!errors.merchant}
                         {...register("merchant")}
                       />
@@ -317,6 +321,7 @@ export function ExtractedExpenseSheet({
                       <FieldLabel htmlFor="description">Description</FieldLabel>
                       <Input
                         id="description"
+                        disabled={isSubmitting}
                         aria-invalid={!!errors.description}
                         {...register("description")}
                       />
@@ -326,6 +331,7 @@ export function ExtractedExpenseSheet({
                       <FieldLabel htmlFor="amount">Amount</FieldLabel>
                       <Input
                         id="amount"
+                        disabled={isSubmitting}
                         inputMode="decimal"
                         aria-invalid={!!errors.amount}
                         {...register("amount", {
@@ -356,8 +362,9 @@ export function ExtractedExpenseSheet({
                             >
                               <PopoverTrigger asChild>
                                 <Button
-                                  variant="outline"
                                   id="date"
+                                  disabled={isSubmitting}
+                                  variant="outline"
                                   className="w-48 justify-between font-normal"
                                 >
                                   {date
@@ -372,6 +379,7 @@ export function ExtractedExpenseSheet({
                               >
                                 <Calendar
                                   mode="single"
+                                  disabled={isSubmitting}
                                   selected={date}
                                   captionLayout="dropdown"
                                   onSelect={(date) => {
@@ -407,6 +415,7 @@ export function ExtractedExpenseSheet({
                         <Field data-invalid={!!errors.transportDetails?.mode}>
                           <FieldLabel htmlFor="mode">Mode</FieldLabel>
                           <FormCombobox
+                            disabled={isSubmitting}
                             control={control}
                             name="transportDetails.mode"
                             options={TRANSPORT_MODE_OPTIONS}
@@ -421,6 +430,7 @@ export function ExtractedExpenseSheet({
                           <Input
                             id="mileage"
                             aria-invalid={!!errors.transportDetails?.mileage}
+                            disabled={isSubmitting}
                             {...register("transportDetails.mileage")}
                           />
                         </Field>
