@@ -73,7 +73,7 @@ export async function buildExpenseReportWorkbook(
     const rowNumber = row.number;
 
     sheet.addImage(imageId, {
-      tl: { col: 11, row: rowNumber - 1 }, // adjust for new columns
+      tl: { col: 9, row: rowNumber - 1 }, // adjust for new columns
       ext: { width: 150, height: 200 },
     });
 
@@ -101,6 +101,55 @@ export async function buildExpenseReportWorkbook(
       formulae: ['"train,car,plane"'],
     };
   }
+
+  const summaryStartCol = 14; // Column N
+  const summaryStartRow = 1;
+
+  // Title
+  sheet.getCell(summaryStartRow, summaryStartCol).value = "Category Summary";
+  sheet.getCell(summaryStartRow, summaryStartCol).font = { bold: true };
+
+  // Headers
+  sheet.getCell(summaryStartRow + 1, summaryStartCol).value = "Category";
+  sheet.getCell(summaryStartRow + 1, summaryStartCol + 1).value = "Total";
+
+  sheet.getRow(summaryStartRow + 1).font = { bold: true };
+
+  const categories = [
+    "tolls/parking",
+    "hotel",
+    "transport",
+    "fuel",
+    "meals",
+    "phone",
+    "supplies",
+    "misc",
+  ];
+
+  let currentRow = summaryStartRow + 2;
+
+  for (const category of categories) {
+    sheet.getCell(currentRow, summaryStartCol).value = category;
+
+    sheet.getCell(currentRow, summaryStartCol + 1).value = {
+      formula: `SUMIF(D2:D${lastRow}, "${category}", E2:E${lastRow})`,
+    };
+
+    sheet.getCell(currentRow, summaryStartCol + 1).numFmt = "$#,##0.00";
+
+    currentRow++;
+  }
+
+  // Grand Total Row
+  sheet.getCell(currentRow, summaryStartCol).value = "TOTAL";
+  sheet.getCell(currentRow, summaryStartCol).font = { bold: true };
+
+  sheet.getCell(currentRow, summaryStartCol + 1).value = {
+    formula: `SUM(E2:E${lastRow})`,
+  };
+
+  sheet.getCell(currentRow, summaryStartCol + 1).numFmt = "$#,##0.00";
+  sheet.getCell(currentRow, summaryStartCol + 1).font = { bold: true };
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
