@@ -80,5 +80,27 @@ export async function buildExpenseReportWorkbook(
     sheet.getRow(rowNumber).height = 150;
   }
 
+  const lastRow = sheet.rowCount;
+
+  // category dropdown
+  for (let i = 2; i <= lastRow; i++) {
+    sheet.getCell(`D${i}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [
+        '"tolls/parking,hotel,transport,fuel,meals,phone,supplies,misc"',
+      ],
+    };
+  }
+
+  // transport-mode dropdown
+  for (let i = 2; i <= lastRow; i++) {
+    sheet.getCell(`F${i}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: ['"train,car,plane"'],
+    };
+  }
+
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
