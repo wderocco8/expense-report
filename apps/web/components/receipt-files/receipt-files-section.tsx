@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { UploadReceiptsSheet } from "./upload-receipts-sheet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerTableState } from "@/hooks/data-table/user-server-table-state";
+import { PaginationState, SortingState } from "@tanstack/react-table";
 
 interface PaginatedReceiptFiles {
   data: ReceiptFileWithExpenses[];
@@ -29,14 +30,22 @@ interface PaginatedReceiptFiles {
 
 async function fetchReceiptFiles(
   jobId: string,
-  page: number,
-  limit: number,
+  pagination: PaginationState,
+  sorting: SortingState,
 ): Promise<PaginatedReceiptFiles> {
+  const sort = sorting.map((s) => ({
+    field: s.id,
+    direction: s.desc ? "desc" : "asc",
+  }));
+
   const params = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
+    page: String(pagination.pageIndex + 1),
+    limit: String(pagination.pageSize),
+    ...(sort.length ? { sort: JSON.stringify(sort) } : {}),
   });
+
   const res = await fetch(`/api/receipts/by-job/${jobId}?${params}`);
+
   if (!res.ok) {
     throw new Error("Failed to fetch receipt files");
   }
@@ -55,7 +64,6 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
     setFilters,
   } = useServerTableState();
 
-
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -64,9 +72,9 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
       jobId,
       pagination.pageIndex,
       pagination.pageSize,
+      sorting,
     ],
-    queryFn: () =>
-      fetchReceiptFiles(jobId, pagination.pageIndex + 1, pagination.pageSize),
+    queryFn: () => fetchReceiptFiles(jobId, pagination, sorting),
     initialData: {
       data: [],
       total: 0,
@@ -132,6 +140,8 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
         pageCount={data.totalPages}
         pagination={pagination}
         onPaginationChange={setPagination}
+        sorting={sorting}
+        onSortingChange={setSorting}
         totalRows={data.total}
       />
 
