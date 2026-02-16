@@ -41,8 +41,9 @@ export async function getExpenseReports(
 
 export async function getExpenseReport(
   jobId: string,
+  userId: string,
 ): Promise<ExpenseReportJob> {
-  const job = repoGetExpenseReportJob(jobId);
+  const job = repoGetExpenseReportJob(jobId, userId);
 
   if (!job) {
     throw expenseReportJobProblems.notFoundById(jobId);
@@ -97,7 +98,7 @@ export async function manualUpload({
     status: "complete",
   });
 
-  const dbExpense = await mapReceiptToDb(expensePayload, receipt.id);
+  const dbExpense = mapReceiptToDb(expensePayload, receipt.id);
 
   await createExtractedExpense(dbExpense);
 }

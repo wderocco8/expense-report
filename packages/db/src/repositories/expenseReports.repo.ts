@@ -40,11 +40,17 @@ export async function getExpenseReportJobs(
 
 export async function getExpenseReportJob(
   jobId: string,
+  userId: string,
 ): Promise<ExpenseReportJob> {
   const [job] = await db
     .select()
     .from(expenseReportJobs)
-    .where(eq(expenseReportJobs.id, jobId));
+    .where(
+      and(
+        eq(expenseReportJobs.id, jobId),
+        eq(expenseReportJobs.userId, userId),
+      ),
+    );
 
   return job;
 }

@@ -16,15 +16,67 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { UploadReceiptsSheet } from "./upload-receipts-sheet";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerTableState } from "@/hooks/data-table/user-server-table-state";
 
-export function ReceiptFilesSection({
-  jobId,
-  receiptFiles,
-}: {
-  jobId: string;
-  receiptFiles: ReceiptFileWithExpenses[];
-}) {
+interface PaginatedReceiptFiles {
+  data: ReceiptFileWithExpenses[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+async function fetchReceiptFiles(
+  jobId: string,
+  page: number,
+  limit: number,
+): Promise<PaginatedReceiptFiles> {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  const res = await fetch(`/api/receipts/by-job/${jobId}?${params}`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch receipt files");
+  }
+  return res.json();
+}
+
+export function ReceiptFilesSection({ jobId }: { jobId: string }) {
   const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
+
+  const {
+    pagination,
+    setPagination,
+    sorting,
+    setSorting,
+    filters,
+    setFilters,
+  } = useServerTableState();
+
+
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: [
+      "receipt-files",
+      jobId,
+      pagination.pageIndex,
+      pagination.pageSize,
+    ],
+    queryFn: () =>
+      fetchReceiptFiles(jobId, pagination.pageIndex + 1, pagination.pageSize),
+    initialData: {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: pagination.pageSize,
+      totalPages: 0,
+    },
+  });
+
+  const receiptFiles = data.data;
 
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -56,7 +108,8 @@ export function ReceiptFilesSection({
       if (!res.ok) throw new Error("Failed to delete receipt");
       setDeleteTargetId(null);
       toast.success("Successfully deleted receipt");
-      window.location.reload();
+      queryClient.invalidateQueries({ queryKey: ["receipt-files", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["expense-report", jobId] });
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete receipt");
@@ -76,6 +129,10 @@ export function ReceiptFilesSection({
         onViewReceipt={setOpenReceiptId}
         onDeleteReceipt={(id) => setDeleteTargetId(id)}
         openReceiptId={openReceiptId}
+        pageCount={data.totalPages}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        totalRows={data.total}
       />
 
       <Dialog
