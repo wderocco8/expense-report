@@ -69,7 +69,7 @@ export function DataTable<TData, TValue>({
       sorting,
       columnFilters,
       rowSelection,
-      pagination,
+      ...(manualPagination && pagination ? { pagination } : {}),
     },
     manualPagination: manualPagination ?? false,
     pageCount: pageCount,

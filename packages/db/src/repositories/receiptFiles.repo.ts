@@ -1,6 +1,6 @@
 import { NewReceiptFile, ReceiptFile, receiptFiles } from "../schema";
 import { db } from "../client";
-import { eq, asc, desc, like, or, and, sql } from "drizzle-orm";
+import { eq, asc, desc, like, and, sql, SQL } from "drizzle-orm";
 import { ReceiptFileUpdateInput } from "@repo/shared";
 
 export type ReceiptFileSortableField =
@@ -10,20 +10,6 @@ export type ReceiptFileSortableField =
   | "updatedAt"
   | "processedAt";
 export type ReceiptFileFilterableField = "originalFilename" | "status";
-
-// export type ReceiptFileFilterableField = "originalFilename" | "status";
-
-// type ReceiptFileColumn = (typeof receiptFiles)[keyof typeof receiptFiles];
-
-// export const SORTABLE_COLUMNS = {
-//   origiaaanalFilename: receiptFiles.originalFilename,
-//   status: receiptFiles.status,
-//   createdAt: receiptFiles.createdAt,
-//   updatedAt: receiptFiles.updatedAt,
-//   processedAt: receiptFiles.processedAt,
-// } satisfies Record<string, ReceiptFileColumn>;
-
-// export type ReceiptFileSortableField = keyof typeof SORTABLE_COLUMNS;
 
 export interface GetReceiptFilesParams {
   jobId: string;
@@ -106,18 +92,17 @@ export async function getReceiptFilesByJobId({
   page = 1,
   limit = 10,
 }: GetReceiptFilesParams): Promise<PaginatedReceiptFiles> {
-  let whereClause: ReturnType<typeof eq> = eq(receiptFiles.jobId, jobId);
+  // let whereClause: ReturnType<typeof eq> = eq(receiptFiles.jobId, jobId);
+  const conditions: SQL<unknown>[] = [eq(receiptFiles.jobId, jobId)];
 
-  if (filter && filter.length > 0) {
-    const filterConditions: ReturnType<typeof eq | typeof like>[] = [];
-
+  if (filter?.length) {
     for (const f of filter) {
       if (f.field === "originalFilename") {
-        filterConditions.push(
-          like(receiptFiles.originalFilename, `%${f.value}%`),
-        );
-      } else if (f.field === "status") {
-        filterConditions.push(
+        conditions.push(like(receiptFiles.originalFilename, `%${f.value}%`));
+      }
+
+      if (f.field === "status") {
+        conditions.push(
           eq(
             receiptFiles.status,
             f.value as "pending" | "processing" | "complete" | "failed",
@@ -125,14 +110,9 @@ export async function getReceiptFilesByJobId({
         );
       }
     }
-
-    if (filterConditions.length > 0) {
-      const filterOr = or(...filterConditions);
-      if (filterOr) {
-        whereClause = and(whereClause, filterOr) as ReturnType<typeof eq>;
-      }
-    }
   }
+
+  const whereClause = and(...conditions)!;
 
   const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
