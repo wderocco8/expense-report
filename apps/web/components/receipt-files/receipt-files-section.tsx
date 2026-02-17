@@ -16,7 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { UploadReceiptsSheet } from "./upload-receipts-sheet";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useServerTableState } from "@/hooks/data-table/user-server-table-state";
 import { PaginationState, SortingState } from "@tanstack/react-table";
 import { Spinner } from "@/components/ui/spinner";
@@ -68,7 +72,7 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
 
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery<PaginatedReceiptFiles>({
     queryKey: [
       "receipt-files",
       jobId,
@@ -77,24 +81,29 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
       sorting,
     ],
     queryFn: () => fetchReceiptFiles(jobId, pagination, sorting),
-    initialData: {
-      data: [],
-      total: 0,
-      page: 1,
-      limit: pagination.pageSize,
-      totalPages: 0,
+    placeholderData: keepPreviousData,
+    refetchInterval: (query) => {
+      const paginatedReceiptFiles = query.state.data;
+      if (!paginatedReceiptFiles) return 30000;
+
+      const incompleteStatus = paginatedReceiptFiles.data.some(
+        (r) => r.status === "pending" || r.status === "processing",
+      );
+      return incompleteStatus ? 3000 : 30000;
     },
   });
 
-  const receiptFiles = data.data;
+  const receiptFiles = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 0;
+  const totalRows = data?.total ?? 0;
 
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const receiptMap = useMemo(
-    () => new Map(receiptFiles.map((r) => [r.id, r])),
-    [receiptFiles],
-  );
+  const receiptMap = useMemo(() => {
+    if (!data) return new Map<string, ReceiptFileWithExpenses>();
+    return new Map(data.data.map((r) => [r.id, r]));
+  }, [data]);
 
   const receipt = openReceiptId ? receiptMap.get(openReceiptId) : null;
 
@@ -132,22 +141,28 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
   return (
     <>
       <div className="flex gap-2">
-        <Button type="button" onClick={() => setUploadSheetOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => setUploadSheetOpen(true)}
+          disabled={isLoading}
+        >
           Create Expense
         </Button>
-        <ExportReceipts jobId={jobId} />
+        <ExportReceipts jobId={jobId} disabled={isLoading} />
       </div>
       <ReceiptFilesTable
         data={receiptFiles}
         onViewReceipt={setOpenReceiptId}
         onDeleteReceipt={(id) => setDeleteTargetId(id)}
+        isLoading={isLoading}
+        isFetching={isFetching}
         openReceiptId={openReceiptId}
-        pageCount={data.totalPages}
+        pageCount={totalPages}
         pagination={pagination}
         onPaginationChange={setPagination}
         sorting={sorting}
         onSortingChange={setSorting}
-        totalRows={data.total}
+        totalRows={totalRows}
       />
 
       <Dialog

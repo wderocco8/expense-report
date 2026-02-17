@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
-export default function ExportReceipts({ jobId }: { jobId: string }) {
+interface ExportReceiptsProps {
+  jobId: string;
+  disabled: boolean;
+}
+
+export default function ExportReceipts({
+  jobId,
+  disabled,
+}: ExportReceiptsProps) {
   const [loading, setLoading] = useState(false);
 
   const handleDownload = async () => {
@@ -45,7 +53,7 @@ export default function ExportReceipts({ jobId }: { jobId: string }) {
       type="button"
       onClick={handleDownload}
       variant="outline"
-      disabled={loading}
+      disabled={disabled || loading}
     >
       {loading && <Spinner data-icon="inline-start" />}
       Download Excel

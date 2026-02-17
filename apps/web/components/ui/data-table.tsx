@@ -25,10 +25,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  isLoading?: boolean;
+  isFetching?: boolean;
   rowClassName?: (row: TData) => string;
   pageCount?: number;
   pagination?: PaginationState;
@@ -42,6 +45,8 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
   columns,
   data,
+  isLoading,
+  isFetching,
   rowClassName,
   pageCount,
   pagination,
@@ -80,6 +85,8 @@ export function DataTable<TData, TValue>({
     manualFiltering: true,
   });
 
+  const skeletonRowCount = pagination?.pageSize ?? 5;
+
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-md border">
@@ -103,7 +110,19 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              // Loading skeleton rows
+              Array.from({ length: skeletonRowCount }).map((_, rowIndex) => (
+                <TableRow key={`skeleton-${rowIndex}`}>
+                  {columns.map((_, colIndex) => (
+                    <TableCell key={`skeleton-cell-${colIndex}`}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : table.getRowModel().rows?.length ? (
+              // Normal rows
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -121,6 +140,7 @@ export function DataTable<TData, TValue>({
                 </TableRow>
               ))
             ) : (
+              // Empty state
               <TableRow>
                 <TableCell
                   colSpan={columns.length}

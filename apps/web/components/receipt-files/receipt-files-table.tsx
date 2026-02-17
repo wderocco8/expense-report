@@ -14,6 +14,8 @@ interface ReceiptFilesTableProps {
   data: ReceiptFileWithExpenses[] | ReceiptFile[];
   onViewReceipt: (id: string) => void;
   onDeleteReceipt: (id: string) => void;
+  isLoading: boolean;
+  isFetching: boolean;
   openReceiptId?: string | null;
   pageCount?: number;
   pagination?: PaginationState;
@@ -27,6 +29,8 @@ export function ReceiptFilesTable({
   data,
   onViewReceipt,
   onDeleteReceipt,
+  isLoading,
+  isFetching,
   openReceiptId,
   pageCount,
   pagination,
@@ -39,6 +43,8 @@ export function ReceiptFilesTable({
     <DataTable
       columns={columns({ onView: onViewReceipt, onDelete: onDeleteReceipt })}
       data={data}
+      isLoading={isLoading}
+      isFetching={isFetching}
       rowClassName={(row) => (row.id === openReceiptId ? "bg-muted" : "")}
       pageCount={pageCount}
       pagination={pagination}
