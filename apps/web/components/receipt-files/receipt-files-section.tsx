@@ -19,6 +19,7 @@ import { UploadReceiptsSheet } from "./upload-receipts-sheet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerTableState } from "@/hooks/data-table/user-server-table-state";
 import { PaginationState, SortingState } from "@tanstack/react-table";
+import { Spinner } from "@/components/ui/spinner";
 
 interface PaginatedReceiptFiles {
   data: ReceiptFileWithExpenses[];
@@ -54,6 +55,7 @@ async function fetchReceiptFiles(
 
 export function ReceiptFilesSection({ jobId }: { jobId: string }) {
   const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   const {
     pagination,
@@ -108,6 +110,7 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
 
   async function confirmDeleteReceipt() {
     if (!deleteTargetId) return;
+    setIsSubmittingDelete(true);
 
     try {
       const res = await fetch(`/api/receipts/${deleteTargetId}`, {
@@ -121,6 +124,8 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete receipt");
+    } finally {
+      setIsSubmittingDelete(false);
     }
   }
 
@@ -161,7 +166,12 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
             <Button variant="outline" onClick={() => setDeleteTargetId(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteReceipt}>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteReceipt}
+              disabled={isSubmittingDelete}
+            >
+              {isSubmittingDelete && <Spinner />}
               Delete
             </Button>
           </DialogFooter>
