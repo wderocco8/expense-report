@@ -92,7 +92,6 @@ export async function getReceiptFilesByJobId({
   page = 1,
   limit = 10,
 }: GetReceiptFilesParams): Promise<PaginatedReceiptFiles> {
-  // let whereClause: ReturnType<typeof eq> = eq(receiptFiles.jobId, jobId);
   const conditions: SQL<unknown>[] = [eq(receiptFiles.jobId, jobId)];
 
   if (filter?.length) {
