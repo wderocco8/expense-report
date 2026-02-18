@@ -6,13 +6,22 @@ import { ExpenseReportJob } from "@repo/db";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
+async function fetchJob(jobId: string): Promise<ExpenseReportJob> {
+  const res = await fetch(`/api/expense-reports/${jobId}`);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch job");
+  }
+  return res.json();
+}
+
 export default function ExpenseReportPage() {
   const params = useParams<{ jobId: string }>();
   const { jobId } = params;
 
   const { data } = useQuery<ExpenseReportJob>({
     queryKey: ["expense-report", jobId],
-    queryFn: () => fetch(`/api/expense-reports/${jobId}`).then((r) => r.json()),
+    queryFn: () => fetchJob(jobId),
   });
 
   // const numProcessed = data.receiptFiles.filter(
