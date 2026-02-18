@@ -21,6 +21,25 @@ const CATEGORY_LIST = [
   "misc",
 ] as const;
 
+/**
+ * Sorts receipts in DESC order
+ * @param receipts
+ * @returns
+ */
+function sortReceiptsByExpenseDate(
+  receipts: ExpenseReportWithReceiptAndExpense["receiptFiles"],
+) {
+  return [...receipts].sort((a, b) => {
+    const aDate = a.extractedExpenses[0]?.date;
+    const bDate = b.extractedExpenses[0]?.date;
+
+    if (!aDate) return 1;
+    if (!bDate) return -1;
+
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /*                           Expenses Sheet Builder                           */
 /* -------------------------------------------------------------------------- */
@@ -31,7 +50,9 @@ async function buildExpensesSheet(
 ) {
   const sheet = workbook.addWorksheet("Expenses");
 
-  const tableRows = job.receiptFiles
+  const sortedReceipts = sortReceiptsByExpenseDate(job.receiptFiles);
+
+  const tableRows = sortedReceipts
     .map((receipt) => {
       const expense = receipt.extractedExpenses[0];
       if (!expense) return null;
@@ -45,7 +66,6 @@ async function buildExpensesSheet(
         expense.transportDetails?.mode ?? null,
         expense.transportDetails?.mileage ?? null,
         receipt.originalFilename ?? null,
-        receipt.status ?? null,
         null,
       ];
     })
@@ -71,7 +91,6 @@ async function buildExpensesSheet(
       { name: "Transport Mode" },
       { name: "Mileage" },
       { name: "Original Filename" },
-      { name: "Receipt Status" },
       { name: "Receipt" },
     ],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,7 +99,7 @@ async function buildExpensesSheet(
 
   formatExpensesSheet(sheet);
   applyExpensesDataValidation(sheet);
-  await addReceiptImages(workbook, sheet, job);
+  await addReceiptImages(workbook, sheet, sortedReceipts);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -100,8 +119,7 @@ function formatExpensesSheet(sheet: ExcelJS.Worksheet) {
   sheet.getColumn("F").width = 14;
   sheet.getColumn("G").width = 10;
   sheet.getColumn("H").width = 24;
-  sheet.getColumn("I").width = 14;
-  sheet.getColumn("J").width = 30;
+  sheet.getColumn("I").width = 30;
 
   sheet.getColumn("A").numFmt = "mm/dd/yyyy";
   sheet.getColumn("E").numFmt = "$#,##0.00";
@@ -130,10 +148,10 @@ function applyExpensesDataValidation(sheet: ExcelJS.Worksheet) {
 async function addReceiptImages(
   workbook: ExcelJS.Workbook,
   sheet: ExcelJS.Worksheet,
-  job: ExpenseReportWithReceiptAndExpense,
+  receipts: ExpenseReportWithReceiptAndExpense["receiptFiles"],
 ) {
-  for (let i = 0; i < job.receiptFiles.length; i++) {
-    const receipt = job.receiptFiles[i];
+  for (let i = 0; i < receipts.length; i++) {
+    const receipt = receipts[i];
     const expense = receipt.extractedExpenses[0];
     if (!expense) continue;
 
@@ -147,7 +165,7 @@ async function addReceiptImages(
     const rowNumber = i + 2;
 
     sheet.addImage(imageId, {
-      tl: { col: 9, row: rowNumber - 1 },
+      tl: { col: 8, row: rowNumber - 1 },
       ext: { width: 150, height: 200 },
     });
 
