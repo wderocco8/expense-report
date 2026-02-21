@@ -13,11 +13,11 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 export default function CreateExpenseReportJob() {
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   type FormValues = z.infer<typeof ExpenseReportCreateSchema>;
   const {
@@ -45,7 +45,9 @@ export default function CreateExpenseReportJob() {
     toast.success("Successfully created job");
     reset();
     // TODO: add local state for optimistic UI
-    router.refresh();
+    queryClient.invalidateQueries({
+      queryKey: ["expense-reports"],
+    });
   }
 
   return (

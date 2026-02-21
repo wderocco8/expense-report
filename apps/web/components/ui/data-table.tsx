@@ -4,9 +4,6 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
   useReactTable,
   SortingState,
   ColumnFiltersState,
@@ -37,6 +34,8 @@ interface DataTableProps<TData, TValue> {
   pagination?: PaginationState;
   onPaginationChange?: OnChangeFn<PaginationState>;
   manualPagination?: boolean;
+  manualFiltering?: boolean;
+  manualSorting?: boolean;
   sorting?: SortingState;
   onSortingChange?: OnChangeFn<SortingState>;
   totalRows?: number;
@@ -52,6 +51,8 @@ export function DataTable<TData, TValue>({
   pagination,
   onPaginationChange,
   manualPagination,
+  manualFiltering,
+  manualSorting,
   sorting,
   onSortingChange,
   totalRows,
@@ -64,11 +65,6 @@ export function DataTable<TData, TValue>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: manualPagination
-      ? undefined
-      : getPaginationRowModel(),
     onSortingChange: onSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
@@ -81,8 +77,8 @@ export function DataTable<TData, TValue>({
     },
     manualPagination: manualPagination ?? false,
     pageCount: pageCount,
-    manualSorting: true,
-    manualFiltering: true,
+    manualSorting: manualSorting,
+    manualFiltering: manualFiltering,
   });
 
   const skeletonRowCount = pagination?.pageSize ?? 5;

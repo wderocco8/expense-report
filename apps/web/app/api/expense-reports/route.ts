@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { createExpenseReport } from "@/server/services/expenseReports.service";
+import {
+  createExpenseReport,
+  getExpenseReportJobsWithProgress,
+} from "@/server/services/expenseReports.service";
 import { ExpenseReportCreateSchema } from "@repo/shared";
 import { z } from "zod";
 import { requireApiAuth } from "@/lib/auth/api";
@@ -26,4 +29,15 @@ export const POST = withProblems(async (req) => {
   });
 
   return NextResponse.json(job, { status: 201 });
+});
+
+export const GET = withProblems(async () => {
+  const authResult = await requireApiAuth();
+  if (!authResult.ok) return respondProblem(authResult.problem);
+
+  const jobs = await getExpenseReportJobsWithProgress(
+    authResult.session.user.id,
+  );
+
+  return NextResponse.json(jobs, { status: 200 });
 });
