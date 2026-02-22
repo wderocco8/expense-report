@@ -196,6 +196,9 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
       <UploadReceiptsSheet
         open={uploadSheetOpen}
         onOpenChange={setUploadSheetOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["receipt-files", jobId] });
+        }}
         jobId={jobId}
       />
 

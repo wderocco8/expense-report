@@ -18,12 +18,14 @@ import { ManualUploadReceipt } from "@/components/receipt-files/manual-upload-re
 type UploadReceiptsSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
   jobId: string;
 };
 
 export function UploadReceiptsSheet({
   open,
   onOpenChange,
+  onSuccess,
   jobId,
 }: UploadReceiptsSheetProps) {
   const [tab, setTab] = useState<"scan" | "manual">("scan");
@@ -32,6 +34,7 @@ export function UploadReceiptsSheet({
 
   const handleSuccess = () => {
     onOpenChange(false);
+    onSuccess();
   };
 
   return (
