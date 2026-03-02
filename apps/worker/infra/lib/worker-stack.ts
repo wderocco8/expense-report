@@ -39,7 +39,7 @@ export class WorkerStack extends cdk.Stack {
     // Create Lambda Function
     const receiptProcessor = new lambda.Function(this, "ReceiptProcessor", {
       functionName: `receipt-processor-${stage}`,
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset(path.join(__dirname, "../../dist")),
       timeout: cdk.Duration.seconds(120), // 2 minutes
