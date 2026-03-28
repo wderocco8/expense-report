@@ -101,6 +101,9 @@ export const extractedExpenses = pgTable(
       mode: "train" | "car" | "plane" | null;
       mileage: number | null;
     } | null>(),
+    hotelDetails: jsonb("hotel_details").$type<{
+      nights: number | null;
+    } | null>(),
     rawJson: jsonb("raw_json"),
     modelVersion: text("model_version").notNull(),
     isCurrent: boolean("is_current").notNull().default(true),
