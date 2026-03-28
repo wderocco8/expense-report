@@ -1,14 +1,9 @@
 import { ExpenseReportWithReceiptAndExpense } from "@/server/types/expense-report-jobs";
-import { getObjectBuffer } from "@/server/services/storage.service";
 import ExcelJS from "exceljs";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
-
-function toExcelImageBuffer(buf: Buffer): ExcelJS.Buffer {
-  return buf as unknown as ExcelJS.Buffer;
-}
 
 const CATEGORY_LIST = [
   "tolls/parking",
@@ -66,7 +61,6 @@ async function buildExpensesSheet(
         expense.transportDetails?.mode ?? null,
         expense.transportDetails?.mileage ?? null,
         receipt.originalFilename ?? null,
-        null,
       ];
     })
     .filter(Boolean);
@@ -91,7 +85,6 @@ async function buildExpensesSheet(
       { name: "Transport Mode" },
       { name: "Mileage" },
       { name: "Original Filename" },
-      { name: "Receipt" },
     ],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rows: tableRows as any[],
@@ -99,7 +92,7 @@ async function buildExpensesSheet(
 
   formatExpensesSheet(sheet);
   applyExpensesDataValidation(sheet);
-  await addReceiptImages(workbook, sheet, sortedReceipts);
+  // await addReceiptImages(workbook, sheet, sortedReceipts);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -119,7 +112,6 @@ function formatExpensesSheet(sheet: ExcelJS.Worksheet) {
   sheet.getColumn("F").width = 14;
   sheet.getColumn("G").width = 10;
   sheet.getColumn("H").width = 24;
-  sheet.getColumn("I").width = 30;
 
   sheet.getColumn("A").numFmt = "mm/dd/yyyy";
   sheet.getColumn("E").numFmt = "$#,##0.00";
@@ -142,34 +134,6 @@ function applyExpensesDataValidation(sheet: ExcelJS.Worksheet) {
       allowBlank: true,
       formulae: ['"train,car,plane"'],
     };
-  }
-}
-
-async function addReceiptImages(
-  workbook: ExcelJS.Workbook,
-  sheet: ExcelJS.Worksheet,
-  receipts: ExpenseReportWithReceiptAndExpense["receiptFiles"],
-) {
-  for (let i = 0; i < receipts.length; i++) {
-    const receipt = receipts[i];
-    const expense = receipt.extractedExpenses[0];
-    if (!expense) continue;
-
-    const buffer = await getObjectBuffer(receipt.s3Key);
-
-    const imageId = workbook.addImage({
-      buffer: toExcelImageBuffer(buffer),
-      extension: "jpeg",
-    });
-
-    const rowNumber = i + 2;
-
-    sheet.addImage(imageId, {
-      tl: { col: 8, row: rowNumber - 1 },
-      ext: { width: 150, height: 200 },
-    });
-
-    sheet.getRow(rowNumber).height = 150;
   }
 }
 
