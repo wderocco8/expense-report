@@ -4,9 +4,7 @@
   "private": true,
   "scripts": {
     "build": "esbuild index.ts --bundle --platform=node --target=node20 --outdir=dist",
-    "deploy:local-v1": "./scripts/deploy-local.sh",
-    "deploy:local-v2": "./scripts/deploy-local-2.sh",
-    "deploy:local-v3": "npm run build && cdklocal deploy WorkerStack-local --require-approval never",
+    "deploy:local": "./scripts/deploy-local.sh",
     "deploy:staging": "npm run build && cdk deploy WorkerStack-staging --require-approval never",
     "deploy:prod": "npm run build && cdk deploy WorkerStack-prod --require-approval never",
     "send:test": "node scripts/send-test-message.js",
