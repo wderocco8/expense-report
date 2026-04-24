@@ -31,6 +31,27 @@
 
 ### High Priority
 
+- [ ] Two-Phase Receipt Processing (Scalability Solution)
+  - **Problem**: OpenAI vision API (gpt-4o-mini) has 200K TPM limit, limiting concurrency to ~8 receipts
+  - **Impact**: Cannot scale beyond single user; high per-receipt costs (~$0.01/receipt)
+  - **Solution** (Option 1 - Two-Phase Processing):
+    - **Phase 1**: OCR text extraction using cheap/fast model (Tesseract, AWS Textract, or Gemini Flash)
+      - Extract raw text from receipt images
+      - Cost: ~80% reduction vs vision model
+    - **Phase 2**: Structured data extraction using gpt-4o-mini on TEXT only
+      - Parse OCR output into structured fields (merchant, amount, date, category)
+      - Much faster (no image tokens)
+      - Better rate limits for text-only models
+  - **Expected Benefits**:
+    - 2-5x faster processing
+    - ~80% cost reduction
+    - Ability to handle 10x+ more concurrent receipts
+  - **Considerations**:
+    - Phase 1 model selection (accuracy vs speed vs cost)
+    - Orchestration complexity (queue between phases)
+    - Error handling for OCR failures
+    - Option 4 (hybrid strategy) for future: auto-select based on file type/size
+
 - [ ] Rate Limiting (General API)
   - Implement API rate limiting to prevent abuse
   - Consider: Redis, Upstash, or Next.js middleware approach
