@@ -63,7 +63,7 @@ export class WorkerStack extends cdk.Stack {
     // Connect SQS to Lambda
     receiptProcessor.addEventSource(
       new lambdaEventSources.SqsEventSource(receiptQueue, {
-        batchSize: 5,
+        batchSize: 10, // TODO: setting to 10 for 429-error validation (reset to 2 once validated)
         reportBatchItemFailures: true, // IMPORTANT: Enables partial batch failures
         maxConcurrency: 5, // Max 5 concurrent Lambda invocations from this queue
       }),

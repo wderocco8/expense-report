@@ -65,9 +65,48 @@ export type ReceiptResult = {
   error?: string;
 };
 
-export async function extractReceiptFromImage(
-  buffer: Buffer
-): Promise<ReceiptResult> {
+/** Maximum number of retries for rate limit errors  */
+const MAX_RETRIES = 3;
+/** Base delay in milliseconds for exponential backoff */
+const BASE_DELAY_MS = 200;
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate delay with exponential backoff and jitter
+ * Jitter helps prevent thundering herd when multiple requests fail simultaneously
+ */
+function getRetryDelay(attempt: number): number {
+  const exponentialDelay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+  // Add random jitter between 0-100ms
+  const jitter = Math.random() * 100;
+  return exponentialDelay + jitter;
+}
+
+/**
+ * Check if an error is a rate limit (429) error from OpenAI
+ */
+function isRateLimitError(error: unknown): boolean {
+  if (error instanceof OpenAI.APIError) {
+    return error.status === 429 || error.code === "rate_limit_exceeded";
+  }
+  return false;
+}
+
+/**
+ * Check if an error should be retried
+ * Only 429 rate limit errors should be retried
+ */
+function shouldRetryError(error: unknown): boolean {
+  return isRateLimitError(error);
+}
+
+async function extractReceiptWithOpenAI(buffer: Buffer): Promise<string> {
   const base64Image = buffer.toString("base64");
 
   const response = await client.responses.create({
@@ -99,33 +138,81 @@ export async function extractReceiptFromImage(
     text: ReceiptFormat,
   });
 
-  const raw = response.output_text;
+  return response.output_text;
+}
 
-  let parsed;
-  try {
-    parsed = ReceiptSchema.safeParse(JSON.parse(raw));
-  } catch (e) {
-    console.error("Error parsing json", e);
-    return {
-      data: null,
-      success: false,
-      error: "Model returned invalid JSON",
-    };
-  }
+export async function extractReceiptFromImage(
+  buffer: Buffer,
+): Promise<ReceiptResult> {
+  let lastError: unknown;
 
-  if (!parsed.success) {
-    return {
-      data: null,
-      success: false,
-      error: parsed.error.message,
-    };
-  } else {
-    if (parsed.data.category !== "transport") {
-      parsed.data.transportDetails = null;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const raw = await extractReceiptWithOpenAI(buffer);
+
+      let parsed;
+      try {
+        parsed = ReceiptSchema.safeParse(JSON.parse(raw));
+      } catch (e) {
+        console.error("Error parsing json", e);
+        // JSON parse errors should not be retried - return failure
+        return {
+          data: null,
+          success: false,
+          error: "Model returned invalid JSON",
+        };
+      }
+
+      if (!parsed.success) {
+        // Schema validation errors should not be retried - return failure
+        return {
+          data: null,
+          success: false,
+          error: parsed.error.message,
+        };
+      } else {
+        if (parsed.data.category !== "transport") {
+          parsed.data.transportDetails = null;
+        }
+        return {
+          data: parsed.data,
+          success: true,
+        };
+      }
+    } catch (error) {
+      lastError = error;
+
+      // Check if we should retry this error
+      if (shouldRetryError(error)) {
+        if (attempt < MAX_RETRIES) {
+          const delay = getRetryDelay(attempt);
+          console.log(
+            `[OCR] Rate limit hit on attempt ${attempt}/${MAX_RETRIES}. Retrying in ${Math.round(delay)}ms...`,
+          );
+          await sleep(delay);
+          continue;
+        } else {
+          console.error(
+            `[OCR] Rate limit persisted after ${MAX_RETRIES} attempts. Giving up.`,
+          );
+        }
+      } else {
+        // Non-retryable error - log and throw to bubble up to caller
+        console.error(
+          `[OCR] Non-retryable error on attempt ${attempt}:`,
+          error,
+        );
+        throw error;
+      }
     }
-    return {
-      data: parsed.data,
-      success: true,
-    };
   }
+
+  // If we exhausted all retries, return a failure result
+  const errorMessage =
+    lastError instanceof Error ? lastError.message : "Unknown error";
+  return {
+    data: null,
+    success: false,
+    error: `Failed after ${MAX_RETRIES} attempts due to rate limiting: ${errorMessage}`,
+  };
 }

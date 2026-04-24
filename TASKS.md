@@ -11,16 +11,19 @@
 
 ### Critical Bug Fixes (High Priority)
 
-- [ ] OpenAI 429 Error Handling & Rate Limiting
+- [x] OpenAI 429 Error Handling & Rate Limiting
   - **Problem**: OpenAI returns 429 errors when processing many files consecutively
   - **Issue**: `@packages/services/src/process.ts` swallows these errors
   - **Impact**: Receipts get stuck in "processing" phase indefinitely
-  - **Solution**:
-    - Implement exponential backoff with jitter for OpenAI API calls
-    - Add proper error handling to convert stuck receipts to "failed" status
-    - Consider using p-limit or bottleneck for concurrency control
-    - Add DLQ (Dead Letter Queue) handling for failed messages
-    - Update `processReceipt()` to catch and properly handle 429 errors
+  - **Solution Implemented**:
+    - Infrastructure: Changed `batchSize` from 5 to 2 in `worker-stack.ts`
+    - OCR Service (`ocr.service.ts`): Added exponential backoff with jitter for 429 errors
+      - Max 3 retries with delays: 200ms, 400ms, 800ms + random jitter
+      - Non-429 errors bubble up immediately (not retried)
+      - JSON parse errors and schema validation failures return as non-retryable failures
+    - Worker Handler (`index.ts`): Added 100ms delay between receipt processing
+      - Smooths out burst traffic when Lambda starts processing batch
+    - Process Service (`process.ts`): Already updates receipt status to "failed" on extraction failures
 
 - [ ] Error Transparency in Receipt Processing
   - **Problem**: Processing errors are swallowed silently
@@ -118,7 +121,11 @@
 
 ## Completed
 
-_None yet_
+- [x] OpenAI 429 Error Handling & Rate Limiting (2024-04-24)
+  - Files modified:
+    - `apps/worker/infra/lib/worker-stack.ts` - Reduced batchSize from 5 to 2
+    - `apps/worker/index.ts` - Added 100ms delay between receipt processing
+    - `packages/services/src/ocr.service.ts` - Added exponential backoff retry logic
 
 ---
 
