@@ -12,10 +12,11 @@ export async function processReceipt(receiptId: string): Promise<void> {
   // check if already processed (idempotency check)
   const idemReceipt = await getReceiptFile(receiptId);
 
-  if (
-    idemReceipt.status === "complete" ||
-    idemReceipt.status === "processing"
-  ) {
+  // Note: We intentionally allow reprocessing of "processing" status receipts.
+  // SQS visibility timeout ensures only one Lambda processes a receipt at a time.
+  // If a Lambda times out, the receipt will be stuck in "processing" state,
+  // so we need to allow retries to avoid stuck receipts.
+  if (idemReceipt.status === "complete") {
     console.log(`Receipt ${receiptId} already ${idemReceipt.status}, skipping`);
     return;
   }
@@ -41,7 +42,25 @@ export async function processReceipt(receiptId: string): Promise<void> {
   }
 
   const dbRecord = mapReceiptToDb(extracted.data, receiptId);
-  await createExtractedExpense(dbRecord);
+
+  try {
+    await createExtractedExpense(dbRecord);
+  } catch (error) {
+    // Check if this is a duplicate insert (unique constraint violation)
+    if (
+      error instanceof Error &&
+      (error.message.includes("unique constraint") ||
+        error.message.includes("uniq_active_receipt") ||
+        error.message.includes("duplicate"))
+    ) {
+      console.log(
+        `[processReceipt] Receipt ${receiptId} already has an extracted expense (likely duplicate processing). Marking as complete.`,
+      );
+    } else {
+      // Re-throw other errors to be handled by caller
+      throw error;
+    }
+  }
 
   // update status and get receipt
   await updateReceiptFile(receiptId, { status: "complete" });

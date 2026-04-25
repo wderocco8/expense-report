@@ -13,7 +13,10 @@ export class WorkerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: WorkerStackProps) {
     super(scope, id, props);
 
-    const visibilityTimeout = props?.visibilityTimeoutSeconds || 300;
+    // Visibility timeout should be slightly longer than Lambda timeout (120s)
+    // to ensure messages are retried promptly after Lambda timeouts
+    // while preventing duplicate processing of in-flight receipts
+    const visibilityTimeout = props?.visibilityTimeoutSeconds || 150;
     const isLocal = this.stackName.includes("local");
     const stage = this.stackName.split("-").pop();
 
