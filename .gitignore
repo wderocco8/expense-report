@@ -56,3 +56,6 @@ dist
 cdk.out
 cdk-outputs.json
 function.zip
+
+# logging output
+temp

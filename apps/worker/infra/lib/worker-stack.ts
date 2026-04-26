@@ -68,7 +68,7 @@ export class WorkerStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(receiptQueue, {
         batchSize: 2, // Each batch contains at most 2 messages
         reportBatchItemFailures: true, // IMPORTANT: Enables partial batch failures
-        maxConcurrency: 5, // Max 5 concurrent Lambda invocations from this queue
+        maxConcurrency: 4, // Max 4 concurrent Lambda invocations from this queue
       }),
     );
 
