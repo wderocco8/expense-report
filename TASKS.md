@@ -11,19 +11,42 @@
 
 ### Critical Bug Fixes (High Priority)
 
-- [x] OpenAI 429 Error Handling & Rate Limiting
+- [x] OpenAI 429 Error Handling & Rate Limiting (COMPLETED - 2024-04-26)
   - **Problem**: OpenAI returns 429 errors when processing many files consecutively
   - **Issue**: `@packages/services/src/process.ts` swallows these errors
   - **Impact**: Receipts get stuck in "processing" phase indefinitely
   - **Solution Implemented**:
-    - Infrastructure: Changed `batchSize` from 5 to 2 in `worker-stack.ts`
+    - Infrastructure (`worker-stack.ts`): 
+      - `batchSize: 2` (each Lambda processes max 2 receipts)
+      - `maxConcurrency: 4` (max 4 concurrent Lambda invocations)
+      - `visibilityTimeout: 150s` (slightly > Lambda timeout of 120s)
+      - Max 8 concurrent OpenAI calls = ~192k TPM (within 200k limit)
     - OCR Service (`ocr.service.ts`): Added exponential backoff with jitter for 429 errors
       - Max 3 retries with delays: 200ms, 400ms, 800ms + random jitter
       - Non-429 errors bubble up immediately (not retried)
       - JSON parse errors and schema validation failures return as non-retryable failures
     - Worker Handler (`index.ts`): Added 100ms delay between receipt processing
       - Smooths out burst traffic when Lambda starts processing batch
-    - Process Service (`process.ts`): Already updates receipt status to "failed" on extraction failures
+    - Process Service (`process.ts`): Removed "processing" idempotency check
+      - Allows retries of timed-out receipts to prevent stuck receipts
+      - Added graceful handling of duplicate DB inserts
+  - **Performance Results** (Stress Test: 80 receipts at once):
+    - ~96.25% success rate (77/80 succeeded on first attempt)
+    - ~3.75% failure rate due to 429s exhausting all retries
+    - 0% stuck receipts (all eventually complete or fail properly)
+    - Acceptable for current scale until Two-Phase Processing is implemented
+  - **Known Issue**: Failed receipts NOT being sent to DLQ (see task below)
+
+- [ ] DLQ (Dead Letter Queue) Not Receiving Failed Receipts
+  - **Problem**: Receipts that fail processing are marked as "failed" in DB but SQS messages are not moved to DLQ
+  - **Expected Behavior**: After `maxReceiveCount: 3` failures, message should go to DLQ
+  - **Current Behavior**: Message is marked as failed but stays in main queue (invisible until visibility timeout expires)
+  - **Impact**: Failed messages will be retried 3 times, then disappear (not in DLQ for inspection)
+  - **Potential Causes**:
+    - Lambda returns success even when receipt processing fails (batch item failures not properly reported)
+    - `reportBatchItemFailures: true` may require specific response format
+    - SQS redrive policy not working as expected
+  - **Investigation Needed**: Check if `batchItemFailures` array is properly populated in Lambda response
 
 - [ ] Error Transparency in Receipt Processing
   - **Problem**: Processing errors are swallowed silently
@@ -33,6 +56,9 @@
     - Show failure reason in the UI for failed receipts
 
 ### High Priority
+
+- [ ] Upgrade Node.js in GitHub Actions
+  - Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
 
 - [ ] Two-Phase Receipt Processing (Scalability Solution)
   - **Problem**: OpenAI vision API (gpt-4o-mini) has 200K TPM limit, limiting concurrency to ~8 receipts
