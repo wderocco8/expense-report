@@ -16,7 +16,7 @@
   - **Issue**: `@packages/services/src/process.ts` swallows these errors
   - **Impact**: Receipts get stuck in "processing" phase indefinitely
   - **Solution Implemented**:
-    - Infrastructure (`worker-stack.ts`): 
+    - Infrastructure (`worker-stack.ts`):
       - `batchSize: 2` (each Lambda processes max 2 receipts)
       - `maxConcurrency: 4` (max 4 concurrent Lambda invocations)
       - `visibilityTimeout: 150s` (slightly > Lambda timeout of 120s)
@@ -57,6 +57,11 @@
 
 ### High Priority
 
+- [ ] Auth email verification
+  - Add email verification flow to authentication
+  - Requires: email service integration (Resend, SendGrid, etc.)
+  - **Blocking For**: Organization invitations (need to send invite emails)
+
 - [ ] Upgrade Node.js in GitHub Actions
   - Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
 
@@ -81,9 +86,26 @@
     - Error handling for OCR failures
     - Option 4 (hybrid strategy) for future: auto-select based on file type/size
 
-- [ ] Rate Limiting (General API)
+- [ ] Per-User Receipt Queue Limits (Anti-Abuse / Fairness)
+  - **Problem**: Single user can monopolize the queue by uploading 100+ receipts at once, starving other users
+  - **Current Behavior**: FIFO queue means large batches block all subsequent users
+  - **Impact**: Poor user experience - users with small batches wait behind large batches
+  - **Solution (Phase 1 - Postgres-based)**:
+    - Check `COUNT(*) FROM receipt_files WHERE userId = ? AND status IN ('pending', 'processing')` before allowing new uploads
+    - Limit: Max 50 pending/processing receipts per user
+    - If limit exceeded, reject upload with clear error message: "You have X receipts processing. Please wait for them to complete."
+    - **Why Postgres**: Already using it, fast enough for this check, no additional infrastructure needed
+  - **Alternatives Considered**:
+    - Redis: Faster but adds infrastructure complexity
+    - Per-user SQS queues: True fairness but complex CDK setup, Lambda event source limits
+  - **Future Phases** (backlogged):
+    - Phase 2: API rate limiting (uploads per minute per user)
+    - Phase 3: Priority queue or per-user queues with Two-Phase Processing
+
+- [ ] Rate Limiting (General API) - BACKLOGGED
   - Implement API rate limiting to prevent abuse
   - Consider: Redis, Upstash, or Next.js middleware approach
+  - **Note**: De-prioritized in favor of Per-User Receipt Limits (simpler, addresses immediate need)
 
 - [ ] Database sorting + filtering
   - Add sorting and filtering capabilities to database queries
@@ -125,10 +147,6 @@
   - Convert to base currency for reporting
   - Store exchange rates at time of extraction
 
-- [ ] Auth email verification
-  - Add email verification flow to authentication
-  - Requires: email service integration (Resend, SendGrid, etc.)
-
 ### Feature Enhancements
 
 - [ ] Hotel Nights Field
@@ -140,10 +158,44 @@
 
 ### Complex / Long-term
 
+- [ ] Organizations & Team Support (B2B Feature)
+  - **Goal**: Enable organizations/teams to use the app with shared expense reports and per-seat billing
+  - **Business Model**: Organizations pay for seats or usage-based plans (exact pricing TBD)
+  - **Why Before Flexible Schema**: Custom schemas should be org-level configurations (admins define schemas for their org)
+  - **Better Auth Integration**: Use `better-auth/plugins/organization` plugin (not currently enabled)
+    - Handles orgs, members, invitations, roles out of the box
+    - See: https://www.better-auth.com/docs/plugins/organization
+  - **Schema Changes Required**:
+    - Add `organization_id` to `expense_report_jobs_table` (nullable for personal accounts)
+    - Add `organization_id` to `receipt_files_table` (for queries)
+    - Update all queries to filter by `organization_id` when in org context
+    - Consider: separate tables for org-level settings vs user-level
+  - **Features**:
+    - [ ] Organization creation and management UI
+    - [ ] Member invitations (email-based)
+    - [ ] Role-based access (owner, admin, member)
+    - [ ] Organization switcher in UI (like Vercel/Linear)
+    - [ ] Shared expense reports within org
+    - [ ] Usage tracking per org (for billing)
+    - [ ] Org-level settings (default categories, custom fields prep)
+  - **Data Isolation Strategy**:
+    - Option A: Add org_id to all tables, filter queries
+    - Option B: Postgres row-level security (RLS) policies
+    - Option C: Schema-per-tenant (overkill for now)
+  - **Blocking/Related Tasks**:
+    - Flexible Schema (should be org-level feature)
+    - Billing integration (Stripe for per-seat billing)
+    - Per-User Receipt Queue Limits (needs org-level limits too)
+  - **Migration Path**:
+    - Personal accounts remain as-is (org_id = null)
+    - Users can create orgs and invite members
+    - Existing jobs can optionally be moved to org (or stay personal)
+
 - [ ] Flexible schema (high level, very complex initiative)
   - Allow users to define custom fields/structures
   - Requires significant architecture changes
   - Research: dynamic schemas, metadata storage approaches
+  - **Note**: Should be implemented AFTER Organizations (org admins define schemas for their org)
 
 ## Completed
 
