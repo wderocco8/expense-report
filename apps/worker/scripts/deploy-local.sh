@@ -2,8 +2,6 @@
 set -e
 
 export CDK_DISABLE_LEGACY_EXPORT_WARNING=1
-# overwrite S3 endpoint from direnv
-export S3_ENDPOINT="http://minio-expense-report:9000"
 
 cd "$(dirname "$0")/.."
 
