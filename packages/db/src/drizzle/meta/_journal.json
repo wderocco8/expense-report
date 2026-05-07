@@ -15,6 +15,13 @@
       "when": 1768751999117,
       "tag": "0001_ancient_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778122149518,
+      "tag": "0002_hard_synch",
+      "breakpoints": true
     }
   ]
 }

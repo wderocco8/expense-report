@@ -21,7 +21,6 @@ const GetReceiptFilesSchema = z.object({
           "status",
           "createdAt",
           "updatedAt",
-          "processedAt",
         ]),
         direction: z.enum(["asc", "desc"]),
       }),

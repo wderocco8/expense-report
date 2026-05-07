@@ -702,9 +702,8 @@ export async function createOcrResult(data: {
 ## Phase 7: Deployment Steps
 
 ### Step 1: Pre-deployment
-- [ ] Create dev S3 bucket
-- [ ] Update local `.env.local`
-- [ ] Test local dev with real S3
+- [x] Create dev S3 bucket
+- [x] Test local dev with real S3
 - [ ] Validate database migrations
 
 ### Step 2: Database Migration

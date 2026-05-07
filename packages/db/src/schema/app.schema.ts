@@ -15,12 +15,7 @@ import { users } from "../schema/auth.schema";
 
 // ------------ Enum definitions ------------
 
-// ------- status mappings -------
-// pending: job created, no files
-// processing: at least one file pending or processing
-// complete: all files have status=done
-// failed: at least one file failed and user didn't retry
-
+// ------- app user mappings -------
 export const appUserStatus = pgEnum("app_user_status", [
   "pending",
   "active",
@@ -33,9 +28,18 @@ export const appUserRole = pgEnum("app_user_role", [
   "member",
 ]);
 
-export const status = pgEnum("status", [
+// ------- receipt file status mappings (2-phase processing) -------
+// pending: Receipt uploaded, waiting for OCR
+// ocr_processing: Textract OCR in progress
+// ocr_complete: OCR done, waiting for extraction
+// extracting: OpenAI extraction in progress
+// complete: Processing complete
+// failed: Terminal failure (manual retry needed)
+export const receiptStatus = pgEnum("receipt_status", [
   "pending",
-  "processing",
+  "ocr_processing",
+  "ocr_complete",
+  "extracting",
   "complete",
   "failed",
 ]);
@@ -51,7 +55,7 @@ export const categoryEnum = pgEnum("category", [
   "misc",
 ]);
 
-// ------------ Table column definitions ------------
+// ------------ Table definitions ------------
 
 export const expenseReportJobs = pgTable("expense_report_jobs_table", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
@@ -73,14 +77,29 @@ export const receiptFiles = pgTable("receipt_files_table", {
     .notNull(),
   s3Key: text("s3_key").notNull(),
   originalFilename: text("original_filename"),
-  status: status("status").notNull().default("pending"),
+  status: receiptStatus("status").notNull().default("pending"),
   errorMessage: text("error_message"),
+  // Phase tracking timestamps
+  ocrStartedAt: timestamp("ocr_started_at"),
+  ocrCompletedAt: timestamp("ocr_completed_at"),
+  extractionStartedAt: timestamp("extraction_started_at"),
+  extractionCompletedAt: timestamp("extraction_completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-  processedAt: timestamp("processed_at"),
+});
+
+export const ocrResults = pgTable("ocr_results_table", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  receiptId: uuid("receipt_id")
+    .references(() => receiptFiles.id, { onDelete: "cascade" })
+    .notNull(),
+  rawResponse: jsonb("raw_response").notNull(), // Full Textract AnalyzeExpense response (verbatim)
+  extractedText: jsonb("extracted_text").notNull(), // {vendorName: "Starbucks", total: 12.50, currency: "USD", ...
+  confidence: decimal("confidence", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const extractedExpenses = pgTable(
@@ -92,6 +111,9 @@ export const extractedExpenses = pgTable(
         onDelete: "cascade",
       })
       .notNull(),
+    ocrResultId: uuid("ocr_result_id").references(() => ocrResults.id, {
+      onDelete: "set null",
+    }),
     merchant: text("merchant"),
     description: text("description"),
     date: date("date"),
@@ -132,7 +154,7 @@ export const expenseReportJobsRelations = relations(
   }),
 );
 
-// ReceiptFiles → Job (many-to-1) and → ExtractedExpenses (1-to-many)
+// ReceiptFiles → Job (many-to-1) and → ExtractedExpenses (1-to-many) and → OcrResults (1-to-many)
 export const receiptFilesRelations = relations(
   receiptFiles,
   ({ one, many }) => ({
@@ -141,10 +163,19 @@ export const receiptFilesRelations = relations(
       references: [expenseReportJobs.id],
     }),
     extractedExpenses: many(extractedExpenses),
+    ocrResults: many(ocrResults),
   }),
 );
 
-// ExtractedExpenses → Job + ReceiptFile
+// OcrResults → ReceiptFile (many-to-1)
+export const ocrResultsRelations = relations(ocrResults, ({ one }) => ({
+  receipt: one(receiptFiles, {
+    fields: [ocrResults.receiptId],
+    references: [receiptFiles.id],
+  }),
+}));
+
+// ExtractedExpenses → ReceiptFile + OcrResult (many-to-1)
 export const extractedExpensesRelations = relations(
   extractedExpenses,
   ({ one }) => ({
@@ -152,10 +183,17 @@ export const extractedExpensesRelations = relations(
       fields: [extractedExpenses.receiptId],
       references: [receiptFiles.id],
     }),
+    ocrResult: one(ocrResults, {
+      fields: [extractedExpenses.ocrResultId],
+      references: [ocrResults.id],
+    }),
   }),
 );
 
 // ------------ Type-safe helpers ------------
+export type OcrResult = typeof ocrResults.$inferSelect;
+export type NewOcrResult = typeof ocrResults.$inferInsert;
+
 export type ExtractedExpense = typeof extractedExpenses.$inferSelect;
 export type NewExtractedExpense = typeof extractedExpenses.$inferInsert;
 
