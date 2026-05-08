@@ -22,7 +22,7 @@ export async function processReceipt(receiptId: string): Promise<void> {
   }
 
   // update status and get receipt
-  const receipt = await updateReceiptFile(receiptId, { status: "processing" });
+  const receipt = await updateReceiptFile(receiptId, { status: "ocr_processing" });
 
   // stream file from s3 using s3Key
   const buffer = await getObjectBuffer(receipt.s3Key);
