@@ -2,9 +2,10 @@
 
 ## Overview
 
-Implement a two-phase receipt processing pipeline using **AWS Textract** for OCR (Phase 1) and **OpenAI** for structured extraction (Phase 2).
+Implement a two-phase receipt processing pipeline using **AWS Textract AnalyzeExpense** for OCR (Phase 1) and **OpenAI** for structured extraction (Phase 2).
 
 **Key Benefits:**
+
 - **Cost reduction**: Textract is ~3-5x cheaper than OpenAI vision for OCR
 - **Better reliability**: Decoupled phases with independent retry logic
 - **Faster processing**: Textract optimized for document text extraction
@@ -22,16 +23,18 @@ Before implementing 2-phase processing, migrate local development from MinIO to 
 
 1. Create bucket `expense-receipts-dev` in AWS Console (region: `us-east-1`)
 2. Apply CORS policy:
+
 ```json
 [
-    {
-        "AllowedHeaders": ["*"],
-        "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
-        "AllowedOrigins": ["http://localhost:3000"],
-        "ExposeHeaders": ["ETag"]
-    }
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
+    "AllowedOrigins": ["http://localhost:3000"],
+    "ExposeHeaders": ["ETag"]
+  }
 ]
 ```
+
 3. Keep "Block Public Access" settings **ON**
 4. Set Object Ownership to "Bucket owner enforced"
 
@@ -39,18 +42,14 @@ Before implementing 2-phase processing, migrate local development from MinIO to 
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:DeleteObject"
-            ],
-            "Resource": "arn:aws:s3:::expense-receipts-dev/*"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::expense-receipts-dev/*"
+    }
+  ]
 }
 ```
 
@@ -93,31 +92,56 @@ const s3 = new S3Client({
 
 **Status:** ⏳ Pending validation
 
+### OCR Result Storage Strategy
+
+The raw Textract `AnalyzeExpense` response for a single receipt is ~350kb due to geometry/polygon coordinates on every field. These coordinates have no value downstream.
+
+**Decision: Store a slim `extractedText` JSONB object only. No `rawResponse` in DB, no S3 backup.**
+
+The slim object contains:
+
+- `summaryFields` — standard Textract KV pairs (`VENDOR_NAME`, `TOTAL`, `TAX`, etc.) with type, value, and confidence only
+- `lineItems` — per-item description, quantity, unit price, total
+- `rawText` — all `LINE` blocks from the response concatenated into a plain string
+
+The `rawText` field is the completeness guarantee: even fields Textract couldn't classify into a standard type (unrecognized address formats, taglines, footnotes, etc.) are still captured as readable text and sent to OpenAI. Nothing on the receipt is lost, just the geometry metadata.
+
+**Resulting size: ~1–3kb per receipt vs ~350kb raw.**
+
+### `extractedText` Shape
+
+```typescript
+// Stored in ocr_results_table.extracted_text (jsonb)
+interface SlimOcrResult {
+  summaryFields: Array<{
+    type: string; // e.g. "VENDOR_NAME", "TOTAL", "TAX", "OTHER"
+    label: string | null; // Actual label as it appears on the document
+    value: string;
+    confidence: number;
+  }>;
+  lineItems: Array<{
+    description: string | null;
+    quantity: string | null;
+    unitPrice: string | null;
+    total: string | null;
+  }>;
+  rawText: string; // All LINE blocks joined by \n — completeness guarantee for OpenAI
+}
+```
+
 ### Migration 001: Add Phase Tracking to Receipts
 
 ```sql
--- Add phase tracking columns
-ALTER TABLE receipt_files_table 
-ADD COLUMN phase VARCHAR(20) NOT NULL DEFAULT 'pending' 
-CHECK (phase IN ('pending', 'ocr_processing', 'ocr_complete', 'extracting', 'complete', 'failed'));
-
-ALTER TABLE receipt_files_table 
-ADD COLUMN ocr_text TEXT;
-
-ALTER TABLE receipt_files_table 
-ADD COLUMN ocr_provider VARCHAR(20) DEFAULT 'textract';
-
-ALTER TABLE receipt_files_table 
-ADD COLUMN ocr_started_at TIMESTAMP;
-
-ALTER TABLE receipt_files_table 
-ADD COLUMN ocr_completed_at TIMESTAMP;
-
-ALTER TABLE receipt_files_table 
-ADD COLUMN extraction_started_at TIMESTAMP;
+-- receipt_status enum already defined in schema
+-- Add phase tracking timestamps (status column already exists as receiptStatus enum)
+ALTER TABLE receipt_files_table
+ADD COLUMN ocr_started_at TIMESTAMP,
+ADD COLUMN ocr_completed_at TIMESTAMP,
+ADD COLUMN extraction_started_at TIMESTAMP,
+ADD COLUMN extraction_completed_at TIMESTAMP;
 
 -- Index for efficient phase queries
-CREATE INDEX idx_receipt_files_phase ON receipt_files_table(phase);
+CREATE INDEX idx_receipt_files_status ON receipt_files_table(status);
 ```
 
 ### Migration 002: Create OCR Results Table
@@ -126,10 +150,10 @@ CREATE INDEX idx_receipt_files_phase ON receipt_files_table(phase);
 CREATE TABLE ocr_results_table (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     receipt_id UUID NOT NULL REFERENCES receipt_files_table(id) ON DELETE CASCADE,
-    provider VARCHAR(20) NOT NULL DEFAULT 'textract',
-    raw_response JSONB NOT NULL,        -- Full Textract API response
-    extracted_text TEXT NOT NULL,       -- Text sent to OpenAI
-    confidence DECIMAL(5,2),            -- Average confidence score
+    -- rawResponse intentionally omitted: ~350kb of geometry data with no downstream use
+    -- rawText (completeness guarantee) lives inside extracted_text.rawText
+    extracted_text JSONB NOT NULL,  -- SlimOcrResult shape: summaryFields + lineItems + rawText
+    confidence DECIMAL(5,2),        -- Average confidence across summaryFields
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
@@ -140,21 +164,14 @@ CREATE INDEX idx_ocr_results_receipt_id ON ocr_results_table(receipt_id);
 
 ```sql
 -- Mark all existing completed receipts
-UPDATE receipt_files_table 
-SET phase = 'complete' 
-WHERE status = 'complete';
+UPDATE receipt_files_table
+SET status = 'complete'
+WHERE status = 'complete'; -- already set, no-op for existing rows
 
 -- Mark failed receipts
-UPDATE receipt_files_table 
-SET phase = 'failed' 
+UPDATE receipt_files_table
+SET status = 'failed'
 WHERE status = 'failed';
-```
-
-### Migration 004: Deprecate Old Status Column (Optional - Future)
-
-```sql
--- After confirming 2-phase works, we can remove the old status column
--- ALTER TABLE receipt_files_table DROP COLUMN status;
 ```
 
 ---
@@ -168,19 +185,19 @@ packages/
   services/
     src/
       ocr/
-        textract.service.ts          # NEW: Textract integration
+        textract.service.ts          # NEW: Textract AnalyzeExpense integration
         ocr.interface.ts             # NEW: OCR service contracts
-      
+
       extraction/
         openai-extraction.service.ts # NEW: OpenAI structured extraction
         extraction.interface.ts      # NEW: Extraction contracts
         extraction.schema.ts         # NEW: Zod schemas for validation
-      
+
       orchestration/
         phase1-processor.ts          # NEW: Phase 1 orchestration
         phase2-processor.ts          # NEW: Phase 2 orchestration
         retry.utils.ts               # NEW: Shared retry utilities
-      
+
       storage.service.ts             # UPDATE: S3 client config
       process.ts                     # UPDATE: New 2-phase flow
       index.ts                       # UPDATE: Export new modules
@@ -195,16 +212,32 @@ packages/
 **File:** `packages/services/src/ocr/ocr.interface.ts`
 
 ```typescript
+export interface SlimOcrResult {
+  summaryFields: Array<{
+    type: string;
+    label: string | null;
+    value: string;
+    confidence: number;
+  }>;
+  lineItems: Array<{
+    description: string | null;
+    quantity: string | null;
+    unitPrice: string | null;
+    total: string | null;
+  }>;
+  rawText: string; // All LINE blocks — completeness guarantee, no geometry
+}
+
 export interface OcrResult {
-  text: string;
-  confidence: number;
+  data: SlimOcrResult | null;
+  avgConfidence: number;
   success: boolean;
   error?: string;
   shouldRetry: boolean;
 }
 
 export interface OcrService {
-  extractText(s3Bucket: string, s3Key: string): Promise<OcrResult>;
+  analyzeExpense(s3Bucket: string, s3Key: string): Promise<OcrResult>;
 }
 ```
 
@@ -212,49 +245,96 @@ export interface OcrService {
 
 **File:** `packages/services/src/ocr/textract.service.ts`
 
-```typescript
-import { TextractClient, DetectDocumentTextCommand } from "@aws-sdk/client-textract";
-import { OcrResult, OcrService } from "./ocr.interface";
+Uses `AnalyzeExpense` (not `DetectDocumentText`) to get pre-structured KV pairs for receipts and invoices. Geometry is stripped before returning — only type, label, value, and confidence are kept.
 
-const textract = new TextractClient({ 
-  region: process.env.TEXTRACT_REGION || process.env.S3_REGION || "us-east-1" 
+```typescript
+import {
+  TextractClient,
+  AnalyzeExpenseCommand,
+  ExpenseField,
+  LineItemFields,
+} from "@aws-sdk/client-textract";
+import { OcrResult, OcrService, SlimOcrResult } from "./ocr.interface";
+
+const textract = new TextractClient({
+  region: process.env.TEXTRACT_REGION || process.env.S3_REGION || "us-east-1",
 });
 
 export class TextractService implements OcrService {
-  async extractText(s3Bucket: string, s3Key: string): Promise<OcrResult> {
+  async analyzeExpense(s3Bucket: string, s3Key: string): Promise<OcrResult> {
     try {
-      const command = new DetectDocumentTextCommand({
+      const command = new AnalyzeExpenseCommand({
         Document: {
-          S3Object: {
-            Bucket: s3Bucket,
-            Name: s3Key,
-          },
+          S3Object: { Bucket: s3Bucket, Name: s3Key },
         },
       });
 
       const response = await textract.send(command);
-      
-      // Extract text from LINE blocks
-      const textBlocks = response.Blocks?.filter(b => b.BlockType === "LINE") || [];
-      const extractedText = textBlocks.map(b => b.Text).join("\n");
-      const avgConfidence = textBlocks.length > 0
-        ? textBlocks.reduce((sum, b) => sum + (b.Confidence || 0), 0) / textBlocks.length
-        : 0;
+      const doc = response.ExpenseDocuments?.[0];
 
-      return {
-        text: extractedText,
-        confidence: avgConfidence,
-        success: true,
-        shouldRetry: false,
-      };
+      if (!doc) {
+        return {
+          data: null,
+          avgConfidence: 0,
+          success: false,
+          error: "No expense document found in Textract response",
+          shouldRetry: false,
+        };
+      }
+
+      // --- Summary fields (strip geometry) ---
+      const summaryFields = (doc.SummaryFields ?? []).map(
+        (f: ExpenseField) => ({
+          type: f.Type?.Text ?? "OTHER",
+          label: f.LabelDetection?.Text ?? null,
+          value: f.ValueDetection?.Text ?? "",
+          confidence: f.ValueDetection?.Confidence ?? 0,
+        }),
+      );
+
+      // --- Line items (strip geometry) ---
+      const lineItems = (doc.LineItemGroups ?? []).flatMap((group) =>
+        (group.LineItems ?? []).map((item) => {
+          const fields = Object.fromEntries(
+            (item.LineItemExpenseFields ?? []).map((f: LineItemFields) => [
+              f.Type?.Text,
+              f.ValueDetection?.Text ?? null,
+            ]),
+          );
+          return {
+            description: fields["ITEM"] ?? null,
+            quantity: fields["QUANTITY"] ?? null,
+            unitPrice: fields["UNIT_PRICE"] ?? null,
+            total: fields["PRICE"] ?? null,
+          };
+        }),
+      );
+
+      // --- Raw text: all LINE blocks — completeness guarantee ---
+      // Captures anything Textract couldn't classify into a standard field
+      // (e.g. unrecognised address formats, taglines, footnotes)
+      const rawText = (doc.Blocks ?? [])
+        .filter((b) => b.BlockType === "LINE")
+        .map((b) => b.Text ?? "")
+        .join("\n");
+
+      const avgConfidence =
+        summaryFields.length > 0
+          ? summaryFields.reduce((sum, f) => sum + f.confidence, 0) /
+            summaryFields.length
+          : 0;
+
+      const slim: SlimOcrResult = { summaryFields, lineItems, rawText };
+
+      return { data: slim, avgConfidence, success: true, shouldRetry: false };
     } catch (error) {
-      const shouldRetry = this.isRetryableError(error);
       return {
-        text: "",
-        confidence: 0,
+        data: null,
+        avgConfidence: 0,
         success: false,
-        error: error instanceof Error ? error.message : "Unknown Textract error",
-        shouldRetry,
+        error:
+          error instanceof Error ? error.message : "Unknown Textract error",
+        shouldRetry: this.isRetryableError(error),
       };
     }
   }
@@ -280,6 +360,7 @@ export const textractService = new TextractService();
 
 ```typescript
 import { ReceiptDTO } from "@repo/shared";
+import { SlimOcrResult } from "../ocr/ocr.interface";
 
 export interface ExtractionResult {
   data: ReceiptDTO | null;
@@ -289,7 +370,7 @@ export interface ExtractionResult {
 }
 
 export interface ExtractionService {
-  extractFromText(ocrText: string): Promise<ExtractionResult>;
+  extractFromOcr(ocr: SlimOcrResult): Promise<ExtractionResult>;
 }
 ```
 
@@ -297,45 +378,74 @@ export interface ExtractionService {
 
 **File:** `packages/services/src/extraction/openai-extraction.service.ts`
 
+Receives the slim OCR result and serialises it into a prompt. The `rawText` is appended after the structured fields so OpenAI has both the pre-parsed KV pairs and the full unclassified text as a fallback.
+
 ```typescript
 import OpenAI from "openai";
 import { ExtractionResult, ExtractionService } from "./extraction.interface";
+import { SlimOcrResult } from "../ocr/ocr.interface";
 import { ReceiptDTO, ReceiptSchema } from "@repo/shared";
 import { ResponseTextConfig } from "openai/resources/responses/responses.mjs";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-// Same schema as before
 const ReceiptFormat: ResponseTextConfig = {
   format: {
     type: "json_schema",
     name: "receipt",
     strict: true,
-    schema: { /* ... same schema ... */ },
+    schema: {
+      /* ... same schema as before ... */
+    },
   },
 };
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 200;
 
+function buildPrompt(ocr: SlimOcrResult): string {
+  const fields = ocr.summaryFields
+    .map((f) => `${f.type}${f.label ? ` (${f.label})` : ""}: ${f.value}`)
+    .join("\n");
+
+  const items = ocr.lineItems
+    .map((li, i) =>
+      [
+        `Item ${i + 1}:`,
+        li.description ? `  description: ${li.description}` : null,
+        li.quantity ? `  quantity: ${li.quantity}` : null,
+        li.unitPrice ? `  unit_price: ${li.unitPrice}` : null,
+        li.total ? `  total: ${li.total}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n");
+
+  return [
+    "## Structured fields (extracted by Textract)",
+    fields,
+    items ? `\n## Line items\n${items}` : "",
+    "\n## Full receipt text (completeness fallback)",
+    ocr.rawText,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export class OpenAIExtractionService implements ExtractionService {
-  async extractFromText(ocrText: string): Promise<ExtractionResult> {
+  async extractFromOcr(ocr: SlimOcrResult): Promise<ExtractionResult> {
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const result = await this.callOpenAI(ocrText);
-        return result;
+        return await this.callOpenAI(ocr);
       } catch (error) {
         lastError = error;
-        
         if (this.isRateLimitError(error) && attempt < MAX_RETRIES) {
-          const delay = this.getRetryDelay(attempt);
-          await this.sleep(delay);
+          await this.sleep(this.getRetryDelay(attempt));
           continue;
         }
-        
-        // Non-retryable error
         return {
           data: null,
           success: false,
@@ -353,20 +463,20 @@ export class OpenAIExtractionService implements ExtractionService {
     };
   }
 
-  private async callOpenAI(ocrText: string): Promise<ExtractionResult> {
+  private async callOpenAI(ocr: SlimOcrResult): Promise<ExtractionResult> {
     const response = await client.responses.create({
       model: "gpt-4o-mini",
       input: [
         {
           role: "system",
-          content: `Extract structured receipt data from this OCR text:\n\n${ocrText}`,
+          content: `Extract structured receipt data from the following Textract output.\n\n${buildPrompt(ocr)}`,
         },
       ],
       text: ReceiptFormat,
     });
 
     const parsed = ReceiptSchema.safeParse(JSON.parse(response.output_text));
-    
+
     if (!parsed.success) {
       return {
         data: null,
@@ -376,16 +486,14 @@ export class OpenAIExtractionService implements ExtractionService {
       };
     }
 
-    return {
-      data: parsed.data,
-      success: true,
-      shouldRetry: false,
-    };
+    return { data: parsed.data, success: true, shouldRetry: false };
   }
 
   private isRateLimitError(error: unknown): boolean {
-    return error instanceof OpenAI.APIError && 
-           (error.status === 429 || error.code === "rate_limit_exceeded");
+    return (
+      error instanceof OpenAI.APIError &&
+      (error.status === 429 || error.code === "rate_limit_exceeded")
+    );
   }
 
   private getRetryDelay(attempt: number): number {
@@ -393,7 +501,7 @@ export class OpenAIExtractionService implements ExtractionService {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -409,56 +517,43 @@ import { getReceiptFile, updateReceiptFile, createOcrResult } from "@repo/db";
 import { textractService } from "../ocr/textract.service";
 
 export async function processPhase1Ocr(receiptId: string): Promise<void> {
-  // Idempotency check
   const receipt = await getReceiptFile(receiptId);
-  
-  if (["ocr_complete", "complete", "extracting"].includes(receipt.phase)) {
+
+  if (["ocr_complete", "complete", "extracting"].includes(receipt.status)) {
     console.log(`[Phase 1] Receipt ${receiptId} already OCR'd, skipping`);
     return;
   }
 
-  if (receipt.phase === "failed") {
-    console.log(`[Phase 1] Receipt ${receiptId} previously failed, retrying OCR`);
-  }
-
-  // Mark as processing
-  await updateReceiptFile(receiptId, { 
-    phase: "ocr_processing",
-    ocr_started_at: new Date(),
+  await updateReceiptFile(receiptId, {
+    status: "ocr_processing",
+    ocrStartedAt: new Date(),
   });
 
-  // Run Textract
-  const result = await textractService.extractText(
+  const result = await textractService.analyzeExpense(
     process.env.S3_BUCKET!,
-    receipt.s3Key
+    receipt.s3Key,
   );
 
-  if (!result.success) {
+  if (!result.success || !result.data) {
     await updateReceiptFile(receiptId, {
-      phase: "failed",
+      status: "failed",
       errorMessage: `OCR failed: ${result.error}`,
     });
-    
     if (result.shouldRetry) {
       throw new Error(`Textract retryable error: ${result.error}`);
     }
     return;
   }
 
-  // Store results
-  await updateReceiptFile(receiptId, {
-    phase: "ocr_complete",
-    ocr_text: result.text,
-    ocr_completed_at: new Date(),
-  });
-
-  // Store in audit table
   await createOcrResult({
     receiptId,
-    provider: "textract",
-    extracted_text: result.text,
-    confidence: result.confidence,
-    // raw_response: stored via separate call if needed
+    extractedText: result.data, // slim SlimOcrResult — no geometry
+    confidence: result.avgConfidence,
+  });
+
+  await updateReceiptFile(receiptId, {
+    status: "ocr_complete",
+    ocrCompletedAt: new Date(),
   });
 
   console.log(`[Phase 1] OCR complete for ${receiptId}`);
@@ -470,73 +565,84 @@ export async function processPhase1Ocr(receiptId: string): Promise<void> {
 **File:** `packages/services/src/orchestration/phase2-processor.ts`
 
 ```typescript
-import { getReceiptFile, updateReceiptFile, createExtractedExpense } from "@repo/db";
+import {
+  getReceiptFile,
+  getOcrResultByReceiptId,
+  updateReceiptFile,
+  createExtractedExpense,
+} from "@repo/db";
 import { openaiExtractionService } from "../extraction/openai-extraction.service";
 import { mapReceiptToDb } from "@repo/shared";
 
-export async function processPhase2Extraction(receiptId: string): Promise<void> {
-  // Idempotency check
+export async function processPhase2Extraction(
+  receiptId: string,
+): Promise<void> {
   const receipt = await getReceiptFile(receiptId);
-  
-  if (receipt.phase === "complete") {
+
+  if (receipt.status === "complete") {
     console.log(`[Phase 2] Receipt ${receiptId} already complete, skipping`);
     return;
   }
 
-  if (receipt.phase !== "ocr_complete") {
+  if (receipt.status !== "ocr_complete") {
     throw new Error(
-      `[Phase 2] Receipt ${receiptId} not ready (phase: ${receipt.phase})`
+      `[Phase 2] Receipt ${receiptId} not ready (status: ${receipt.status})`,
     );
   }
 
-  if (!receipt.ocr_text) {
-    throw new Error(`[Phase 2] Receipt ${receiptId} missing OCR text`);
+  const ocrResult = await getOcrResultByReceiptId(receiptId);
+
+  if (!ocrResult) {
+    throw new Error(`[Phase 2] No OCR result found for receipt ${receiptId}`);
   }
 
-  // Mark as extracting
-  await updateReceiptFile(receiptId, { 
-    phase: "extracting",
-    extraction_started_at: new Date(),
+  await updateReceiptFile(receiptId, {
+    status: "extracting",
+    extractionStartedAt: new Date(),
   });
 
-  // Run extraction
-  const result = await openaiExtractionService.extractFromText(receipt.ocr_text);
+  const result = await openaiExtractionService.extractFromOcr(
+    ocrResult.extractedText, // SlimOcrResult — includes rawText as completeness fallback
+  );
 
   if (!result.success) {
     await updateReceiptFile(receiptId, {
-      phase: "failed",
+      status: "failed",
       errorMessage: `Extraction failed: ${result.error}`,
     });
-    
     if (result.shouldRetry) {
       throw new Error(`Extraction retryable error: ${result.error}`);
     }
     return;
   }
 
-  // Save to database
-  const dbRecord = mapReceiptToDb(result.data!, receiptId);
-  
+  const dbRecord = mapReceiptToDb(result.data!, receiptId, ocrResult.id);
+
   try {
     await createExtractedExpense(dbRecord);
   } catch (error) {
-    // Handle duplicate (idempotent)
     if (isDuplicateError(error)) {
-      console.log(`[Phase 2] Duplicate extraction for ${receiptId}`);
+      console.log(
+        `[Phase 2] Duplicate extraction for ${receiptId}, skipping insert`,
+      );
     } else {
       throw error;
     }
   }
 
-  // Mark complete
-  await updateReceiptFile(receiptId, { phase: "complete" });
+  await updateReceiptFile(receiptId, {
+    status: "complete",
+    extractionCompletedAt: new Date(),
+  });
+
   console.log(`[Phase 2] Extraction complete for ${receiptId}`);
 }
 
 function isDuplicateError(error: unknown): boolean {
-  return error instanceof Error && (
-    error.message.includes("unique constraint") ||
-    error.message.includes("uniq_active_receipt")
+  return (
+    error instanceof Error &&
+    (error.message.includes("unique constraint") ||
+      error.message.includes("uniq_active_receipt"))
   );
 }
 ```
@@ -553,25 +659,21 @@ import { processPhase2Extraction } from "./orchestration/phase2-processor";
 export async function processReceipt(receiptId: string): Promise<void> {
   const receipt = await getReceiptFile(receiptId);
 
-  // Skip if already complete
-  if (receipt.phase === "complete") {
+  if (receipt.status === "complete") {
     console.log(`[Process] Receipt ${receiptId} already complete`);
     return;
   }
 
-  // Phase 1: OCR (if not done)
-  if (["pending", "failed"].includes(receipt.phase)) {
+  if (["pending", "failed"].includes(receipt.status)) {
     await processPhase1Ocr(receiptId);
-    
-    // Re-fetch to check state
+
     const updated = await getReceiptFile(receiptId);
-    if (updated.phase !== "ocr_complete") {
-      return; // Phase 1 failed
+    if (updated.status !== "ocr_complete") {
+      return; // Phase 1 failed or still processing
     }
   }
 
-  // Phase 2: Extraction
-  if (receipt.phase === "ocr_complete" || receipt.phase === "extracting") {
+  if (["ocr_complete", "extracting"].includes(receipt.status)) {
     await processPhase2Extraction(receiptId);
   }
 }
@@ -588,27 +690,22 @@ export async function processReceipt(receiptId: string): Promise<void> {
 ```typescript
 import * as iam from "aws-cdk-lib/aws-iam";
 
-// In constructor, after Lambda creation:
-
-// Add Textract permissions
+// Add Textract permissions (resource-level not supported by Textract)
 receiptProcessor.addToRolePolicy(
   new iam.PolicyStatement({
     effect: iam.Effect.ALLOW,
-    actions: [
-      "textract:DetectDocumentText",
-      "textract:AnalyzeDocument",
-    ],
-    resources: ["*"], // Textract doesn't support resource-level permissions
-  })
+    actions: ["textract:AnalyzeExpense"],
+    resources: ["*"],
+  }),
 );
 
-// Add S3 read permissions for Textract
+// S3 read access so Textract can pull the receipt image
 receiptProcessor.addToRolePolicy(
   new iam.PolicyStatement({
     effect: iam.Effect.ALLOW,
     actions: ["s3:GetObject"],
     resources: [`arn:aws:s3:::${process.env.S3_BUCKET}/*`],
-  })
+  }),
 );
 ```
 
@@ -624,15 +721,13 @@ environment: {
 ### 4.3 Update GitHub Actions Secrets
 
 Add to repository secrets:
-- `TEXTRACT_REGION` (optional, defaults to S3_REGION)
 
-Update workflow files:
-- `.github/workflows/staging.yml`
-- `.github/workflows/main.yml`
+- `TEXTRACT_REGION` (optional, defaults to `S3_REGION`)
+
+Update workflow files (`.github/workflows/staging.yml` and `main.yml`):
 
 ```yaml
 env:
-  # ... existing env vars
   TEXTRACT_REGION: ${{ secrets.TEXTRACT_REGION || secrets.S3_REGION }}
 ```
 
@@ -644,10 +739,12 @@ env:
 
 **File:** `packages/db/src/repositories/receiptFiles.repo.ts`
 
-Add functions:
-- `getReceiptFile(id)` - already exists, verify it selects new columns
-- `updateReceiptFile(id, data)` - update to handle phase fields
-- `createOcrResult(data)` - new function
+Verify `updateReceiptFile` handles the new timestamp fields:
+
+- `ocrStartedAt`
+- `ocrCompletedAt`
+- `extractionStartedAt`
+- `extractionCompletedAt`
 
 ### 5.2 Add OCR Results Repository
 
@@ -656,22 +753,51 @@ Add functions:
 ```typescript
 import { db } from "../client";
 import { ocrResults } from "../schema";
+import { SlimOcrResult } from "@repo/services";
+import { eq } from "drizzle-orm";
 
 export async function createOcrResult(data: {
   receiptId: string;
-  provider: string;
-  extracted_text: string;
+  extractedText: SlimOcrResult;
   confidence?: number;
-  raw_response?: unknown;
 }) {
-  return db.insert(ocrResults).values({
-    receiptId: data.receiptId,
-    provider: data.provider,
-    extractedText: data.extracted_text,
-    confidence: data.confidence?.toString(),
-    rawResponse: data.raw_response,
-  });
+  const [result] = await db
+    .insert(ocrResults)
+    .values({
+      receiptId: data.receiptId,
+      extractedText: data.extractedText,
+      confidence: data.confidence?.toString(),
+    })
+    .returning();
+  return result;
 }
+
+export async function getOcrResultByReceiptId(receiptId: string) {
+  const [result] = await db
+    .select()
+    .from(ocrResults)
+    .where(eq(ocrResults.receiptId, receiptId))
+    .limit(1);
+  return result ?? null;
+}
+```
+
+### 5.3 Updated Schema
+
+**File:** `packages/db/src/schema/app.schema.ts` — `ocrResults` table:
+
+```typescript
+export const ocrResults = pgTable("ocr_results_table", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  receiptId: uuid("receipt_id")
+    .references(() => receiptFiles.id, { onDelete: "cascade" })
+    .notNull(),
+  // rawResponse intentionally omitted — ~350kb of geometry per receipt, no downstream value
+  // rawText (completeness guarantee) is embedded inside extractedText.rawText
+  extractedText: jsonb("extracted_text").$type<SlimOcrResult>().notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 ```
 
 ---
@@ -680,45 +806,50 @@ export async function createOcrResult(data: {
 
 ### 6.1 Unit Tests
 
-- `textract.service.test.ts` - Mock Textract client
-- `openai-extraction.service.test.ts` - Mock OpenAI client
-- `phase1-processor.test.ts` - Test idempotency, retry logic
-- `phase2-processor.test.ts` - Test extraction flow
+- `textract.service.test.ts` — Mock Textract client, verify geometry is stripped, verify `rawText` captures all LINE blocks
+- `openai-extraction.service.test.ts` — Mock OpenAI client, verify prompt includes both structured fields and `rawText`
+- `phase1-processor.test.ts` — Test idempotency, retry logic, slim shape written to DB
+- `phase2-processor.test.ts` — Test extraction flow, duplicate handling
 
 ### 6.2 Integration Tests
 
-- End-to-end flow with real Textract (use sample receipt)
-- Verify OCR text quality
-- Verify OpenAI extraction accuracy
+- End-to-end flow with real Textract on a sample receipt
+- Verify `rawText` is non-empty and captures unclassified content
+- Verify OpenAI extraction accuracy using the slim prompt format
 
 ### 6.3 Load Tests
 
 - Batch upload 50 receipts
 - Monitor Textract throttling
-- Verify SQS retry behavior
+- Verify SQS retry behaviour
 
 ---
 
 ## Phase 7: Deployment Steps
 
 ### Step 1: Pre-deployment
+
 - [x] Create dev S3 bucket
 - [x] Test local dev with real S3
-- [ ] Validate database migrations
+- [x] Enable `textract:AnalyzeExpense` IAM policy manually (validated)
+- [x] Validate database migrations
 
 ### Step 2: Database Migration
-- [ ] Run migration 001 (add phase columns)
-- [ ] Run migration 002 (create ocr_results table)
-- [ ] Run migration 003 (backfill existing data)
-- [ ] Verify data integrity
+
+- [x] Run migration 001 (add timestamp columns to receipt_files_table)
+- [x] Run migration 002 (create ocr_results_table — no rawResponse column)
+- [x] Run migration 003 (backfill existing statuses)
+- [x] Verify data integrity
 
 ### Step 3: Code Deployment
+
 - [ ] Deploy to staging
-- [ ] Verify Textract IAM permissions
-- [ ] Test with sample receipts
-- [ ] Monitor error rates
+- [ ] Verify Textract IAM permissions via CDK
+- [ ] Test with sample receipts end-to-end
+- [ ] Monitor error rates and OCR confidence scores
 
 ### Step 4: Production Deployment
+
 - [ ] Deploy to production
 - [ ] Monitor for 24 hours
 - [ ] Compare costs vs old approach
@@ -727,46 +858,50 @@ export async function createOcrResult(data: {
 
 ## Retry & Idempotency Matrix
 
-| Scenario | Phase | Behavior | SQS Action |
-|----------|-------|----------|------------|
-| Textract throttling | 1 | Retry with exponential backoff | Return batchItemFailure, SQS retries |
-| Textract invalid S3 object | 1 | Mark failed, no retry | No failure reported (permanent) |
-| OpenAI 429 | 2 | Retry 3x with backoff | Return batchItemFailure on final failure |
-| OpenAI schema error | 2 | Mark failed, no retry | No failure reported (permanent) |
-| Lambda timeout in Phase 1 | 1 | SQS visibility timeout expires | Message retried, Phase 1 re-runs (idempotent) |
-| Lambda timeout in Phase 2 | 2 | SQS visibility timeout expires | Message retried, Phase 1 skipped, Phase 2 re-runs |
-| DB connection error | Both | Throw error | SQS retries indefinitely |
+| Scenario                   | Phase | Behavior                           | SQS Action                                        |
+| -------------------------- | ----- | ---------------------------------- | ------------------------------------------------- |
+| Textract throttling        | 1     | Mark failed, throw retryable error | Return batchItemFailure, SQS retries              |
+| Textract invalid S3 object | 1     | Mark failed, no retry              | No failure reported (permanent)                   |
+| No expense doc in response | 1     | Mark failed, no retry              | No failure reported (permanent)                   |
+| OpenAI 429                 | 2     | Retry 3x with backoff              | Return batchItemFailure on final failure          |
+| OpenAI schema error        | 2     | Mark failed, no retry              | No failure reported (permanent)                   |
+| Lambda timeout in Phase 1  | 1     | SQS visibility timeout expires     | Message retried, Phase 1 re-runs (idempotent)     |
+| Lambda timeout in Phase 2  | 2     | SQS visibility timeout expires     | Message retried, Phase 1 skipped, Phase 2 re-runs |
+| DB connection error        | Both  | Throw error                        | SQS retries indefinitely                          |
 
 ---
 
 ## Cost Estimation
 
 ### Current (OpenAI Vision)
-- 1000 receipts/day
-- ~500 tokens/receipt
-- Cost: ~$5-10/day ($150-300/month)
 
-### New (Textract + OpenAI Text)
-- 1000 receipts/day
-- Textract: ~$1.50/day ($45/month)
-- OpenAI: ~$0.50/day ($15/month)
+- 1,000 receipts/day
+- ~500 tokens/receipt
+- Cost: ~$5–10/day ($150–300/month)
+
+### New (Textract AnalyzeExpense + OpenAI Text)
+
+- Textract `AnalyzeExpense`: ~$1.50/day ($45/month)
+- OpenAI text (slim prompt, fewer tokens): ~$0.50/day ($15/month)
 - **Total: ~$2/day ($60/month)**
 
-**Savings: ~70-80%**
+**Savings: ~70–80%**
 
 ---
 
 ## Monitoring & Alerting
 
 ### Metrics to Track
+
 1. Phase 1 duration (Textract latency)
 2. Phase 2 duration (OpenAI latency)
 3. Phase 1 failure rate
 4. Phase 2 failure rate
-5. OCR confidence scores
-6. OpenAI token usage (vs old approach)
+5. Average OCR confidence score
+6. OpenAI token usage vs old approach
 
 ### Alerts
+
 - Textract throttling > 5% of requests
 - Phase 2 failure rate > 2%
 - Average processing time > 30 seconds
@@ -775,26 +910,24 @@ export async function createOcrResult(data: {
 
 ## Rollback Plan
 
-If issues arise:
-
 1. **Revert Lambda code** to pre-2-phase version
-2. **Database remains compatible** (old code ignores new columns)
+2. **Database remains compatible** — old code ignores new columns
 3. **In-flight receipts** will complete with new flow or fail safely
-4. **No data loss** - all states are recoverable
+4. **No data loss** — all states are recoverable
 
 ---
 
 ## Open Questions
 
-1. **Raw Textract Response Storage**: Store full JSON or just key fields?
-2. **OCR Confidence Threshold**: Minimum confidence before failing?
-3. **Fallback Strategy**: If Textract fails, retry or skip?
+1. **OCR Confidence Threshold** — Minimum confidence before failing Phase 1?
+2. **Fallback Strategy** — If `AnalyzeExpense` returns no `SummaryFields`, proceed with `rawText` only or fail?
 
 ---
 
 ## Appendix: File Changes Summary
 
 ### New Files
+
 - `packages/services/src/ocr/ocr.interface.ts`
 - `packages/services/src/ocr/textract.service.ts`
 - `packages/services/src/extraction/extraction.interface.ts`
@@ -804,20 +937,21 @@ If issues arise:
 - `packages/db/src/repositories/ocrResults.repo.ts`
 
 ### Modified Files
-- `packages/services/src/storage.service.ts` - S3 endpoint config
-- `packages/services/src/process.ts` - New 2-phase flow
-- `packages/services/src/index.ts` - Export new modules
-- `packages/services/package.json` - Add @aws-sdk/client-textract
-- `apps/web/server/services/storage.service.ts` - S3 endpoint config
-- `apps/worker/infra/lib/worker-stack.ts` - IAM permissions
-- `apps/worker/index.ts` - Remove inter-receipt delay (optional)
-- `packages/db/src/schema/app.schema.ts` - Add ocr_results table
-- `.github/workflows/staging.yml` - Add TEXTRACT_REGION
-- `.github/workflows/main.yml` - Add TEXTRACT_REGION
-- `docker-compose.yml` - Remove MinIO
-- `README.md` - Update setup instructions
+
+- `packages/services/src/storage.service.ts` — S3 endpoint config
+- `packages/services/src/process.ts` — New 2-phase flow
+- `packages/services/src/index.ts` — Export new modules
+- `packages/services/package.json` — Add `@aws-sdk/client-textract`
+- `apps/web/server/services/storage.service.ts` — S3 endpoint config
+- `apps/worker/infra/lib/worker-stack.ts` — IAM permissions (`AnalyzeExpense` only)
+- `packages/db/src/schema/app.schema.ts` — Updated `ocrResults` table (no `rawResponse`)
+- `.github/workflows/staging.yml` — Add `TEXTRACT_REGION`
+- `.github/workflows/main.yml` — Add `TEXTRACT_REGION`
+- `docker-compose.yml` — Remove MinIO
+- `README.md` — Update setup instructions
 
 ### Database Migrations
-- `packages/db/drizzle/XXXX_add_phase_tracking.sql`
+
+- `packages/db/drizzle/XXXX_add_ocr_timestamps.sql`
 - `packages/db/drizzle/XXXX_create_ocr_results.sql`
-- `packages/db/drizzle/XXXX_backfill_phases.sql`
+- `packages/db/drizzle/XXXX_backfill_statuses.sql`

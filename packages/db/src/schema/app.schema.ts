@@ -96,8 +96,8 @@ export const ocrResults = pgTable("ocr_results_table", {
   receiptId: uuid("receipt_id")
     .references(() => receiptFiles.id, { onDelete: "cascade" })
     .notNull(),
-  rawResponse: jsonb("raw_response").notNull(), // Full Textract AnalyzeExpense response (verbatim)
-  extractedText: jsonb("extracted_text").notNull(), // {vendorName: "Starbucks", total: 12.50, currency: "USD", ...
+  extractedText: jsonb("extracted_text").notNull(), // slim KV pairs only, no geometry
+  s3RawKey: text("s3_raw_key"), // optional pointer if you saved it
   confidence: decimal("confidence", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
