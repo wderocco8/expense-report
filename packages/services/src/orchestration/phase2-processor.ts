@@ -25,7 +25,7 @@ export async function processPhase2Extraction(
     return;
   }
 
-  if (receipt.status !== "ocr_complete") {
+  if (!(receipt.status === "ocr_complete" || receipt.status === "extracting")) {
     throw new Error(
       `[Phase 2] Receipt ${receiptId} not ready (status: ${receipt.status})`,
     );
