@@ -6,6 +6,7 @@ export default defineConfig({
   schema: "./src/schema/index.ts", // Your schema file path
   out: "./src/drizzle", // Your migrations folder
   dialect: "postgresql",
+  verbose: true,
   dbCredentials: {
     url: databaseUrl ?? "",
   },

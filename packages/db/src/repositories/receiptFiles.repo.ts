@@ -8,7 +8,10 @@ export type ReceiptFileSortableField =
   | "status"
   | "createdAt"
   | "updatedAt"
-  | "processedAt";
+  | "ocrStartedAt"
+  | "ocrCompletedAt"
+  | "extractionStartedAt";
+
 export type ReceiptFileFilterableField = "originalFilename" | "status";
 
 export interface GetReceiptFilesParams {
@@ -104,7 +107,13 @@ export async function getReceiptFilesByJobId({
         conditions.push(
           eq(
             receiptFiles.status,
-            f.value as "pending" | "processing" | "complete" | "failed",
+            f.value as
+              | "pending"
+              | "ocr_processing"
+              | "ocr_complete"
+              | "extracting"
+              | "complete"
+              | "failed",
           ),
         );
       }

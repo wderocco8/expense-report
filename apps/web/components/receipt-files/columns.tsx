@@ -16,7 +16,9 @@ import { SortableHeader } from "@/components/ui/sortable-header";
 
 const statusVariantMap = {
   pending: "pending",
-  processing: "processing",
+  ocr_processing: "processing",
+  ocr_complete: "processing",
+  extracting: "processing",
   complete: "complete",
   failed: "failed",
 } as const;

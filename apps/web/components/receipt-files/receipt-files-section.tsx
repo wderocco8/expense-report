@@ -87,7 +87,11 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
       if (!paginatedReceiptFiles) return 30000;
 
       const incompleteStatus = paginatedReceiptFiles.data.some(
-        (r) => r.status === "pending" || r.status === "processing",
+        (r) =>
+          r.status === "pending" ||
+          r.status === "ocr_processing" ||
+          r.status === "ocr_complete" ||
+          r.status === "extracting",
       );
       return incompleteStatus ? 3000 : 30000;
     },
