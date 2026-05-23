@@ -1,5 +1,5 @@
-import { ReceiptDTO } from "../../validators/receipt.zod";
-import { NewExtractedExpense } from "@repo/db";
+import { ReceiptDTO } from "@repo/shared";
+import { NewExtractedExpense } from "../schema/app.schema";
 
 export function mapReceiptToDb(
   receipt: ReceiptDTO,
@@ -14,15 +14,15 @@ export function mapReceiptToDb(
     category: receipt.category,
     transportDetails:
       receipt.category === "transport" ? receipt.transportDetails : null,
-    rawJson: receipt, // store raw OCR output
-    modelVersion: "gpt-4o-mini", // or from config
+    rawJson: receipt,
+    modelVersion: "gpt-4o-mini",
     isCurrent: true,
   };
 }
 
 function normalizeDate(dateStr: string): string | null {
   const parsed = Date.parse(dateStr);
-  if (isNaN(parsed)) return null; // fallback to null if unfixable
+  if (isNaN(parsed)) return null;
 
   const d = new Date(parsed);
   const yyyy = d.getUTCFullYear();

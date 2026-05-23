@@ -16,7 +16,8 @@ import {
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
 import { expenseReportJobProblems } from "@/lib/problems/domain/expenseReportJob";
 import { createReceiptFile, persistReceiptFile } from "./receipts.service";
-import { ReceiptDTO, mapReceiptToDb } from "@repo/shared";
+import { ReceiptDTO } from "@repo/shared";
+import { mapReceiptToDb } from "@repo/db";
 
 export async function createExpenseReport({
   userId,

@@ -271,9 +271,6 @@ importers:
 
   packages/shared:
     dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../db
       zod:
         specifier: ^4.4.3
         version: 4.4.3
