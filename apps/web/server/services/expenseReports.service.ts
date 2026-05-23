@@ -99,7 +99,10 @@ export async function manualUpload({
     status: "complete",
   });
 
-  const dbExpense = mapReceiptToDb(expensePayload, receipt.id);
+  const dbExpense = mapReceiptToDb({
+    receiptId: receipt.id,
+    receiptDTO: expensePayload,
+  });
 
   await createExtractedExpense(dbExpense);
 }

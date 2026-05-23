@@ -1,20 +1,28 @@
 import { ReceiptDTO } from "@repo/shared";
-import { NewExtractedExpense } from "../schema/app.schema";
+import { NewExtractedExpense, OcrResult } from "../schema/app.schema";
 
-export function mapReceiptToDb(
-  receipt: ReceiptDTO,
-  receiptId: string,
-): NewExtractedExpense {
+interface MapReceiptToDbParams {
+  receiptId: string;
+  receiptDTO: ReceiptDTO;
+  ocrResult?: OcrResult;
+}
+
+export function mapReceiptToDb({
+  receiptId,
+  receiptDTO,
+  ocrResult,
+}: MapReceiptToDbParams): NewExtractedExpense {
   return {
     receiptId,
-    merchant: receipt.merchant ?? null,
-    description: receipt.description ?? null,
-    date: normalizeDate(receipt.date),
-    amount: receipt.amount.toString(),
-    category: receipt.category,
+    ocrResultId: ocrResult?.id,
+    merchant: receiptDTO.merchant,
+    description: receiptDTO.description,
+    date: normalizeDate(receiptDTO.date),
+    amount: receiptDTO.amount.toString(),
+    category: receiptDTO.category,
     transportDetails:
-      receipt.category === "transport" ? receipt.transportDetails : null,
-    rawJson: receipt,
+      receiptDTO.category === "transport" ? receiptDTO.transportDetails : null,
+    rawJson: receiptDTO,
     modelVersion: "gpt-4o-mini",
     isCurrent: true,
   };

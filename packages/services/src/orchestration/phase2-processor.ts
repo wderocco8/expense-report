@@ -2,6 +2,7 @@ import {
   createExtractedExpense,
   getOcrResultByReceiptId,
   getReceiptFile,
+  mapReceiptToDb,
   updateReceiptFile,
 } from "@repo/db";
 import { openaiExtractionService } from "../extraction/openai-extraction.service";
@@ -65,21 +66,14 @@ export async function processPhase2Extraction(
   const data = result.data!;
 
   // Map to database format
-  const dbRecord = {
+  const extractedExpenseRecord = mapReceiptToDb({
     receiptId,
-    ocrResultId: ocrResult.id,
-    merchant: data.merchant,
-    description: data.description,
-    date: data.date,
-    amount: data.amount.toString(),
-    category: data.category,
-    transportDetails: data.transportDetails,
-    rawJson: data,
-    modelVersion: "gpt-4o-mini",
-  };
+    ocrResult,
+    receiptDTO: data,
+  });
 
   try {
-    await createExtractedExpense(dbRecord);
+    await createExtractedExpense(extractedExpenseRecord);
   } catch (error) {
     // Handle duplicate (idempotent)
     if (isDuplicateError(error)) {
@@ -90,6 +84,9 @@ export async function processPhase2Extraction(
   }
 
   // Mark complete
-  await updateReceiptFile(receiptId, { status: "complete" });
+  await updateReceiptFile(receiptId, {
+    status: "complete",
+    extractionCompletedAt: new Date(),
+  });
   console.log(`[Phase 2] Extraction complete for ${receiptId}`);
 }

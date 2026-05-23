@@ -36,17 +36,10 @@ export async function processPhase1Ocr(receiptId: string): Promise<void> {
 
     // TODO: maybe implement retry + backoff
     if (result.shouldRetry) {
-      throw new Error(`Textract ret@deplryable error: ${result.error}`);
+      throw new Error(`Textract retryable error: ${result.error}`);
     }
     return;
   }
-
-  // Store results
-  await updateReceiptFile(receiptId, {
-    status: "ocr_complete",
-    ocrCompletedAt: new Date(),
-    ocrProvider: "textract",
-  });
 
   // Store in audit table
   const ocrResult = await createOcrResult({
@@ -54,6 +47,13 @@ export async function processPhase1Ocr(receiptId: string): Promise<void> {
     provider: "textract",
     extractedText: result.data,
     confidence: result.avgConfidence.toString(),
+  });
+
+  // Update receipt status
+  await updateReceiptFile(receiptId, {
+    status: "ocr_complete",
+    ocrCompletedAt: new Date(),
+    ocrProvider: "textract",
   });
 
   console.log(
