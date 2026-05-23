@@ -12,6 +12,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { users } from "../schema/auth.schema";
+import type { SlimOcrResult } from "../types/ocr.types";
 
 // ------------ Enum definitions ------------
 
@@ -96,8 +97,8 @@ export const ocrResults = pgTable("ocr_results_table", {
   receiptId: uuid("receipt_id")
     .references(() => receiptFiles.id, { onDelete: "cascade" })
     .notNull(),
-  extractedText: jsonb("extracted_text").notNull(), // slim KV pairs only, no geometry
-  s3RawKey: text("s3_raw_key"), // optional pointer if you saved it
+  extractedText: jsonb("extracted_text").notNull().$type<SlimOcrResult>(), // slim KV pairs only (summary fields, line items, raw text)
+  provider: text("provider"),
   confidence: decimal("confidence", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

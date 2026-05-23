@@ -5,6 +5,6 @@
   "types": "./index.ts",
   "dependencies": {
     "@repo/db": "workspace:*",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   }
 }

@@ -1,67 +1,27 @@
-import {
-  createExtractedExpense,
-  getReceiptFile,
-  updateReceiptFile,
-} from "@repo/db";
-
-import { getObjectBuffer } from "./storage.service";
-import { extractReceiptFromImage } from "./ocr.service";
-import { mapReceiptToDb } from "@repo/shared";
+import { getReceiptFile } from "@repo/db";
+import { processPhase1Ocr } from "./orchestration/phase1-processor";
+import { processPhase2Extraction } from "./orchestration/phase2-processor";
 
 export async function processReceipt(receiptId: string): Promise<void> {
-  // check if already processed (idempotency check)
-  const idemReceipt = await getReceiptFile(receiptId);
+  const receipt = await getReceiptFile(receiptId);
 
-  // Note: We intentionally allow reprocessing of "processing" status receipts.
-  // SQS visibility timeout ensures only one Lambda processes a receipt at a time.
-  // If a Lambda times out, the receipt will be stuck in "processing" state,
-  // so we need to allow retries to avoid stuck receipts.
-  if (idemReceipt.status === "complete") {
-    console.log(`Receipt ${receiptId} already ${idemReceipt.status}, skipping`);
+  // Skip if already complete
+  // TODO: future updates *may* allow re-processing
+  if (receipt.status === "complete") {
+    console.log(`[Process] Receipt ${receiptId} already complete`);
     return;
   }
 
-  // update status and get receipt
-  const receipt = await updateReceiptFile(receiptId, { status: "ocr_processing" });
-
-  // stream file from s3 using s3Key
-  const buffer = await getObjectBuffer(receipt.s3Key);
-
-  const extracted = await extractReceiptFromImage(buffer);
-  console.log(
-    `extracted file for receiptId (${receiptId}): ${extracted.data?.amount} ${extracted.data?.category} ${extracted.data?.date} ${extracted.data?.description} ${extracted.data?.merchant} ${extracted.data?.transportDetails}`,
-  );
-
-  if (!extracted.success || !extracted.data) {
-    console.error(`Failed to extract receipt ${receiptId}: ${extracted.error}`);
-    await updateReceiptFile(receiptId, {
-      status: "failed",
-      errorMessage: `Failed to extract receipt ${receiptId}: ${extracted.error}`,
-    });
-    return;
+  // Phase 1: OCR (if not done)
+  if (receipt.status == "pending") {
+    await processPhase1Ocr(receiptId);
   }
 
-  const dbRecord = mapReceiptToDb(extracted.data, receiptId);
+  // Re-fetch to get latest status before deciding on Phase 2
+  const updated = await getReceiptFile(receiptId);
 
-  try {
-    await createExtractedExpense(dbRecord);
-  } catch (error) {
-    // Check if this is a duplicate insert (unique constraint violation)
-    if (
-      error instanceof Error &&
-      (error.message.includes("unique constraint") ||
-        error.message.includes("uniq_active_receipt") ||
-        error.message.includes("duplicate"))
-    ) {
-      console.log(
-        `[processReceipt] Receipt ${receiptId} already has an extracted expense (likely duplicate processing). Marking as complete.`,
-      );
-    } else {
-      // Re-throw other errors to be handled by caller
-      throw error;
-    }
+  // Phase 2: Extraction
+  if (updated.status == "ocr_complete" || updated.status == "extracting") {
+    await processPhase2Extraction(receiptId);
   }
-
-  // update status and get receipt
-  await updateReceiptFile(receiptId, { status: "complete" });
 }
