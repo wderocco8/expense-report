@@ -49,12 +49,8 @@
           "name": "expense_report_jobs_table_user_id_users_id_fk",
           "tableFrom": "expense_report_jobs_table",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -182,12 +178,8 @@
           "name": "extracted_expenses_table_receipt_id_receipt_files_table_id_fk",
           "tableFrom": "extracted_expenses_table",
           "tableTo": "receipt_files_table",
-          "columnsFrom": [
-            "receipt_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["receipt_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -195,12 +187,8 @@
           "name": "extracted_expenses_table_ocr_result_id_ocr_results_table_id_fk",
           "tableFrom": "extracted_expenses_table",
           "tableTo": "ocr_results_table",
-          "columnsFrom": [
-            "ocr_result_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ocr_result_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -228,17 +216,17 @@
           "primaryKey": false,
           "notNull": true
         },
-        "raw_response": {
-          "name": "raw_response",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
         "extracted_text": {
           "name": "extracted_text",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "confidence": {
           "name": "confidence",
@@ -260,12 +248,8 @@
           "name": "ocr_results_table_receipt_id_receipt_files_table_id_fk",
           "tableFrom": "ocr_results_table",
           "tableTo": "receipt_files_table",
-          "columnsFrom": [
-            "receipt_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["receipt_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -364,12 +348,8 @@
           "name": "receipt_files_table_job_id_expense_report_jobs_table_id_fk",
           "tableFrom": "receipt_files_table",
           "tableTo": "expense_report_jobs_table",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["job_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -487,12 +467,8 @@
           "name": "accounts_user_id_users_id_fk",
           "tableFrom": "accounts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -586,12 +562,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -601,9 +573,7 @@
         "sessions_token_unique": {
           "name": "sessions_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -693,9 +663,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -775,20 +743,12 @@
     "public.app_user_role": {
       "name": "app_user_role",
       "schema": "public",
-      "values": [
-        "owner",
-        "admin",
-        "member"
-      ]
+      "values": ["owner", "admin", "member"]
     },
     "public.app_user_status": {
       "name": "app_user_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "active",
-        "suspended"
-      ]
+      "values": ["pending", "active", "suspended"]
     },
     "public.category": {
       "name": "category",

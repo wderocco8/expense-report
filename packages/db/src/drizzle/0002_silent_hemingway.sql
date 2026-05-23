@@ -1,15 +1,15 @@
--- NOTE: this script was manually created (drizzle-kit failed to generate valid script)
 CREATE TYPE "public"."receipt_status" AS ENUM('pending', 'ocr_processing', 'ocr_complete', 'extracting', 'complete', 'failed');--> statement-breakpoint
 CREATE TABLE "ocr_results_table" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"receipt_id" uuid NOT NULL,
-	"raw_response" jsonb NOT NULL,
 	"extracted_text" jsonb NOT NULL,
+	"provider" text,
 	"confidence" numeric(5, 2),
 	"created_at" timestamp DEFAULT now() NOT NULL
 );--> statement-breakpoint
 ALTER TABLE "receipt_files_table" RENAME COLUMN "processed_at" TO "ocr_completed_at";--> statement-breakpoint
 ALTER TABLE "receipt_files_table" ALTER COLUMN "status" DROP DEFAULT;--> statement-breakpoint
+UPDATE "receipt_files_table" SET "status" = 'failed' WHERE "status" = 'processing';--> statement-breakpoint
 ALTER TABLE "receipt_files_table" ALTER COLUMN "status" SET DATA TYPE "public"."receipt_status" USING "status"::text::"public"."receipt_status";--> statement-breakpoint
 ALTER TABLE "receipt_files_table" ALTER COLUMN "status" SET DEFAULT 'pending'::"public"."receipt_status";--> statement-breakpoint
 DROP TYPE "public"."status";--> statement-breakpoint
