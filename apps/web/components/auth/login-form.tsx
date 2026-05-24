@@ -66,7 +66,7 @@ export function LoginForm({
         onError: (ctx) => {
           setError("root", { message: ctx.error.message });
         },
-      }
+      },
     );
 
     if (!error) {
@@ -77,22 +77,24 @@ export function LoginForm({
 
   async function onSubmitGoogle() {
     setIsLoading(true);
-    const { error } = await authClient.signIn.social(
+    await authClient.signIn.social(
       {
         provider: "google",
-        callbackURL: "/expense-report-jobs",
+        callbackURL: returnTo,
       },
       {
         onError: (ctx) => {
           setError("root", { message: ctx.error.message });
+          setIsLoading(false);
         },
-      }
+      },
     );
-
-    if (!error) {
-      router.push(returnTo);
-    }
-    setIsLoading(false);
+    // NOTE: No router.push here. Better Auth's redirectPlugin sets
+    // window.location.href to the Google OAuth URL. callbackURL handles
+    // the post-auth redirect server-side. Calling router.push after the await
+    // races against window.location.href and wins on mobile (history.pushState
+    // is synchronous; a full-page navigation is not), causing the page to
+    // return to /login instead of ever reaching Google's sign-in screen.
   }
 
   return (
