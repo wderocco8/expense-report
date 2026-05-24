@@ -1,0 +1,181 @@
+{
+  "version": "2.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "currentViewName": null,
+  "defaultView": {
+    "detailLevel": "All",
+    "tablePositions": [
+      {
+        "name": "accounts",
+        "schemaName": "public",
+        "x": 507.42529296875,
+        "y": 322
+      },
+      {
+        "name": "expense_report_jobs_table",
+        "schemaName": "public",
+        "x": 507.42529296875,
+        "y": 816
+      },
+      {
+        "name": "extracted_expenses_table",
+        "schemaName": "public",
+        "x": 2110.66845703125,
+        "y": 322
+      },
+      {
+        "name": "ocr_results_table",
+        "schemaName": "public",
+        "x": 1605.158203125,
+        "y": 322
+      },
+      {
+        "name": "receipt_files_table",
+        "schemaName": "public",
+        "x": 1052.55224609375,
+        "y": 322
+      },
+      {
+        "name": "sessions",
+        "schemaName": "public",
+        "x": 507.42529296875,
+        "y": 1054
+      },
+      {
+        "name": "users",
+        "schemaName": "public",
+        "x": 12,
+        "y": 322
+      },
+      {
+        "name": "verifications",
+        "schemaName": "public",
+        "x": 723.76025390625,
+        "y": 12
+      },
+      {
+        "name": "__drizzle_migrations",
+        "schemaName": "drizzle",
+        "x": 378.16650390625,
+        "y": 12
+      },
+      {
+        "name": "endpoints",
+        "schemaName": "neon_control_plane",
+        "x": 12,
+        "y": 12
+      }
+    ],
+    "tableGroupCollapseStates": [],
+    "stickyNoteLayouts": [],
+    "referencePaths": [
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "accounts",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "expense_report_jobs_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "ocr_results_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "ocr_result_id"
+        ],
+        "secondTableName": "extracted_expenses_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "receipt_files_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "receipt_id"
+        ],
+        "secondTableName": "extracted_expenses_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "receipt_files_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "receipt_id"
+        ],
+        "secondTableName": "ocr_results_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "expense_report_jobs_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "job_id"
+        ],
+        "secondTableName": "receipt_files_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "sessions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      }
+    ]
+  },
+  "views": {}
+}
