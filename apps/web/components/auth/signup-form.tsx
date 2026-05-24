@@ -54,13 +54,15 @@ export function SignupForm({
         email: values.email,
         password: values.password,
         name: values.name,
-        callbackURL: "/expense-report-jobs",
+        // After email verification, land on login so they can sign in
+        // (they'll still be pending admin approval at that point)
+        callbackURL: "/login",
       },
       {
         onError: (ctx) => {
           setError("root", { message: ctx.error.message });
         },
-      }
+      },
     );
 
     if (!error) {
@@ -71,7 +73,7 @@ export function SignupForm({
 
   async function onSubmitGoogle() {
     setIsLoading(true);
-    const { error } = await authClient.signIn.social(
+    await authClient.signIn.social(
       {
         provider: "google",
         callbackURL: "/expense-report-jobs",
@@ -79,14 +81,12 @@ export function SignupForm({
       {
         onError: (ctx) => {
           setError("root", { message: ctx.error.message });
+          setIsLoading(false);
         },
-      }
+      },
     );
-
-    if (!error) {
-      setSignupSuccess(true);
-    }
-    setIsLoading(false);
+    // NOTE: No router.push — same race condition fix as login-form.
+    // callbackURL handles the post-auth redirect server-side.
   }
 
   if (signupSuccess) {
@@ -96,14 +96,15 @@ export function SignupForm({
           <CardContent className="pt-6">
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Account Created Successfully!</AlertTitle>
+              <AlertTitle>Check your email</AlertTitle>
               <AlertDescription className="space-y-2 mt-2">
                 <p>
-                  Your account has been created and is pending approval.
-                  You&apos;ll receive an email once your account is activated.
+                  We&apos;ve sent you a verification link. Click it to confirm
+                  your email address.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  This typically takes 1-2 business days.
+                  Once verified, your account will be reviewed for approval.
+                  This typically takes 1–2 business days.
                 </p>
                 <Button
                   variant="outline"

@@ -3,6 +3,7 @@ import { admin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@repo/db";
 import { nextCookies } from "better-auth/next-js";
+import { sendVerificationEmail } from "@/lib/email";
 
 const isPreview = process.env.VERCEL_ENV === "preview";
 
@@ -35,7 +36,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: false, // NOTE: Don't try to sign in banned users
-    // requireEmailVerification: true, // TODO: enable when needed
+    requireEmailVerification: true,
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendVerificationEmail({ email: user.email, name: user.name, url });
+    },
+    sendOnSignUp: true,
+    autoSignInAfterVerification: false, // user is still banned; let them sign in manually
   },
   plugins: [
     admin({
