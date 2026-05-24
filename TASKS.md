@@ -62,8 +62,13 @@
   - Requires: email service integration (Resend, SendGrid, etc.)
   - **Blocking For**: Organization invitations (need to send invite emails)
 
-- [ ] Upgrade Node.js in GitHub Actions
-  - Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-node@v4, pnpm/action-setup@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+- [x] Upgrade Node.js in GitHub Actions (COMPLETED - 2026-05-24)
+  - Upgraded all actions from v4 to v6 across `staging.yml` and `main.yml`:
+    - `actions/checkout@v4` → `@v6`
+    - `actions/setup-node@v4` → `@v6`
+    - `pnpm/action-setup@v4` → `@v6`
+    - `aws-actions/configure-aws-credentials@v4` → `@v6`
+  - v6 of all these actions runs on Node.js 24, resolving the deprecation warnings
 
 - [ ] Two-Phase Receipt Processing (Scalability Solution)
   - **Problem**: OpenAI vision API (gpt-4o-mini) has 200K TPM limit, limiting concurrency to ~8 receipts
