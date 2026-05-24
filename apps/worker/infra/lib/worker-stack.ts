@@ -66,9 +66,9 @@ export class WorkerStack extends cdk.Stack {
     // Connect SQS to Lambda
     receiptProcessor.addEventSource(
       new lambdaEventSources.SqsEventSource(receiptQueue, {
-        batchSize: 5, // Each batch contains at most X messages
+        batchSize: 1, // One receipt per Lambda invocation — clean isolation and retry granularity
         reportBatchItemFailures: true, // IMPORTANT: Enables partial batch failures
-        maxConcurrency: 5, // Max X concurrent Lambda invocations from this queue
+        maxConcurrency: 5, // Max 5 concurrent Lambda invocations; Textract throttles are absorbed by internal retry
       }),
     );
 

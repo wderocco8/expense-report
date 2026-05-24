@@ -22,88 +22,120 @@ const textract = new TextractClient({
   },
 });
 
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+
 export class TextractService implements OcrService {
   async extractText(s3Key: string): Promise<OcrResult> {
-    try {
-      const command = new AnalyzeExpenseCommand({
-        Document: {
-          S3Object: {
-            Bucket: S3_BUCKET,
-            Name: s3Key,
-          },
-        },
-      });
+    let lastError: unknown;
 
-      const response = await textract.send(command);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await this.callTextract(s3Key);
+      } catch (error) {
+        lastError = error;
 
-      const doc = response.ExpenseDocuments?.[0];
-      if (!doc) {
+        if (this.isRetryableError(error) && attempt < MAX_RETRIES) {
+          const delay = this.getRetryDelay(attempt);
+          console.warn(
+            `[Textract] Throttled (attempt ${attempt}/${MAX_RETRIES}) for ${s3Key}, retrying in ${delay}ms`,
+          );
+          await this.sleep(delay);
+          continue;
+        }
+
+        // Non-retryable error — fail immediately
         return {
           data: null,
           avgConfidence: 0,
           success: false,
-          error: "No expense document returned",
+          error:
+            error instanceof Error ? error.message : "Unknown Textract error",
           shouldRetry: false,
         };
       }
+    }
 
-      // Strip geometry from summary fields
-      const summaryFields = (doc.SummaryFields ?? []).map((f) => ({
-        type: f.Type?.Text ?? "OTHER",
-        label: f.LabelDetection?.Text ?? null,
-        value: f.ValueDetection?.Text ?? "",
-        confidence: f.ValueDetection?.Confidence ?? 0,
-      }));
+    // All retries exhausted on a throttle
+    return {
+      data: null,
+      avgConfidence: 0,
+      success: false,
+      error: `Textract failed after ${MAX_RETRIES} attempts: ${lastError instanceof Error ? lastError.message : lastError}`,
+      shouldRetry: false,
+    };
+  }
 
-      // Strip geometry from line items
-      const lineItems = (doc.LineItemGroups ?? []).flatMap((group) =>
-        (group.LineItems ?? []).map((item) => {
-          const fields = Object.fromEntries(
-            (item.LineItemExpenseFields ?? []).map((f) => [
-              f.Type?.Text,
-              f.ValueDetection?.Text ?? null,
-            ]),
-          );
-          return {
-            description: fields["ITEM"] ?? null,
-            quantity: fields["QUANTITY"] ?? null,
-            unitPrice: fields["UNIT_PRICE"] ?? null,
-            total: fields["PRICE"] ?? null,
-            row: fields["EXPENSE_ROW"] ?? null,
-          };
-        }),
-      );
+  private async callTextract(s3Key: string): Promise<OcrResult> {
+    const command = new AnalyzeExpenseCommand({
+      Document: {
+        S3Object: {
+          Bucket: S3_BUCKET,
+          Name: s3Key,
+        },
+      },
+    });
 
-      // rawText: all LINE blocks — completeness guarantee, no geometry
-      const rawText = (doc.Blocks ?? [])
-        .filter((b) => b.BlockType === "LINE")
-        .map((b) => b.Text ?? "")
-        .join("\n");
+    const response = await textract.send(command);
 
-      const avgConfidence =
-        summaryFields.length > 0
-          ? summaryFields.reduce((sum, f) => sum + f.confidence, 0) /
-            summaryFields.length
-          : 0;
-
-      const slim: SlimOcrResult = { summaryFields, lineItems, rawText };
-
-      return {
-        data: slim,
-        avgConfidence: avgConfidence,
-        success: true,
-        shouldRetry: false,
-      };
-    } catch (error) {
+    const doc = response.ExpenseDocuments?.[0];
+    if (!doc) {
       return {
         data: null,
         avgConfidence: 0,
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown Textract error",
-        shouldRetry: this.isRetryableError(error),
+        error: "No expense document returned",
+        shouldRetry: false,
       };
     }
+
+    // Strip geometry from summary fields
+    const summaryFields = (doc.SummaryFields ?? []).map((f) => ({
+      type: f.Type?.Text ?? "OTHER",
+      label: f.LabelDetection?.Text ?? null,
+      value: f.ValueDetection?.Text ?? "",
+      confidence: f.ValueDetection?.Confidence ?? 0,
+    }));
+
+    // Strip geometry from line items
+    const lineItems = (doc.LineItemGroups ?? []).flatMap((group) =>
+      (group.LineItems ?? []).map((item) => {
+        const fields = Object.fromEntries(
+          (item.LineItemExpenseFields ?? []).map((f) => [
+            f.Type?.Text,
+            f.ValueDetection?.Text ?? null,
+          ]),
+        );
+        return {
+          description: fields["ITEM"] ?? null,
+          quantity: fields["QUANTITY"] ?? null,
+          unitPrice: fields["UNIT_PRICE"] ?? null,
+          total: fields["PRICE"] ?? null,
+          row: fields["EXPENSE_ROW"] ?? null,
+        };
+      }),
+    );
+
+    // rawText: all LINE blocks — completeness guarantee, no geometry
+    const rawText = (doc.Blocks ?? [])
+      .filter((b) => b.BlockType === "LINE")
+      .map((b) => b.Text ?? "")
+      .join("\n");
+
+    const avgConfidence =
+      summaryFields.length > 0
+        ? summaryFields.reduce((sum, f) => sum + f.confidence, 0) /
+          summaryFields.length
+        : 0;
+
+    const slim: SlimOcrResult = { summaryFields, lineItems, rawText };
+
+    return {
+      data: slim,
+      avgConfidence,
+      success: true,
+      shouldRetry: false,
+    };
   }
 
   private isRetryableError(error: unknown): boolean {
@@ -115,6 +147,15 @@ export class TextractService implements OcrService {
       ].includes(error.name);
     }
     return false;
+  }
+
+  private getRetryDelay(attempt: number): number {
+    // Exponential backoff with jitter: 1s, 2s, 4s, 8s (+ up to 200ms jitter)
+    return BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * 200;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

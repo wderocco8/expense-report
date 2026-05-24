@@ -33,11 +33,6 @@ export async function processPhase1Ocr(receiptId: string): Promise<void> {
       status: "failed",
       errorMessage: `OCR failed: ${result.error}`,
     });
-
-    // TODO: maybe implement retry + backoff
-    if (result.shouldRetry) {
-      throw new Error(`Textract retryable error: ${result.error}`);
-    }
     return;
   }
 
