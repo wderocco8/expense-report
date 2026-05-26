@@ -30,6 +30,15 @@ When a job is created, the currently active `schema_version_id` is recorded on t
 ### 5. System Fields
 Every schema implicitly includes `amount` and `date` as non-removable system fields. Org admins can configure everything else. This avoids special-casing in the extraction pipeline while ensuring financial data is always queryable.
 
+### 6. Clean Database Start
+No v1→v2 data migration will be written. A new Neon database is used from the start with the v2 schema as its initial state. Existing receipts (currently just the test user's data) will be re-uploaded after the new schema is live. This avoids complex backfill engineering that serves zero real users.
+
+### 7. Flat Storage + Group Metadata for UI
+`extracted_fields` JSONB is always a **flat key-value map** — no nested objects. This keeps extraction simple (the AI outputs one flat object) and export simple (one column per field). UI grouping (e.g., a "Transport Details" section) is expressed via optional `groupId` metadata on field definitions, not via nested storage. Groups are defined once in the schema version and referenced by ID from fields. This gives the UX of grouped fieldsets without complicating the data model or extraction pipeline.
+
+### 8. `description` is User-Facing Only; AI Prompt Uses Structured Metadata
+Field definitions have a `description` property (admin-authored, shown as a tooltip in the review UI). The AI extraction prompt is built entirely from structured field metadata (`type`, `options`, `required`, `showWhen`) — never from freeform admin text. This avoids prompt injection risk, keeps the AI prompt deterministic, and separates the two concerns cleanly. `showWhen` conditions are translated into explicit natural-language constraints in the prompt (e.g., "only fill `transport_mode` if `category` equals `transport`, otherwise return null").
+
 ---
 
 ## Phase 1 — Org Foundation
@@ -118,36 +127,86 @@ Add to `packages/db/src/schema/app.schema.ts` (see `schema-v2.dbml` for full def
 
 ### 2.2 Seed Default Schema on Org Creation
 
-When a personal org is auto-created (Phase 1.2), also seed a default schema version with:
+When any org is created (personal or team), seed a default schema version. The schema version consists of a `groups` array (for UI display only) and a flat `fields` array (used for storage and extraction). This matches the current hardcoded schema exactly.
 
 ```json
-[
-  { "key": "merchant",    "label": "Merchant",     "type": "text",   "required": false, "extractable": true,  "displayOrder": 1 },
-  { "key": "description", "label": "Description",  "type": "text",   "required": false, "extractable": true,  "displayOrder": 2 },
-  { "key": "category",    "label": "Category",     "type": "enum",   "required": true,  "extractable": true,  "displayOrder": 3,
-    "options": ["tolls/parking","hotel","transport","fuel","meals","phone","supplies","misc"] },
-  { "key": "transport_mode",    "label": "Transport Mode",   "type": "enum",   "required": false, "extractable": true,  "displayOrder": 4,
-    "options": ["train","car","plane"] },
-  { "key": "mileage",     "label": "Mileage",      "type": "number", "required": false, "extractable": true,  "displayOrder": 5 }
-]
+{
+  "groups": [
+    {
+      "id": "transport_details",
+      "label": "Transport Details",
+      "description": "Transport-specific details regarding your receipt",
+      "showWhen": { "field": "category", "op": "eq", "value": "transport" }
+    }
+  ],
+  "fields": [
+    { "key": "merchant",       "label": "Merchant",        "type": "text",   "required": false, "extractable": true,  "displayOrder": 1, "description": null, "groupId": null, "showWhen": null },
+    { "key": "description",    "label": "Description",     "type": "text",   "required": false, "extractable": true,  "displayOrder": 2, "description": null, "groupId": null, "showWhen": null },
+    { "key": "category",       "label": "Category",        "type": "enum",   "required": true,  "extractable": true,  "displayOrder": 3, "description": null, "groupId": null, "showWhen": null,
+      "options": ["tolls/parking","hotel","transport","fuel","meals","phone","supplies","misc"] },
+    { "key": "transport_mode", "label": "Transport Mode",  "type": "enum",   "required": false, "extractable": true,  "displayOrder": 4, "description": "The primary mode of transport used", "groupId": "transport_details",
+      "showWhen": { "field": "category", "op": "eq", "value": "transport" },
+      "options": ["train","car","plane"] },
+    { "key": "mileage",        "label": "Mileage",         "type": "number", "required": false, "extractable": true,  "displayOrder": 5, "description": "Distance travelled in miles", "groupId": "transport_details",
+      "showWhen": { "field": "category", "op": "eq", "value": "transport" } }
+  ]
+}
 ```
 
-This matches the current hardcoded schema exactly, so no behavioural change for existing users.
+Key points:
+- `showWhen` on a **group** controls whether the entire fieldset section renders in the UI
+- `showWhen` on a **field** controls individual field visibility and generates an AI prompt constraint
+- Both can coexist — individual fields can have tighter conditions than their group
+- `extracted_fields` in the DB is always flat: `{ "transport_mode": "train", "mileage": 120, ... }` — no nesting
 
-### 2.3 Schema Field Types
+### 2.3 Schema Field Definition
 
-The supported field types for v1:
+Every field in `fields[]` has the following shape:
 
-| Type | Description | AI Extractable? |
+| Property | Type | Description |
 |---|---|---|
-| `text` | Single-line string | ✅ |
-| `number` | Decimal or integer | ✅ |
-| `date` | ISO date | ✅ |
-| `boolean` | Yes/No checkbox | ✅ (contextual) |
-| `enum` | Single-select from options list | ✅ |
-| `multi_select` | Multi-select from options list | ⚠️ (limited) |
+| `key` | `string` | Unique snake_case identifier. Immutable after creation. Reserved: `amount`, `date`. |
+| `label` | `string` | Display name shown in the UI form and export column header. |
+| `type` | `enum` | One of: `text`, `number`, `date`, `boolean`, `enum`, `multi_select` |
+| `required` | `boolean` | If true, receipt stays in "pending review" state until filled. |
+| `extractable` | `boolean` | If true, AI attempts extraction. If false, field is left blank for employee to fill. |
+| `options` | `string[] \| null` | Required for `enum` and `multi_select` types. Max 30 options. |
+| `displayOrder` | `number` | Render order in UI and export. |
+| `description` | `string \| null` | **User-facing only.** Shown as a tooltip on hover in the review UI. Not sent to AI. |
+| `groupId` | `string \| null` | If set, field is rendered inside the named group's fieldset section. |
+| `showWhen` | `ShowWhen \| null` | Conditional visibility. Controls UI rendering and generates an AI prompt constraint. |
 
-Fields marked `extractable: false` are skipped by the AI and surfaced as "needs your input" in the review UI. They are always filled in by the employee (e.g., project code, cost center).
+**`ShowWhen` shape (v1):**
+```typescript
+interface ShowWhen {
+  field: string;                  // key of another field in this schema
+  op: "eq" | "neq" | "in";
+  value: string | string[];       // string for eq/neq, string[] for in
+}
+```
+
+**Group definition shape:**
+```typescript
+interface FieldGroup {
+  id: string;
+  label: string;              // rendered as fieldset legend in review UI
+  description: string | null; // rendered below the legend
+  showWhen: ShowWhen | null;  // if set, the entire fieldset section is hidden/shown
+}
+```
+
+**Supported field types:**
+
+| Type | AI Extractable? | Notes |
+|---|---|---|
+| `text` | ✅ | Single-line string |
+| `number` | ✅ | Decimal or integer |
+| `date` | ✅ | ISO 8601 `YYYY-MM-DD` |
+| `boolean` | ✅ (contextual) | Yes/No; AI infers from context |
+| `enum` | ✅ | Single-select from `options` list |
+| `multi_select` | ⚠️ (limited) | AI may not reliably select multiple values |
+
+Fields with `extractable: false` are skipped by the AI entirely and surfaced as "needs your input" in the review UI (e.g., project codes, cost centres that only the employee knows).
 
 ### 2.4 Schema Version Immutability Rule
 
@@ -191,18 +250,47 @@ const schemaVersion = await getSchemaVersion(job.schemaVersionId);
 
 ### 3.2 Dynamic Prompt Builder
 
-Replace the static `buildPrompt()` function with a schema-aware version:
+The prompt is built entirely from structured field metadata — never from freeform admin text. `showWhen` conditions are translated into explicit natural-language constraints so the model knows which fields are conditional.
 
 ```typescript
+function buildFieldConstraint(field: SchemaFieldDefinition): string {
+  const typeHint = field.type === "enum"
+    ? `one of [${field.options?.join(", ")}]`
+    : field.type;
+
+  const requiredHint = field.required
+    ? "[required]"
+    : "[optional — return null if not found or not applicable]";
+
+  // Translate showWhen → explicit AI instruction
+  const conditionHint = field.showWhen
+    ? `Only extract if ${field.showWhen.field} ${showWhenToEnglish(field.showWhen)}; otherwise return null.`
+    : "";
+
+  return [`- "${field.key}" (${field.label}): ${typeHint} ${requiredHint}`, conditionHint]
+    .filter(Boolean).join(" ");
+}
+
+function showWhenToEnglish(condition: ShowWhen): string {
+  if (condition.op === "eq")  return `equals "${condition.value}"`;
+  if (condition.op === "neq") return `does not equal "${condition.value}"`;
+  if (condition.op === "in")  return `is one of [${(condition.value as string[]).join(", ")}]`;
+  return "";
+}
+
 function buildExtractionPrompt(ocr: SlimOcrResult, fields: SchemaFieldDefinition[]): string {
   const extractableFields = fields.filter(f => f.extractable);
-  
-  const fieldDescriptions = extractableFields.map(f => {
-    const typeHint = f.type === "enum" ? `one of: ${f.options?.join(", ")}` : f.type;
-    return `- "${f.key}" (${f.label}): ${typeHint}${f.required ? " [required]" : " [optional, null if not found]"}`;
-  }).join("\n");
-  
-  return `Extract the following fields from the receipt:\n${fieldDescriptions}\n\n${buildOcrSection(ocr)}`;
+  const fieldConstraints = extractableFields.map(buildFieldConstraint).join("\n");
+
+  return [
+    "Extract the following fields from the receipt.",
+    "Return null for any optional field that cannot be determined from the receipt.",
+    "",
+    "Fields:",
+    fieldConstraints,
+    "",
+    buildOcrSection(ocr),
+  ].join("\n");
 }
 ```
 
@@ -227,34 +315,17 @@ function buildJsonSchema(fields: SchemaFieldDefinition[]): object {
 }
 ```
 
-### 3.4 `extracted_expenses_table` — Schema Migration
+### 3.4 `extracted_expenses_table` — No Migration Required
 
-This is the most impactful migration. The typed columns (`merchant`, `description`, `category`, `transport_details`) are removed and replaced by `extracted_fields` JSONB.
+Because we are starting with a clean database (see Architectural Decision #6), the v2 schema is the **initial state**. There are no typed columns to drop, no JSONB backfill to write, and no legacy rows to handle.
 
-```sql
--- Step 1: Add new columns
-ALTER TABLE extracted_expenses_table
-ADD COLUMN schema_version_id UUID REFERENCES schema_versions(id) ON DELETE SET NULL,
-ADD COLUMN extracted_fields JSONB;
+The table is defined from day one with:
+- `amount` decimal — typed system field
+- `date` date — typed system field
+- `extracted_fields` jsonb — all org-defined fields (flat key-value map)
+- `schema_version_id` uuid — reference to the schema version that produced this row
 
--- Step 2: Migrate existing data into JSONB (backfill)
-UPDATE extracted_expenses_table
-SET extracted_fields = jsonb_build_object(
-  'merchant',         merchant,
-  'description',      description,
-  'category',         category::text,
-  'transport_details', transport_details
-);
-
--- Step 3: Drop typed columns (after backfill verified)
-ALTER TABLE extracted_expenses_table
-DROP COLUMN merchant,
-DROP COLUMN description,
-DROP COLUMN category,
-DROP COLUMN transport_details;
-```
-
-The `amount` and `date` columns are **retained** as typed columns.
+Legacy compatibility code (`schema_version_id IS NULL` branches, migration SQL) is not needed.
 
 ### 3.5 Updated Extraction Output Shape
 
@@ -289,21 +360,45 @@ Validation failures do not block the save — they are surfaced as warnings in t
 
 ### 4.1 Receipt Review UI
 
-The current review UI has hardcoded field names. Replace with a loop over `schemaVersion.fields`:
+The review UI renders dynamically from the schema version. Fields are first split into ungrouped fields and groups, then rendered in `displayOrder`.
+
+**Rendering logic:**
+1. Ungrouped fields (`groupId: null`) render inline in the main fieldset
+2. Each group renders as a separate `<FieldSet>` with a legend and description, conditionally shown via its `showWhen`
+3. Fields within a group also evaluate their own `showWhen` for finer-grained control
+4. `field.description` is shown as a tooltip on the field label (hover)
+5. Fields with `extractable: false` render with a "needs your input" indicator and no pre-populated value
+6. Fields with `extractable: true` render the AI-extracted value with an edit affordance
 
 ```tsx
-{schemaVersion.fields.map(field => (
-  <FieldInput
-    key={field.key}
-    field={field}
-    value={extractedFields[field.key]}
-    autoExtracted={field.extractable}
-    onChange={...}
-  />
-))}
+// Pseudocode — groups rendered as separate fieldsets (mirrors current transport details UX)
+const ungrouped = fields.filter(f => !f.groupId);
+const groupedById = groupBy(fields.filter(f => f.groupId), f => f.groupId);
+
+<FieldSet>
+  <FieldLegend>Expense Details</FieldLegend>
+  {ungrouped.filter(f => evaluateShowWhen(f.showWhen, currentValues)).map(field =>
+    <DynamicFieldInput key={field.key} field={field} value={extractedFields[field.key]} />
+  )}
+</FieldSet>
+
+{schemaVersion.groups
+  .filter(group => evaluateShowWhen(group.showWhen, currentValues))
+  .map(group => (
+    <FieldSet key={group.id}>
+      <FieldLegend>{group.label}</FieldLegend>
+      {group.description && <FieldDescription>{group.description}</FieldDescription>}
+      {groupedById[group.id]
+        .filter(f => evaluateShowWhen(f.showWhen, currentValues))
+        .map(field =>
+          <DynamicFieldInput key={field.key} field={field} value={extractedFields[field.key]} />
+        )}
+    </FieldSet>
+  ))
+}
 ```
 
-Fields with `extractable: false` render with a "fill in required" indicator (not pre-populated). Fields with `extractable: true` render the AI value with an edit affordance.
+This preserves the current UX — transport details appear as a distinct section below the main fields, shown only when category is "transport" — but the structure is now entirely data-driven.
 
 ### 4.2 Export — Dynamic Columns
 
