@@ -567,14 +567,14 @@ Phase 1.1  Enable Better Auth org plugin
 Phase 1.2  Auto-create personal org on signup
 Phase 2.1  Add org_schemas + schema_versions tables
 Phase 2.2  Seed default schema on org creation
-Phase 1.3  Add org_id to jobs table + backfill
+Phase 1.3  Add org_id + schema_version_id to jobs table (clean DB — no backfill)
 Phase 1.4  Scope all queries by org_id
 Phase 1.5  Pass active org through session
 Phase 2.3  Schema builder UI (admin)
 Phase 3.1  Thread schema_version_id through pipeline
 Phase 3.2  Dynamic prompt builder
 Phase 3.3  Dynamic JSON schema for OpenAI
-Phase 3.4  Migrate extracted_expenses (typed → JSONB)
+Phase 3.4  Define extracted_expenses with JSONB from day one (clean DB)
 Phase 3.5  Updated extraction output shape
 Phase 4.1  Dynamic review UI
 Phase 4.2  Dynamic export
