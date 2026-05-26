@@ -16,27 +16,35 @@ See `docs/schema-v2.dbml` for the proposed database changes.
 ## Architectural Decisions (Locked)
 
 ### 1. Personal Org on Signup
+
 Every new user gets a **personal org** auto-created at registration. There is no "individual user" mode — everything (jobs, schemas, receipts) belongs to an org. This keeps the data model uniform and makes upgrading to a team org trivial.
 
 ### 2. Better Auth Organization Plugin
+
 Use the [Better Auth organization plugin](https://www.better-auth.com/docs/plugins/organization) for org creation, membership, roles, and invitations. This gives `organizations`, `members`, and `invitations` tables out of the box. Custom schema config tables live alongside these, linked by `org_id`.
 
 ### 3. Schema Versioning (Snapshot on Job Creation)
+
 When a job is created, the currently active `schema_version_id` is recorded on the job. Extraction and display always use that frozen version. Admin schema changes only affect future jobs — existing jobs are never broken by schema updates.
 
 ### 4. Hybrid Typed + JSONB Extracted Data
+
 `amount` (decimal) and `date` (date) are typed columns on `extracted_expenses_table` — they are universal, always required, and needed for DB-level aggregation, sorting, and filtering. All other fields (merchant, category, org-specific fields) live in an `extracted_fields` JSONB column, keyed by the field's `key` from the schema version.
 
 ### 5. System Fields
+
 Every schema implicitly includes `amount` and `date` as non-removable system fields. Org admins can configure everything else. This avoids special-casing in the extraction pipeline while ensuring financial data is always queryable.
 
 ### 6. Clean Database Start
+
 No v1→v2 data migration will be written. A new Neon database is used from the start with the v2 schema as its initial state. Existing receipts (currently just the test user's data) will be re-uploaded after the new schema is live. This avoids complex backfill engineering that serves zero real users.
 
 ### 7. Flat Storage + Group Metadata for UI
+
 `extracted_fields` JSONB is always a **flat key-value map** — no nested objects. This keeps extraction simple (the AI outputs one flat object) and export simple (one column per field). UI grouping (e.g., a "Transport Details" section) is expressed via optional `groupId` metadata on field definitions, not via nested storage. Groups are defined once in the schema version and referenced by ID from fields. This gives the UX of grouped fieldsets without complicating the data model or extraction pipeline.
 
 ### 8. `description` is User-Facing Only; AI Prompt Uses Structured Metadata
+
 Field definitions have a `description` property (admin-authored, shown as a tooltip in the review UI). The AI extraction prompt is built entirely from structured field metadata (`type`, `options`, `required`, `showWhen`) — never from freeform admin text. This avoids prompt injection risk, keeps the AI prompt deterministic, and separates the two concerns cleanly. `showWhen` conditions are translated into explicit natural-language constraints in the prompt (e.g., "only fill `transport_mode` if `category` equals `transport`, otherwise return null").
 
 ---
@@ -68,6 +76,7 @@ Run `pnpm auth:generate` to generate the new `organizations`, `members`, and `in
 ### 1.2 Auto-Create Personal Org on Signup
 
 Hook into `databaseHooks.user.create.after` (same place as the auto-ban hook) to:
+
 1. Create an org with `slug = user.id`, `name = "{user.name}'s Workspace"`
 2. Add the user as `owner` of that org
 3. Store `personalOrgId` on the user record (add a column to `users` or resolve by convention)
@@ -77,32 +86,27 @@ databaseHooks: {
   user: {
     create: {
       after: async (user) => {
-        const org = await createOrganization({ name: `${user.name}'s Workspace`, slug: user.id });
+        const org = await createOrganization({
+          name: `${user.name}'s Workspace`,
+          slug: user.id,
+        });
         await addMember({ orgId: org.id, userId: user.id, role: "owner" });
-      }
+      };
     }
   }
 }
 ```
 
-### 1.3 Schema Migration — Add `org_id` to Jobs
+### 1.3 Add `org_id` to Jobs Table
 
-```sql
--- Add org_id to expense_report_jobs_table
-ALTER TABLE expense_report_jobs_table
-ADD COLUMN org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+Because we are starting with a clean database, this is a schema definition step only — no backfill SQL needed.
 
--- Backfill: assign existing jobs to the creator's personal org
--- (personal org slug = user_id, so we can look it up)
-UPDATE expense_report_jobs_table j
-SET org_id = (
-  SELECT o.id FROM organizations o WHERE o.slug = j.user_id::text
-);
+`expense_report_jobs_table` is defined from day one with:
 
--- Make non-nullable after backfill
-ALTER TABLE expense_report_jobs_table
-ALTER COLUMN org_id SET NOT NULL;
-```
+- `org_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE`
+- `schema_version_id uuid REFERENCES schema_versions(id) ON DELETE SET NULL`
+
+Both columns are present in the initial Drizzle schema in `packages/db/src/schema/app.schema.ts`. No ALTER TABLE or UPDATE statements are required.
 
 ### 1.4 Update All Queries to Scope by Org
 
@@ -140,20 +144,78 @@ When any org is created (personal or team), seed a default schema version. The s
     }
   ],
   "fields": [
-    { "key": "merchant",       "label": "Merchant",        "type": "text",   "required": false, "extractable": true,  "displayOrder": 1, "description": null, "groupId": null, "showWhen": null },
-    { "key": "description",    "label": "Description",     "type": "text",   "required": false, "extractable": true,  "displayOrder": 2, "description": null, "groupId": null, "showWhen": null },
-    { "key": "category",       "label": "Category",        "type": "enum",   "required": true,  "extractable": true,  "displayOrder": 3, "description": null, "groupId": null, "showWhen": null,
-      "options": ["tolls/parking","hotel","transport","fuel","meals","phone","supplies","misc"] },
-    { "key": "transport_mode", "label": "Transport Mode",  "type": "enum",   "required": false, "extractable": true,  "displayOrder": 4, "description": "The primary mode of transport used", "groupId": "transport_details",
+    {
+      "key": "merchant",
+      "label": "Merchant",
+      "type": "text",
+      "required": false,
+      "extractable": true,
+      "displayOrder": 1,
+      "description": null,
+      "groupId": null,
+      "showWhen": null
+    },
+    {
+      "key": "description",
+      "label": "Description",
+      "type": "text",
+      "required": false,
+      "extractable": true,
+      "displayOrder": 2,
+      "description": null,
+      "groupId": null,
+      "showWhen": null
+    },
+    {
+      "key": "category",
+      "label": "Category",
+      "type": "enum",
+      "required": true,
+      "extractable": true,
+      "displayOrder": 3,
+      "description": null,
+      "groupId": null,
+      "showWhen": null,
+      "options": [
+        "tolls/parking",
+        "hotel",
+        "transport",
+        "fuel",
+        "meals",
+        "phone",
+        "supplies",
+        "misc"
+      ]
+    },
+    {
+      "key": "transport_mode",
+      "label": "Transport Mode",
+      "type": "enum",
+      "required": false,
+      "extractable": true,
+      "displayOrder": 4,
+      "description": "The primary mode of transport used",
+      "groupId": "transport_details",
       "showWhen": { "field": "category", "op": "eq", "value": "transport" },
-      "options": ["train","car","plane"] },
-    { "key": "mileage",        "label": "Mileage",         "type": "number", "required": false, "extractable": true,  "displayOrder": 5, "description": "Distance travelled in miles", "groupId": "transport_details",
-      "showWhen": { "field": "category", "op": "eq", "value": "transport" } }
+      "options": ["train", "car", "plane"]
+    },
+    {
+      "key": "mileage",
+      "label": "Mileage",
+      "type": "number",
+      "required": false,
+      "extractable": true,
+      "displayOrder": 5,
+      "description": "Distance travelled in miles",
+      "groupId": "transport_details",
+      "showWhen": { "field": "category", "op": "eq", "value": "transport" }
+    }
   ]
 }
 ```
 
 Key points:
+
 - `showWhen` on a **group** controls whether the entire fieldset section renders in the UI
 - `showWhen` on a **field** controls individual field visibility and generates an AI prompt constraint
 - Both can coexist — individual fields can have tighter conditions than their group
@@ -163,54 +225,57 @@ Key points:
 
 Every field in `fields[]` has the following shape:
 
-| Property | Type | Description |
-|---|---|---|
-| `key` | `string` | Unique snake_case identifier. Immutable after creation. Reserved: `amount`, `date`. |
-| `label` | `string` | Display name shown in the UI form and export column header. |
-| `type` | `enum` | One of: `text`, `number`, `date`, `boolean`, `enum`, `multi_select` |
-| `required` | `boolean` | If true, receipt stays in "pending review" state until filled. |
-| `extractable` | `boolean` | If true, AI attempts extraction. If false, field is left blank for employee to fill. |
-| `options` | `string[] \| null` | Required for `enum` and `multi_select` types. Max 30 options. |
-| `displayOrder` | `number` | Render order in UI and export. |
-| `description` | `string \| null` | **User-facing only.** Shown as a tooltip on hover in the review UI. Not sent to AI. |
-| `groupId` | `string \| null` | If set, field is rendered inside the named group's fieldset section. |
-| `showWhen` | `ShowWhen \| null` | Conditional visibility. Controls UI rendering and generates an AI prompt constraint. |
+| Property       | Type               | Description                                                                          |
+| -------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `key`          | `string`           | Unique snake_case identifier. Immutable after creation. Reserved: `amount`, `date`.  |
+| `label`        | `string`           | Display name shown in the UI form and export column header.                          |
+| `type`         | `enum`             | One of: `text`, `number`, `date`, `boolean`, `enum`, `multi_select`                  |
+| `required`     | `boolean`          | If true, receipt stays in "pending review" state until filled.                       |
+| `extractable`  | `boolean`          | If true, AI attempts extraction. If false, field is left blank for employee to fill. |
+| `options`      | `string[] \| null` | Required for `enum` and `multi_select` types. Max 30 options.                        |
+| `displayOrder` | `number`           | Render order in UI and export.                                                       |
+| `description`  | `string \| null`   | **User-facing only.** Shown as a tooltip on hover in the review UI. Not sent to AI.  |
+| `groupId`      | `string \| null`   | If set, field is rendered inside the named group's fieldset section.                 |
+| `showWhen`     | `ShowWhen \| null` | Conditional visibility. Controls UI rendering and generates an AI prompt constraint. |
 
 **`ShowWhen` shape (v1):**
+
 ```typescript
 interface ShowWhen {
-  field: string;                  // key of another field in this schema
+  field: string; // key of another field in this schema
   op: "eq" | "neq" | "in";
-  value: string | string[];       // string for eq/neq, string[] for in
+  value: string | string[]; // string for eq/neq, string[] for in
 }
 ```
 
 **Group definition shape:**
+
 ```typescript
 interface FieldGroup {
   id: string;
-  label: string;              // rendered as fieldset legend in review UI
+  label: string; // rendered as fieldset legend in review UI
   description: string | null; // rendered below the legend
-  showWhen: ShowWhen | null;  // if set, the entire fieldset section is hidden/shown
+  showWhen: ShowWhen | null; // if set, the entire fieldset section is hidden/shown
 }
 ```
 
 **Supported field types:**
 
-| Type | AI Extractable? | Notes |
-|---|---|---|
-| `text` | ✅ | Single-line string |
-| `number` | ✅ | Decimal or integer |
-| `date` | ✅ | ISO 8601 `YYYY-MM-DD` |
-| `boolean` | ✅ (contextual) | Yes/No; AI infers from context |
-| `enum` | ✅ | Single-select from `options` list |
-| `multi_select` | ⚠️ (limited) | AI may not reliably select multiple values |
+| Type           | AI Extractable? | Notes                                      |
+| -------------- | --------------- | ------------------------------------------ |
+| `text`         | ✅              | Single-line string                         |
+| `number`       | ✅              | Decimal or integer                         |
+| `date`         | ✅              | ISO 8601 `YYYY-MM-DD`                      |
+| `boolean`      | ✅ (contextual) | Yes/No; AI infers from context             |
+| `enum`         | ✅              | Single-select from `options` list          |
+| `multi_select` | ⚠️ (limited)    | AI may not reliably select multiple values |
 
 Fields with `extractable: false` are skipped by the AI entirely and surfaced as "needs your input" in the review UI (e.g., project codes, cost centres that only the employee knows).
 
 ### 2.4 Schema Version Immutability Rule
 
 A `schema_version` is **never updated** once created. Editing an active schema:
+
 1. Creates a new `schema_version` record with `version_number + 1` and the updated fields
 2. Updates `org_schemas.active_version_id` to point to the new version
 3. All future jobs pick up the new version; all past jobs retain the old version
@@ -226,6 +291,7 @@ Enforce this at the repository layer — no UPDATE on `schema_versions`.
 ### 2.6 Admin Schema Builder UI
 
 Admin-only page at `/org/settings/schema`:
+
 - List existing fields with drag-to-reorder
 - Add field: choose type, set label (key auto-generated), mark required + extractable, add options (for enum)
 - Edit field: change label, options, required flag (key is immutable after creation)
@@ -254,9 +320,10 @@ The prompt is built entirely from structured field metadata — never from freef
 
 ```typescript
 function buildFieldConstraint(field: SchemaFieldDefinition): string {
-  const typeHint = field.type === "enum"
-    ? `one of [${field.options?.join(", ")}]`
-    : field.type;
+  const typeHint =
+    field.type === "enum"
+      ? `one of [${field.options?.join(", ")}]`
+      : field.type;
 
   const requiredHint = field.required
     ? "[required]"
@@ -267,20 +334,30 @@ function buildFieldConstraint(field: SchemaFieldDefinition): string {
     ? `Only extract if ${field.showWhen.field} ${showWhenToEnglish(field.showWhen)}; otherwise return null.`
     : "";
 
-  return [`- "${field.key}" (${field.label}): ${typeHint} ${requiredHint}`, conditionHint]
-    .filter(Boolean).join(" ");
+  return [
+    `- "${field.key}" (${field.label}): ${typeHint} ${requiredHint}`,
+    conditionHint,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function showWhenToEnglish(condition: ShowWhen): string {
-  if (condition.op === "eq")  return `equals "${condition.value}"`;
+  if (condition.op === "eq") return `equals "${condition.value}"`;
   if (condition.op === "neq") return `does not equal "${condition.value}"`;
-  if (condition.op === "in")  return `is one of [${(condition.value as string[]).join(", ")}]`;
+  if (condition.op === "in")
+    return `is one of [${(condition.value as string[]).join(", ")}]`;
   return "";
 }
 
-function buildExtractionPrompt(ocr: SlimOcrResult, fields: SchemaFieldDefinition[]): string {
-  const extractableFields = fields.filter(f => f.extractable);
-  const fieldConstraints = extractableFields.map(buildFieldConstraint).join("\n");
+function buildExtractionPrompt(
+  ocr: SlimOcrResult,
+  fields: SchemaFieldDefinition[],
+): string {
+  const extractableFields = fields.filter((f) => f.extractable);
+  const fieldConstraints = extractableFields
+    .map(buildFieldConstraint)
+    .join("\n");
 
   return [
     "Extract the following fields from the receipt.",
@@ -301,12 +378,12 @@ Build the `json_schema` output constraint at runtime from the schema version fie
 ```typescript
 function buildJsonSchema(fields: SchemaFieldDefinition[]): object {
   const properties: Record<string, object> = {
-    amount: { type: "number" },   // system field, always present
-    date:   { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },  // system field
+    amount: { type: "number" }, // system field, always present
+    date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, // system field
   };
   const required: string[] = ["amount", "date"];
 
-  for (const field of fields.filter(f => f.extractable)) {
+  for (const field of fields.filter((f) => f.extractable)) {
     properties[field.key] = fieldToJsonSchemaType(field);
     if (field.required) required.push(field.key);
   }
@@ -320,6 +397,7 @@ function buildJsonSchema(fields: SchemaFieldDefinition[]): object {
 Because we are starting with a clean database (see Architectural Decision #6), the v2 schema is the **initial state**. There are no typed columns to drop, no JSONB backfill to write, and no legacy rows to handle.
 
 The table is defined from day one with:
+
 - `amount` decimal — typed system field
 - `date` date — typed system field
 - `extracted_fields` jsonb — all org-defined fields (flat key-value map)
@@ -333,19 +411,20 @@ Legacy compatibility code (`schema_version_id IS NULL` branches, migration SQL) 
 // New createExtractedExpense call in phase2-processor.ts
 await createExtractedExpense({
   receiptId,
-  ocrResultId:      ocrResult.id,
-  schemaVersionId:  schemaVersion.id,
-  amount:           result.data.amount,       // typed column
-  date:             result.data.date,         // typed column
-  extractedFields:  omit(result.data, ["amount", "date"]),  // everything else → JSONB
-  rawJson:          result.data,
-  modelVersion:     "gpt-4o-mini",
+  ocrResultId: ocrResult.id,
+  schemaVersionId: schemaVersion.id,
+  amount: result.data.amount, // typed column
+  date: result.data.date, // typed column
+  extractedFields: omit(result.data, ["amount", "date"]), // everything else → JSONB
+  rawJson: result.data,
+  modelVersion: "gpt-4o-mini",
 });
 ```
 
 ### 3.6 Validation at Save Time
 
 Before inserting, validate `extractedFields` against the schema version fields:
+
 - All `required: true` fields are present and non-null
 - Enum values are within the allowed `options` list
 - Number fields are numeric
@@ -363,6 +442,7 @@ Validation failures do not block the save — they are surfaced as warnings in t
 The review UI renders dynamically from the schema version. Fields are first split into ungrouped fields and groups, then rendered in `displayOrder`.
 
 **Rendering logic:**
+
 1. Ungrouped fields (`groupId: null`) render inline in the main fieldset
 2. Each group renders as a separate `<FieldSet>` with a legend and description, conditionally shown via its `showWhen`
 3. Fields within a group also evaluate their own `showWhen` for finer-grained control
@@ -372,29 +452,45 @@ The review UI renders dynamically from the schema version. Fields are first spli
 
 ```tsx
 // Pseudocode — groups rendered as separate fieldsets (mirrors current transport details UX)
-const ungrouped = fields.filter(f => !f.groupId);
-const groupedById = groupBy(fields.filter(f => f.groupId), f => f.groupId);
+const ungrouped = fields.filter((f) => !f.groupId);
+const groupedById = groupBy(
+  fields.filter((f) => f.groupId),
+  (f) => f.groupId,
+);
 
 <FieldSet>
   <FieldLegend>Expense Details</FieldLegend>
-  {ungrouped.filter(f => evaluateShowWhen(f.showWhen, currentValues)).map(field =>
-    <DynamicFieldInput key={field.key} field={field} value={extractedFields[field.key]} />
-  )}
-</FieldSet>
+  {ungrouped
+    .filter((f) => evaluateShowWhen(f.showWhen, currentValues))
+    .map((field) => (
+      <DynamicFieldInput
+        key={field.key}
+        field={field}
+        value={extractedFields[field.key]}
+      />
+    ))}
+</FieldSet>;
 
-{schemaVersion.groups
-  .filter(group => evaluateShowWhen(group.showWhen, currentValues))
-  .map(group => (
-    <FieldSet key={group.id}>
-      <FieldLegend>{group.label}</FieldLegend>
-      {group.description && <FieldDescription>{group.description}</FieldDescription>}
-      {groupedById[group.id]
-        .filter(f => evaluateShowWhen(f.showWhen, currentValues))
-        .map(field =>
-          <DynamicFieldInput key={field.key} field={field} value={extractedFields[field.key]} />
+{
+  schemaVersion.groups
+    .filter((group) => evaluateShowWhen(group.showWhen, currentValues))
+    .map((group) => (
+      <FieldSet key={group.id}>
+        <FieldLegend>{group.label}</FieldLegend>
+        {group.description && (
+          <FieldDescription>{group.description}</FieldDescription>
         )}
-    </FieldSet>
-  ))
+        {groupedById[group.id]
+          .filter((f) => evaluateShowWhen(f.showWhen, currentValues))
+          .map((field) => (
+            <DynamicFieldInput
+              key={field.key}
+              field={field}
+              value={extractedFields[field.key]}
+            />
+          ))}
+      </FieldSet>
+    ));
 }
 ```
 
@@ -403,6 +499,7 @@ This preserves the current UX — transport details appear as a distinct section
 ### 4.2 Export — Dynamic Columns
 
 The Excel export currently has hardcoded column names. Update to:
+
 1. Load the schema version for the job
 2. Generate columns: `Date`, `Amount`, then one column per schema field in `displayOrder`
 3. Map `extractedFields[field.key]` to each column
@@ -410,6 +507,7 @@ The Excel export currently has hardcoded column names. Update to:
 ### 4.3 Job Creation
 
 When the user creates a new job, the API:
+
 1. Looks up the org's active `schema_version_id`
 2. Records it on the job at creation time
 3. No user interaction required — this is automatic
@@ -417,6 +515,7 @@ When the user creates a new job, the API:
 ### 4.4 Admin Schema Version History
 
 In `/org/settings/schema`, show version history:
+
 - List all past versions with creation date, creator, and number of jobs using that version
 - Allow admin to "view" a past version (read-only)
 - No rollback — if the admin wants to go back, they create a new version matching the old fields
@@ -450,12 +549,12 @@ await incrementOrgUsage(orgId, period: "2025-05");
 
 ### Suggested Free Tier
 
-| Tier | Price | Receipts/month | Schema fields | Team members |
-|---|---|---|---|---|
-| Free | $0 | 25 | 10 | 1 (personal only) |
-| Starter | $12/mo | 200 | 20 | 5 |
-| Team | $39/mo | 1000 | 20 | 25 |
-| Enterprise | Custom | Unlimited | Unlimited | Unlimited |
+| Tier       | Price  | Receipts/month | Schema fields | Team members      |
+| ---------- | ------ | -------------- | ------------- | ----------------- |
+| Free       | $0     | 25             | 10            | 1 (personal only) |
+| Starter    | $12/mo | 200            | 20            | 5                 |
+| Team       | $39/mo | 1000           | 20            | 25                |
+| Enterprise | Custom | Unlimited      | Unlimited     | Unlimited         |
 
 Enforcement: check `org_usage` before enqueueing each receipt. Return a `429 Too Many Requests` with a clear message if over limit.
 
