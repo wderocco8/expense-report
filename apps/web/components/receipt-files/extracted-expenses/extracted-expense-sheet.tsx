@@ -274,9 +274,16 @@ export function ExtractedExpenseSheet({
                     <img
                       src={image.url}
                       alt={receipt?.originalFilename ?? "Receipt"}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
+                    <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/50" />
+                    {receipt?.originalFilename && (
+                      <div className="absolute inset-0 flex items-center justify-center px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <p className="text-white text-lg font-medium text-center break-all drop-shadow-md">
+                          {receipt.originalFilename}
+                        </p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
