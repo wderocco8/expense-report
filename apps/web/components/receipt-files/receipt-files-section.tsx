@@ -60,14 +60,15 @@ async function fetchReceiptFiles(
 export function ReceiptFilesSection({ jobId }: { jobId: string }) {
   const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const {
     pagination,
     setPagination,
     sorting,
     setSorting,
-    filters,
-    setFilters,
+    rowSelection,
+    setRowSelection,
   } = useServerTableState();
 
   const queryClient = useQueryClient();
@@ -102,7 +103,6 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
   const totalRows = data?.total ?? 0;
 
   const [openReceiptId, setOpenReceiptId] = useState<string | null>(null);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const receiptMap = useMemo(() => {
     if (!data) return new Map<string, ReceiptFileWithExpenses>();
@@ -121,22 +121,46 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
       setOpenReceiptId(receiptFiles[currentIndex + 1].id);
   };
 
-  async function confirmDeleteReceipt() {
-    if (!deleteTargetId) return;
+  const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
+
+  async function confirmDeleteReceipts() {
+    if (selectedIds.length === 0) return;
     setIsSubmittingDelete(true);
 
     try {
-      const res = await fetch(`/api/receipts/${deleteTargetId}`, {
+      const res = await fetch("/api/receipts", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
       });
-      if (!res.ok) throw new Error("Failed to delete receipt");
-      setDeleteTargetId(null);
-      toast.success("Successfully deleted receipt");
+
+      if (!res.ok) throw new Error("Request failed");
+
+      const { deleted, failed } = (await res.json()) as {
+        deleted: string[];
+        failed: string[];
+      };
+
+      if (failed.length === 0) {
+        toast.success(
+          deleted.length === 1
+            ? "Receipt deleted"
+            : `${deleted.length} receipts deleted`,
+        );
+      } else if (deleted.length === 0) {
+        toast.error("Failed to delete receipts");
+      } else {
+        toast.warning(
+          `Deleted ${deleted.length} receipt${deleted.length !== 1 ? "s" : ""}, ${failed.length} failed`,
+        );
+      }
+
+      setRowSelection({});
+      setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ["receipt-files", jobId] });
       queryClient.invalidateQueries({ queryKey: ["expense-report", jobId] });
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete receipt");
+    } catch {
+      toast.error("Failed to delete receipts");
     } finally {
       setIsSubmittingDelete(false);
     }
@@ -153,11 +177,20 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
           Create Expense
         </Button>
         <ExportReceipts jobId={jobId} disabled={isLoading} />
+        {selectedIds.length > 0 && (
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            Delete {selectedIds.length} receipt
+            {selectedIds.length !== 1 ? "s" : ""}
+          </Button>
+        )}
       </div>
       <ReceiptFilesTable
         data={receiptFiles}
-        onViewReceipt={setOpenReceiptId}
-        onDeleteReceipt={(id) => setDeleteTargetId(id)}
+        onRowClick={(r) => setOpenReceiptId(r.id)}
         isLoading={isLoading}
         isFetching={isFetching}
         openReceiptId={openReceiptId}
@@ -167,27 +200,35 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
         sorting={sorting}
         onSortingChange={setSorting}
         totalRows={totalRows}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
       />
 
       <Dialog
-        open={!!deleteTargetId}
-        onOpenChange={(open) => !open && setDeleteTargetId(null)}
+        open={showDeleteDialog}
+        onOpenChange={(open) => !open && setShowDeleteDialog(false)}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. Do you really want to delete this
-              receipt?
+              This action cannot be undone. You are about to permanently delete{" "}
+              {selectedIds.length === 1
+                ? "1 receipt"
+                : `${selectedIds.length} receipts`}
+              .
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteTargetId(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={confirmDeleteReceipt}
+              onClick={confirmDeleteReceipts}
               disabled={isSubmittingDelete}
             >
               {isSubmittingDelete && <Spinner />}

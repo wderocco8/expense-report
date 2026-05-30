@@ -3,17 +3,16 @@
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "@/components/receipt-files/columns";
 import { ReceiptFileWithExpenses } from "@/server/types/expense-report-jobs";
-import { ReceiptFile } from "@repo/db";
 import {
   OnChangeFn,
   PaginationState,
+  RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
 
 interface ReceiptFilesTableProps {
-  data: ReceiptFileWithExpenses[] | ReceiptFile[];
-  onViewReceipt: (id: string) => void;
-  onDeleteReceipt: (id: string) => void;
+  data: ReceiptFileWithExpenses[];
+  onRowClick: (receipt: ReceiptFileWithExpenses) => void;
   isLoading: boolean;
   isFetching: boolean;
   openReceiptId?: string | null;
@@ -23,12 +22,13 @@ interface ReceiptFilesTableProps {
   sorting?: SortingState;
   onSortingChange?: OnChangeFn<SortingState>;
   totalRows?: number;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
 }
 
 export function ReceiptFilesTable({
   data,
-  onViewReceipt,
-  onDeleteReceipt,
+  onRowClick,
   isLoading,
   isFetching,
   openReceiptId,
@@ -38,13 +38,17 @@ export function ReceiptFilesTable({
   sorting,
   onSortingChange,
   totalRows,
+  rowSelection,
+  onRowSelectionChange,
 }: ReceiptFilesTableProps) {
   return (
     <DataTable
-      columns={columns({ onView: onViewReceipt, onDelete: onDeleteReceipt })}
+      columns={columns}
       data={data}
       isLoading={isLoading}
       isFetching={isFetching}
+      onRowClick={onRowClick}
+      getRowId={(row) => row.id}
       rowClassName={(row) => (row.id === openReceiptId ? "bg-muted" : "")}
       pageCount={pageCount}
       pagination={pagination}
@@ -53,6 +57,8 @@ export function ReceiptFilesTable({
       sorting={sorting}
       onSortingChange={onSortingChange}
       totalRows={totalRows}
+      rowSelection={rowSelection}
+      onRowSelectionChange={onRowSelectionChange}
     />
   );
 }

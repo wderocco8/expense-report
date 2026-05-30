@@ -1,12 +1,48 @@
 import { NextResponse } from "next/server";
-import { queueIngestReceipt } from "@/server/services/receipts.service";
+import {
+  queueIngestReceipt,
+  getReceiptFileWithJob,
+  deleteReceiptFileWithS3,
+} from "@/server/services/receipts.service";
 import { respondProblem } from "@/lib/http/respond";
 import { problem } from "@/lib/problems/problem";
 import { requireApiAuth } from "@/lib/auth/api";
 import { MAX_FILES_PER_UPLOAD, VALID_FILE_TYPES } from "@repo/shared";
 import { withProblems } from "@/lib/problems/wrapper";
+import { z } from "zod";
 
 export const runtime = "nodejs"; // required to read binary files
+
+export const DELETE = withProblems(async (req) => {
+  const authResult = await requireApiAuth();
+  if (!authResult.ok) {
+    return respondProblem(authResult.problem);
+  }
+
+  const body = await req.json();
+  const { ids } = z.object({ ids: z.array(z.uuid()).min(1) }).parse(body);
+
+  const deleted: string[] = [];
+  const failed: string[] = [];
+
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const receipt = await getReceiptFileWithJob(id);
+        if (receipt.job.userId !== authResult.session.user.id) {
+          failed.push(id);
+          return;
+        }
+        await deleteReceiptFileWithS3(id);
+        deleted.push(id);
+      } catch {
+        failed.push(id);
+      }
+    }),
+  );
+
+  return NextResponse.json({ deleted, failed });
+});
 
 // TODO: replace this with real rate limiting eventually
 export const POST = withProblems(async (req) => {
