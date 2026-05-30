@@ -39,7 +39,7 @@ export function UploadReceiptsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right-resize" className="flex flex-col">
+      <SheetContent side="right" className="flex flex-col">
         <SheetHeader>
           <SheetTitle>Upload Expense</SheetTitle>
           <SheetDescription>
