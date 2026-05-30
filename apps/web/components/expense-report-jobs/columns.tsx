@@ -2,8 +2,6 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { ExpenseReportJobsWithProgress } from "@/server/types/expense-report-jobs";
 import { deriveJobStatus } from "@repo/shared";
 
@@ -41,13 +39,5 @@ export const columns: ColumnDef<ExpenseReportJobsWithProgress[number]>[] = [
     accessorKey: "createdAt",
     header: "Created",
     cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => (
-      <Button variant="ghost" size="sm">
-        <Link href={`/expense-report-jobs/${row.original.id}`}>View</Link>
-      </Button>
-    ),
   },
 ];
