@@ -205,7 +205,11 @@ export function ExtractedExpenseSheet({
         }
       }}
     >
-      <SheetContent className="flex flex-col" side="right">
+      <SheetContent
+        className="flex flex-col"
+        side="right"
+        showCloseButton={false}
+      >
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col flex-1 min-h-0"
@@ -461,7 +465,7 @@ export function ExtractedExpenseSheet({
               Update
             </Button>
             <SheetClose asChild>
-              <Button variant="outline">Close</Button>
+              <Button variant="outline">Cancel</Button>
             </SheetClose>
           </SheetFooter>
         </form>

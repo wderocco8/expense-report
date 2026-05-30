@@ -39,7 +39,11 @@ export function UploadReceiptsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col">
+      <SheetContent
+        side="right"
+        className="flex flex-col"
+        showCloseButton={false}
+      >
         <SheetHeader>
           <SheetTitle>Upload Expense</SheetTitle>
           <SheetDescription>
@@ -103,7 +107,7 @@ export function UploadReceiptsSheet({
             </Button>
           )}
           <SheetClose asChild>
-            <Button variant="outline">Close</Button>
+            <Button variant="outline">Cancel</Button>
           </SheetClose>
         </SheetFooter>
       </SheetContent>
