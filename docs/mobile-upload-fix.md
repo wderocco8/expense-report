@@ -32,7 +32,7 @@ Raw files land in S3 unprocessed. Phase 1 adds a normalization step before calli
 4. Re-upload processed JPEG to the **same S3 key** (atomic overwrite) with `ContentType: 'image/jpeg'`
 5. Call Textract with the processed key
 
-The S3 key retains its original extension (e.g. `.heic`) after overwrite — this is harmless since S3 and the browser both use `ContentType` metadata, not the filename.
+S3 keys have no extension (see key format above), so there is nothing misleading after the worker overwrites the raw upload with a processed JPEG.
 
 ---
 
@@ -47,6 +47,10 @@ The S3 key retains its original extension (e.g. `.heic`) after overwrite — thi
 **New API routes**
 - `POST /api/receipts/presign` — replaces the multipart-handling portion of the current `POST /api/receipts`
 - `POST /api/receipts/confirm` — accepts `{ receiptIds }`, enqueues SQS
+
+**S3 key format**
+
+Keys use `receipts/{jobId}/{receiptFileId}` — no extension. The receipt DB record ID is generated first and reused as the S3 object name, so both the DB row and the S3 object share the same UUID. The `s3Key` column becomes fully derivable from the record (`receipts/${jobId}/${id}`); keep it explicit on the row for flexibility. Extensions are omitted entirely — S3 and the browser both use `ContentType` metadata, not the filename, so the extension was never meaningful and becomes actively misleading after the worker overwrites HEIC with JPEG.
 
 **`apps/web/components/receipt-files/scan-upload-receipts.tsx`**
 
@@ -90,4 +94,4 @@ This applies to both the production bucket and the local dev bucket.
 
 - **Orphaned objects**: If the client uploads to S3 but crashes before calling `/confirm`, SQS is never enqueued and the receipt stays `pending` indefinitely. Acceptable at this scale; mitigatable later with an S3 lifecycle expiry rule on the `receipts/` prefix.
 - **Failed worker normalization**: Corrupt or unsupported file causes `heic-convert`/`sharp` to throw → worker marks receipt `failed`. Raw file remains in S3 until a cleanup pass.
-- **`/confirm` without verifying S3 existence**: Don't add a per-key existence check — just enqueue and let the worker report failure. The existence check adds latency on the happy path for no benefit.
+- **`/confirm` without verifying S3 existence**: Don't add a per-key existence check — just enqueue and let the worker report failure. The check adds latency on the happy path for no benefit.
