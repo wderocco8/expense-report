@@ -56,9 +56,15 @@ Keys use `receipts/{jobId}/{receiptFileId}` — no extension. The receipt DB rec
 
 `onSubmit` changes:
 1. Call `/api/receipts/presign` with file metadata
-2. `await Promise.all(files.map((file, i) => fetch(presignedUrls[i], { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })))`
+2. `await Promise.all(files.map((file, i) => fetch(presignedUrls[i], { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })))` — increment an `uploadedCount` state as each PUT resolves
 3. Call `/api/receipts/confirm` with receiptIds
 4. Close form, `router.refresh()`
+
+**Progress indicator**: show a progress bar or subtle line (e.g. shadcn `Progress`) below the file list while submitting, tracking `uploadedCount / totalFiles`. Disappears once all uploads complete and `/confirm` is called.
+
+**Navigation guard**: while `isSubmitting`, block two scenarios:
+- Sheet close / cancel button: disable or intercept, same pattern as the unsaved-changes guard in `ExtractedExpenseSheet`
+- Page refresh / tab close: add a `beforeunload` listener (like the one in `ExtractedExpenseSheet`) that fires while `isSubmitting` is true
 
 No client-side compression or conversion — none needed.
 
