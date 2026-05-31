@@ -16,9 +16,8 @@ This is a monorepo using pnpm workspaces with the following services:
 
 - **Node.js**: Version 20 or higher
 - **pnpm**: Version 10.28.1 or higher (specified in `packageManager`)
-- **Docker**: For local infrastructure (PostgreSQL, MinIO, LocalStack)
+- **Docker**: For local infrastructure (PostgreSQL, Neon Proxy, LocalStack)
 - **AWS CLI + LocalStack**: For local Lambda deployment
-- **mc** (MinIO Client): For bucket management ([installation guide](https://min.io/docs/minio/linux/reference/minio-mc.html))
 
 ## Quick Start
 
@@ -36,11 +35,11 @@ Create a secrets file at `~/.config/secrets/expense-report.env` with the followi
 # Database (automatically configured via Docker)
 DATABASE_URL="postgres://postgres:postgres@db.localtest.me:4444/main"
 
-# MinIO / S3
-S3_ENDPOINT="http://localhost:9000"
-S3_BUCKET="expense-report-files"
-S3_ACCESS_KEY="minio"
-S3_SECRET_KEY="minio123"
+S3_ENDPOINT="https://s3.us-east-2.amazonaws.com"
+S3_REGION="us-east-2"
+S3_BUCKET="your-dev-bucket-name"
+S3_ACCESS_KEY="your-access-key"
+S3_SECRET_KEY="your-secret-key"
 
 # LocalStack (AWS emulation)
 AWS_ACCESS_KEY_ID="test"
@@ -64,47 +63,38 @@ docker-compose up -d
 ```
 
 This starts:
+
 - **PostgreSQL** (port 5432)
 - **Neon Proxy** (port 4444, provides HTTP interface to Postgres)
-- **MinIO** S3-compatible storage (API: 9000, Console: 9001)
 - **LocalStack** for AWS services emulation (port 4566)
 
 Verify services are running:
+
 ```bash
 docker-compose ps
 ```
 
-### 4. Configure MinIO Bucket (First Time Only)
-
-Add MinIO server to mc:
-```bash
-mc alias set local http://localhost:9000 minio minio123
-```
-
-Create bucket and set permissions:
-```bash
-mc mb local/expense-report-files
-mc anonymous set download local/expense-report-files
-```
-
-### 5. Run Database Migrations
+### 4. Run Database Migrations
 
 Generate migration files (if schema changed):
+
 ```bash
 pnpm run db:generate
 ```
 
 Run migrations:
+
 ```bash
 DATABASE_URL="postgres://postgres:postgres@localhost:5432/main" pnpm run db:migrate
 ```
 
 Or using the migrations env file:
+
 ```bash
 pnpm --filter @repo/db db:migrate
 ```
 
-### 6. Start the Web Application
+### 5. Start the Web Application
 
 ```bash
 pnpm run dev
@@ -112,20 +102,23 @@ pnpm run dev
 
 The web app will be available at [http://localhost:3000](http://localhost:3000)
 
-### 7. Deploy the Worker (Local Lambda)
+### 6. Deploy the Worker (Local Lambda)
 
 Pull the Lambda runtime image (first time only):
+
 ```bash
 docker pull public.ecr.aws/lambda/nodejs:20
 ```
 
 Build and deploy:
+
 ```bash
 cd apps/worker
 pnpm deploy:local
 ```
 
 Or run the full sequence:
+
 ```bash
 docker-compose up -d
 cd apps/worker
@@ -137,12 +130,14 @@ pnpm deploy:local
 ### Web Application (`apps/web`)
 
 **Scripts:**
+
 - `pnpm dev` - Start Next.js dev server
 - `pnpm build` - Build for production
 - `pnpm start` - Start production server
 - `pnpm auth:generate` - Generate Better Auth schema
 
 **Key Dependencies:**
+
 - Next.js 16 with React 19
 - Better Auth for authentication
 - Drizzle ORM for database
@@ -156,6 +151,7 @@ pnpm deploy:local
 A Lambda function that processes receipt images from an SQS queue.
 
 **Scripts:**
+
 - `pnpm build` - Bundle Lambda with esbuild
 - `pnpm deploy:local` - Deploy to LocalStack
 - `pnpm deploy:staging` - Deploy to AWS staging
@@ -164,6 +160,7 @@ A Lambda function that processes receipt images from an SQS queue.
 - `pnpm send:test` - Send a test message to the queue
 
 **Deployment Flow:**
+
 1. Code is bundled with esbuild into `dist/index.js`
 2. CDK (Cloud Development Kit) creates/updates Lambda and SQS resources
 3. Outputs are written to `cdk-outputs.json`
@@ -173,12 +170,14 @@ A Lambda function that processes receipt images from an SQS queue.
 PostgreSQL with Drizzle ORM.
 
 **Scripts:**
+
 - `pnpm db:generate` - Generate migration files from schema
 - `pnpm db:migrate` - Run pending migrations
 - `pnpm db:push` - Push schema changes directly (development only)
 - `pnpm db:studio` - Open Drizzle Studio GUI
 
 **Schema Files:**
+
 - See `schema.dbml` for entity relationship diagram
 - Main tables: `expense_report_jobs`, `receipt_files`, `extracted_expenses`
 
@@ -210,6 +209,7 @@ pnpm send:test
 ### Database Operations
 
 Access database directly:
+
 ```bash
 # Via Docker
 docker exec -it expense-report-postgres-1 psql -U postgres -d postgres
@@ -219,26 +219,21 @@ psql -h db.localtest.me -U postgres -d main
 ```
 
 Open Drizzle Studio:
+
 ```bash
 pnpm run db:studio
 ```
 
-### Viewing MinIO Console
-
-Access the MinIO web console at [http://localhost:9001](http://localhost:9001)
-
-Login credentials:
-- **Username**: `minio`
-- **Password**: `minio123`
-
 ### Optional: pgAdmin
 
 Start with pgAdmin for a GUI database client:
+
 ```bash
 docker-compose --profile pgadmin up -d
 ```
 
 Access at [http://localhost:5050](http://localhost:5050)
+
 - **Email**: `admin@admin.com`
 - **Password**: `admin`
 
@@ -247,16 +242,19 @@ Access at [http://localhost:5050](http://localhost:5050)
 ### Database Connection Errors
 
 If you see:
+
 ```
 [cause]: Error: getaddrinfo ENOTFOUND db.localtest.me
 ```
 
 Add a hosts entry once:
+
 ```bash
 sudo nano /etc/hosts
 ```
 
 Add these lines:
+
 ```
 127.0.0.1       db.localtest.me
 127.0.0.1       localhost.localstack.cloud
@@ -271,6 +269,7 @@ Add these lines:
 ### Docker Services Not Starting
 
 Check container status:
+
 ```bash
 docker-compose logs postgres
 docker-compose logs localstack
@@ -278,6 +277,7 @@ docker-compose logs minio
 ```
 
 Reset everything:
+
 ```bash
 docker-compose down -v
 docker-compose up -d
@@ -286,6 +286,7 @@ docker-compose up -d
 ### Worker Deployment Issues
 
 Ensure LocalStack is fully ready before deploying:
+
 ```bash
 # Wait for LocalStack to be healthy
 docker-compose logs -f localstack
@@ -319,19 +320,20 @@ cd apps/worker && pnpm deploy:local
 
 ## Environment Variables Reference
 
-| Variable | Description | Used By |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | Web, Worker, DB |
-| `S3_ENDPOINT` | S3/MinIO endpoint URL | Web, Worker |
-| `S3_BUCKET` | S3 bucket name | Web, Worker |
-| `S3_ACCESS_KEY` | S3 access key | Web, Worker |
-| `S3_SECRET_KEY` | S3 secret key | Web, Worker |
-| `AWS_ACCESS_KEY_ID` | AWS access key (use `test` for LocalStack) | Worker |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key (use `test` for LocalStack) | Worker |
-| `AWS_DEFAULT_REGION` | AWS region | Worker |
-| `OPENAI_API_KEY` | OpenAI API key for receipt extraction | Worker |
-| `BETTER_AUTH_SECRET` | Secret for auth token signing | Web |
-| `BETTER_AUTH_URL` | Auth callback URL | Web |
+| Variable                | Description                                       | Used By         |
+| ----------------------- | ------------------------------------------------- | --------------- |
+| `DATABASE_URL`          | PostgreSQL connection string                      | Web, Worker, DB |
+| `S3_ENDPOINT`           | Optional S3 endpoint override (omit for real AWS) | Web, Worker     |
+| `S3_BUCKET`             | S3 bucket name                                    | Web, Worker     |
+| `S3_REGION`             | S3 bucket region                                  | Web, Worker     |
+| `S3_ACCESS_KEY`         | S3 access key                                     | Web, Worker     |
+| `S3_SECRET_KEY`         | S3 secret key                                     | Web, Worker     |
+| `AWS_ACCESS_KEY_ID`     | AWS access key (use `test` for LocalStack)        | Worker          |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key (use `test` for LocalStack)        | Worker          |
+| `AWS_DEFAULT_REGION`    | AWS region                                        | Worker          |
+| `OPENAI_API_KEY`        | OpenAI API key for receipt extraction             | Worker          |
+| `BETTER_AUTH_SECRET`    | Secret for auth token signing                     | Web             |
+| `BETTER_AUTH_URL`       | Auth callback URL                                 | Web             |
 
 ## Scripts Reference (Root Level)
 

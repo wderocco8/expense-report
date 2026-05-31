@@ -2,80 +2,92 @@
 
 ## Problem
 
-Vercel enforces a **4.5MB request body limit**. iPhone photos are typically 8–12MB each, so even a single mobile upload hits this ceiling. The current flow sends all files in one POST request, making large mobile batches impossible.
-
-Secondary concern: storing and running Textract on oversized images wastes S3 storage and increases OCR costs unnecessarily.
+Vercel enforces a **4.5MB request body limit**. iPhone photos (HEIC/HEIF) are typically 8–12MB each, so even a single mobile upload fails. HEIC is also unsupported by the Canvas API in non-WebKit browsers, ruling out purely client-side conversion. A correct cross-browser, cross-platform solution requires bypassing Vercel for the file transfer entirely.
 
 ---
 
-## Stage 1: Client Compression + Server Guardrails
+## Solution: Presigned S3 PUT Uploads
 
-Solves the immediate mobile upload failure. Keeps the existing single-request flow; just shrinks each file before sending.
+The client uploads files directly to S3 using backend-generated presigned PUT URLs. Vercel never handles the file bytes. Conversion and compression move to the worker, where they run once before Textract.
 
-### Constraints
+---
 
-- Target per-file size after compression: **~300KB**
-- With `MAX_FILES_PER_UPLOAD = 10`: 10 × 300KB = 3MB — safely under Vercel's 4.5MB limit
-- 300KB JPEG at ≤1600px is more than sufficient for Textract `AnalyzeExpense`
+## Upload Flow (replaces `POST /api/receipts`)
 
-### Changes
+1. **`POST /api/receipts/presign`** — client sends `{ jobId, files: [{ name, type }] }`. Backend verifies auth and job ownership, creates N `receipt_files` DB records (status: `pending`) with pre-assigned S3 keys, returns `[{ receiptId, presignedUrl }]`.
 
-**`packages/shared/src/domain/expense-reports/constants.ts`**
-- Lower `MAX_FILES_PER_UPLOAD`: 40 → 10
-- Add `MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024` (2MB server-side backstop)
+2. **Client PUTs files directly to S3 in parallel** — one `fetch` PUT per file using the presigned URL. No Vercel involvement. Truly parallel — no batching needed.
 
-**`apps/web/components/receipt-files/scan-upload-receipts.tsx`**
-- Install `browser-image-compression`
-- Add a `compressFile(file: File): Promise<File>` helper in `onSubmit` that runs before building `FormData`
-- Compression params: `{ maxSizeMB: 0.3, maxWidthOrHeight: 1600, useWebWorker: true }`
-- HEIC handling: attempt compression (works on iOS Safari, which can canvas-decode HEIC); on failure, pass the original file through — the server's existing `heic-convert` path handles it
+3. **`POST /api/receipts/confirm`** — client sends `{ receiptIds: string[] }`. Backend enqueues SQS for each.
 
-**`apps/web/app/api/receipts/route.ts`**
-- Add a per-file size check after MIME validation: if `file.size > MAX_FILE_SIZE_BYTES`, reject with a `400 receipt/file-too-large` problem
+---
+
+## Worker Changes (Phase 1 — before Textract)
+
+Raw files land in S3 unprocessed. Phase 1 adds a normalization step before calling Textract:
+
+1. Download raw file from S3
+2. If HEIC/HEIF: convert to JPEG using `heic-convert`
+3. Resize and compress with `sharp` for **all** file types: `resize({ width: 1600, withoutEnlargement: true })` + `jpeg({ quality: 0.8 })`
+4. Re-upload processed JPEG to the **same S3 key** (atomic overwrite) with `ContentType: 'image/jpeg'`
+5. Call Textract with the processed key
+
+The S3 key retains its original extension (e.g. `.heic`) after overwrite — this is harmless since S3 and the browser both use `ContentType` metadata, not the filename.
+
+---
+
+## Web Layer Changes
 
 **`apps/web/server/services/receipts.service.ts`**
-- Enable the commented-out `sharp` resize block inside `normalizeReceiptImage`, running it after HEIC→JPEG conversion
-- This acts as a server-side backstop for HEIC files that bypass client compression (e.g. uploaded from desktop Chrome, which cannot canvas-decode HEIC)
-- Params: `resize({ width: 1600, withoutEnlargement: true })` + `jpeg({ quality: 80 })`
+- Delete `normalizeReceiptImage` and `buildReceiptUpload` — this logic moves to the worker
+- Remove `heic-convert` dependency from the web app
+- Add `generatePresignedPutUrl(key, contentType, expiresIn)` to `storage.service.ts` — uses the existing `@aws-sdk/s3-request-presigner` already in the project
+- Add `presignReceiptUploads(jobId, files)` service function that generates keys, creates DB records, and returns presigned URLs
 
-### Notes
+**New API routes**
+- `POST /api/receipts/presign` — replaces the multipart-handling portion of the current `POST /api/receipts`
+- `POST /api/receipts/confirm` — accepts `{ receiptIds }`, enqueues SQS
 
-- `browser-image-compression` outputs JPEG regardless of input format (for compressible types), so files arriving at the server will always be JPEG/PNG/WebP/HEIC — no MIME type surprise
-- The server's `VALID_FILE_TYPES` check remains unchanged; HEIC is still accepted for the passthrough path
+**`apps/web/components/receipt-files/scan-upload-receipts.tsx`**
+
+`onSubmit` changes:
+1. Call `/api/receipts/presign` with file metadata
+2. `await Promise.all(files.map((file, i) => fetch(presignedUrls[i], { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })))`
+3. Call `/api/receipts/confirm` with receiptIds
+4. Close form, `router.refresh()`
+
+No client-side compression or conversion — none needed.
 
 ---
 
-## Stage 2: Batched Parallel Uploads
+## S3 CORS Configuration
 
-Removes the ceiling on batch size entirely. Users can select 40+ files; the client handles chunking transparently.
+Required for browser PUT requests to succeed. Add a CORS rule to the bucket:
 
-### Approach
+```json
+[{
+  "AllowedHeaders": ["Content-Type"],
+  "AllowedMethods": ["PUT"],
+  "AllowedOrigins": ["https://your-app.vercel.app", "http://localhost:3000"],
+  "MaxAgeSeconds": 3600
+}]
+```
 
-Split files into chunks of `UPLOAD_BATCH_SIZE = 5`, then fire all chunks as parallel `fetch` calls. Each batch is a standard POST to `/api/receipts`. `Promise.all` waits for all batches before closing the sheet.
+This applies to both the production bucket and the local dev bucket.
 
-**Math:** 40 files → 8 batches × 5 files × 300KB = ~1.5MB per request. Scales to any batch size.
+---
 
-### Changes
+## Removed Complexity
 
-**`packages/shared/src/domain/expense-reports/constants.ts`**
-- Raise `MAX_FILES_PER_UPLOAD` back to 40 (or remove the cap)
-- Add `UPLOAD_BATCH_SIZE = 5`
+- No client-side HEIC conversion library (`heic2any`, WASM)
+- No client-side compression (`browser-image-compression`)
+- No batching — all uploads truly parallel with no ceiling
+- `MAX_FILES_PER_UPLOAD` can be raised or removed; the only remaining constraint is UX
 
-**`apps/web/components/receipt-files/scan-upload-receipts.tsx`**
-- Add `uploadedCount: number` state (outside react-hook-form — this is display-only)
-- In `onSubmit`:
-  1. Compress all files
-  2. Chunk into groups of `UPLOAD_BATCH_SIZE`
-  3. `await Promise.all(chunks.map(chunk => uploadChunk(chunk)))`
-  4. Increment `uploadedCount` as each chunk resolves (use `.then()` on individual chunk promises before passing to `Promise.all`)
-- Show progress in the sheet: `"Uploading {uploadedCount} / {total}..."` while `isSubmitting`
+---
 
-**Error handling for partial failures**
-- Collect results from all chunk fetches; don't short-circuit on one failure
-- If all batches fail: keep the form open, show an inline error
-- If some batches fail: close form, `router.refresh()`, show a toast: `"{n} uploaded, {m} failed — try re-uploading the failed files"`
-- The `/api/receipts` route already returns `{ success: true }` on success; on failure it returns a Problem Details JSON — use this to distinguish
+## Edge Cases
 
-### react-hook-form compatibility
-
-Both stages touch only `onSubmit`. react-hook-form owns validation and file state; compression and batching are plain async logic inside the submit handler. No restructuring needed.
+- **Orphaned objects**: If the client uploads to S3 but crashes before calling `/confirm`, SQS is never enqueued and the receipt stays `pending` indefinitely. Acceptable at this scale; mitigatable later with an S3 lifecycle expiry rule on the `receipts/` prefix.
+- **Failed worker normalization**: Corrupt or unsupported file causes `heic-convert`/`sharp` to throw → worker marks receipt `failed`. Raw file remains in S3 until a cleanup pass.
+- **`/confirm` without verifying S3 existence**: Don't add a per-key existence check — just enqueue and let the worker report failure. The existence check adds latency on the happy path for no benefit.
