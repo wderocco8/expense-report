@@ -91,3 +91,19 @@ export async function getSignedReceiptUrl(
     { expiresIn: expiresInSeconds },
   );
 }
+
+export async function generatePresignedPutUrl(
+  key: string,
+  contentType: string,
+  expiresInSeconds = 60,
+) {
+  return getSignedUrl(
+    s3,
+    new PutObjectCommand({
+      Bucket: S3_BUCKET!,
+      Key: key,
+      ContentType: contentType,
+    }),
+    { expiresIn: expiresInSeconds },
+  );
+}

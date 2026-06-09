@@ -12,6 +12,7 @@ import {
   FileUploadList,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
+import { Progress } from "@/components/ui/progress";
 import {
   MAX_FILES_PER_UPLOAD,
   ReceiptUploadInput,
@@ -21,7 +22,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import type { PresignBody } from "@/app/api/receipts/presign/schema";
+import { ConfirmBody } from "@/app/api/receipts/schema";
 
 interface ScanUploadReceiptsProps {
   jobId: string;
@@ -35,6 +39,7 @@ export function ScanUploadReceipts({
   onSubmittingChange,
 }: ScanUploadReceiptsProps) {
   const router = useRouter();
+  const [uploadedCount, setUploadedCount] = useState(0);
 
   const {
     register,
@@ -46,35 +51,95 @@ export function ScanUploadReceipts({
     setValue,
   } = useForm<ReceiptUploadInput>({
     resolver: zodResolver(ReceiptUploadSchema),
-    defaultValues: {
-      jobId,
-      files: [],
-    },
+    defaultValues: { jobId, files: [] },
   });
 
-  const files = useWatch({
-    control,
-    name: "files",
-  });
+  const files = useWatch({ control, name: "files" });
   const fileError = errors.files;
 
   const onSubmit = async (values: ReceiptUploadInput) => {
-    const formData = new FormData();
-    formData.append("jobId", values.jobId);
-    values.files.forEach((f) => formData.append("files", f));
+    setUploadedCount(0);
 
-    const res = await fetch("/api/receipts", {
+    // Assign a client-generated UUID to each file — used as the receiptId on the backend
+    const fileEntries = values.files.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+    }));
+
+    // Step 1: Request presigned PUT URLs from the backend
+    const presignBody: PresignBody = {
+      jobId: values.jobId,
+      files: fileEntries.map(({ id, file }) => ({
+        id,
+        name: file.name,
+        type: file.type,
+      })),
+    };
+
+    const presignRes = await fetch("/api/receipts/presign", {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(presignBody),
     });
 
-    if (!res.ok) {
-      // TODO: handle error
+    if (!presignRes.ok) {
+      toast.error("Failed to prepare upload. Please try again.");
       return;
     }
 
+    const { uploads } = (await presignRes.json()) as {
+      uploads: { receiptId: string; presignedUrl: string }[];
+    };
+
+    const uploadsByReceiptId = new Map(uploads.map((u) => [u.receiptId, u]));
+
+    // Step 2: Upload each file directly to S3 in parallel, matched by receiptId
+    let failedCount = 0;
+    await Promise.all(
+      fileEntries.map(async ({ id, file }) => {
+        try {
+          const upload = uploadsByReceiptId.get(id);
+          if (!upload) {
+            failedCount++;
+            return;
+          }
+          const res = await fetch(upload.presignedUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+          if (!res.ok) failedCount++;
+        } catch {
+          failedCount++;
+        } finally {
+          setUploadedCount((c) => c + 1);
+        }
+      }),
+    );
+
+    // Step 3: Confirm — enqueues all receipts; worker handles any missing files gracefully
+    const confirmBody: ConfirmBody = {
+      receiptIds: uploads.map((u) => u.receiptId),
+    };
+
+    const confirmRes = await fetch("/api/receipts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(confirmBody),
+    });
+
+    if (!confirmRes.ok) {
+      toast.error("Upload failed. Please try again.");
+      return;
+    }
+
+    if (failedCount > 0) {
+      toast.warning(
+        `${values.files.length - failedCount} of ${values.files.length} files uploaded. Re-upload any that failed.`,
+      );
+    }
+
     reset();
-    // TODO: add local state for optimistic UI
     router.refresh();
     onSuccess();
   };
@@ -82,6 +147,16 @@ export function ScanUploadReceipts({
   useEffect(() => {
     onSubmittingChange(isSubmitting);
   }, [isSubmitting, onSubmittingChange]);
+
+  // Warn browser on refresh/tab-close while uploading
+  useEffect(() => {
+    if (!isSubmitting) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isSubmitting]);
 
   return (
     <form
@@ -113,7 +188,7 @@ export function ScanUploadReceipts({
                 </div>
                 <p className="font-medium text-sm">Drag & drop files here</p>
                 <p className="text-muted-foreground text-xs">
-                  Or click to browse (max 2 files)
+                  Or click to browse (max {MAX_FILES_PER_UPLOAD} files)
                 </p>
               </div>
               <FileUploadTrigger asChild>
@@ -123,9 +198,22 @@ export function ScanUploadReceipts({
               </FileUploadTrigger>
             </FileUploadDropzone>
 
-            <div className="text-sm text-muted-foreground">
-              {files.length} / {MAX_FILES_PER_UPLOAD} attached
-            </div>
+            {isSubmitting ? (
+              <div className="space-y-1">
+                <Progress
+                  value={
+                    files.length > 0 ? (uploadedCount / files.length) * 100 : 0
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Uploading {uploadedCount} / {files.length}...
+                </p>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                {files.length} / {MAX_FILES_PER_UPLOAD} attached
+              </div>
+            )}
 
             <FileUploadList className="overflow-y-auto">
               {files.map((file, i) => (
@@ -133,7 +221,7 @@ export function ScanUploadReceipts({
                   <FileUploadItemPreview />
                   <FileUploadItemMetadata />
                   <FileUploadItemDelete asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" disabled={isSubmitting}>
                       <X />
                     </Button>
                   </FileUploadItemDelete>
