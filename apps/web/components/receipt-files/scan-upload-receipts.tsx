@@ -94,13 +94,13 @@ export function ScanUploadReceipts({
     const uploadsByReceiptId = new Map(uploads.map((u) => [u.receiptId, u]));
 
     // Step 2: Upload each file directly to S3 in parallel, matched by receiptId
-    let failedCount = 0;
+    const uploadResults = new Map<string, boolean>(); // receiptId -> success
     await Promise.all(
       fileEntries.map(async ({ id, file }) => {
         try {
           const upload = uploadsByReceiptId.get(id);
           if (!upload) {
-            failedCount++;
+            uploadResults.set(id, false);
             return;
           }
           const res = await fetch(upload.presignedUrl, {
@@ -108,19 +108,33 @@ export function ScanUploadReceipts({
             body: file,
             headers: { "Content-Type": file.type },
           });
-          if (!res.ok) failedCount++;
+          uploadResults.set(id, res.ok);
         } catch {
-          failedCount++;
+          uploadResults.set(id, false);
         } finally {
           setUploadedCount((c) => c + 1);
         }
       }),
     );
 
-    // Step 3: Confirm — enqueues all receipts; worker handles any missing files gracefully
-    const confirmBody: ConfirmBody = {
-      receiptIds: uploads.map((u) => u.receiptId),
-    };
+    const failedEntries = fileEntries.filter(
+      ({ id }) => !uploadResults.get(id),
+    );
+    if (failedEntries.length > 0) {
+      const names = failedEntries.map(({ file }) => file.name).join(", ");
+      toast.error(
+        `${failedEntries.length} ${failedEntries.length === 1 ? "file" : "files"} failed to upload: ${names}`,
+      );
+    }
+
+    const succeededIds = fileEntries
+      .filter(({ id }) => uploadResults.get(id))
+      .map(({ id }) => id);
+
+    if (succeededIds.length === 0) return;
+
+    // Step 3: Confirm only successful uploads
+    const confirmBody: ConfirmBody = { receiptIds: succeededIds };
 
     const confirmRes = await fetch("/api/receipts", {
       method: "POST",
@@ -131,12 +145,6 @@ export function ScanUploadReceipts({
     if (!confirmRes.ok) {
       toast.error("Upload failed. Please try again.");
       return;
-    }
-
-    if (failedCount > 0) {
-      toast.warning(
-        `${values.files.length - failedCount} of ${values.files.length} files uploaded. Re-upload any that failed.`,
-      );
     }
 
     reset();
