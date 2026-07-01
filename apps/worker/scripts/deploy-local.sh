@@ -13,7 +13,7 @@ HOST_ARCH=$(uname -m)
 LINUX_ARCH="x64"; [ "$HOST_ARCH" = "arm64" ] && LINUX_ARCH="arm64"
 cd dist
 echo '{}' > package.json
-npm install --cpu=$LINUX_ARCH --os=linux --libc=glibc sharp 2>&1 | grep -v "^npm warn"
+npm install --cpu=$LINUX_ARCH --os=linux --libc=glibc sharp@0.34.5 2>&1 | grep -v "^npm warn"
 rm -f package.json package-lock.json
 cd ..
 

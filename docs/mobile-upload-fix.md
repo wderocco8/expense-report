@@ -12,13 +12,24 @@ The client uploads files directly to S3 using backend-generated presigned PUT UR
 
 ---
 
-## Upload Flow (replaces `POST /api/receipts`)
+## Upload Flow
 
-1. **`POST /api/receipts/presign`** — client sends `{ jobId, files: [{ name, type }] }`. Backend verifies auth and job ownership, creates N `receipt_files` DB records (status: `pending`) with pre-assigned S3 keys, returns `[{ receiptId, presignedUrl }]`.
+1. **`POST /api/receipts/presign`** — client sends `{ jobId, files: [{ id, name, type }] }` where `id` is a client-generated UUID (`crypto.randomUUID()`). Backend verifies auth and job ownership, creates N `receipt_files` DB records (status: `pending`) using the client-provided UUID as the primary key (and thus the S3 key), returns `[{ receiptId, presignedUrl }]`.
 
-2. **Client PUTs files directly to S3 in parallel** — one `fetch` PUT per file using the presigned URL. No Vercel involvement. Truly parallel — no batching needed.
+2. **Client PUTs files directly to S3 in parallel** — one `fetch` PUT per file using the presigned URL. No Vercel involvement. Client matches presign response to files by `receiptId` (Map lookup), not by array position. Presigned URLs expire in **60 seconds** — generous for a direct PUT but short enough to limit misuse.
 
-3. **`POST /api/receipts/confirm`** — client sends `{ receiptIds: string[] }`. Backend enqueues SQS for each.
+3. **`POST /api/receipts`** (confirm) — client sends `{ receiptIds: string[] }`. Backend verifies ownership and enqueues SQS for each.
+
+### Why client-generated UUIDs
+
+The client generates a UUID per file before the presign call, sends it as `id`, and the backend uses it as the actual `receiptFile.id` and S3 key. This means:
+- The Map-based `receiptId` match is stable regardless of response ordering
+- The DB record ID, S3 key, and the client's reference all share the same UUID
+- No positional array matching anywhere in the flow
+
+### Why presigned URLs
+
+The web server (Vercel) holds S3 credentials, but presigned URLs let the browser upload directly to S3 without the server ever touching the file bytes. This is the standard pattern for bypassing proxy body limits. The URL is scoped to one specific PUT on one specific key — it can't be used to read other objects or write elsewhere.
 
 ---
 
@@ -27,63 +38,118 @@ The client uploads files directly to S3 using backend-generated presigned PUT UR
 Raw files land in S3 unprocessed. Phase 1 adds a normalization step before calling Textract:
 
 1. Download raw file from S3
-2. If HEIC/HEIF: convert to JPEG using `heic-convert`
+2. If HEIC/HEIF (detected by **magic bytes** at offset 4–12, not MIME type): convert to JPEG using `heic-convert`
 3. Resize and compress with `sharp` for **all** file types: `resize({ width: 1600, withoutEnlargement: true })` + `jpeg({ quality: 0.8 })`
 4. Re-upload processed JPEG to the **same S3 key** (atomic overwrite) with `ContentType: 'image/jpeg'`
 5. Call Textract with the processed key
 
-S3 keys have no extension (see key format above), so there is nothing misleading after the worker overwrites the raw upload with a processed JPEG.
+S3 keys have no extension (see key format below), so there is nothing misleading after the worker overwrites the raw upload with a processed JPEG.
 
 ---
 
 ## Web Layer Changes
 
-**`apps/web/server/services/receipts.service.ts`**
-- Delete `normalizeReceiptImage` and `buildReceiptUpload` — this logic moves to the worker
-- Remove `heic-convert` dependency from the web app
-- Add `generatePresignedPutUrl(key, contentType, expiresIn)` to `storage.service.ts` — uses the existing `@aws-sdk/s3-request-presigner` already in the project
-- Add `presignReceiptUploads(jobId, files)` service function that generates keys, creates DB records, and returns presigned URLs
+**`apps/web/server/services/storage.service.ts`**
+- Added `generatePresignedPutUrl(key, contentType, expiresInSeconds = 60)` using the existing `@aws-sdk/s3-request-presigner`
 
-**New API routes**
-- `POST /api/receipts/presign` — replaces the multipart-handling portion of the current `POST /api/receipts`
-- `POST /api/receipts/confirm` — accepts `{ receiptIds }`, enqueues SQS
+**`apps/web/server/services/receipts.service.ts`**
+- Added `presignReceiptUploads(jobId, files)` — accepts `{ id, name, type }[]` (client-provided UUIDs), creates DB records, returns presigned URLs
+- Kept `persistReceiptFile` / `normalizeReceiptImage` for the manual upload tab (still goes through Vercel, single file, no size issue)
+
+**API routes**
+- `POST /api/receipts/presign` — presign endpoint. Schema lives in `app/api/receipts/presign/schema.ts` (shared with the frontend for type safety without importing server code into the client bundle)
+- `POST /api/receipts` — confirm endpoint, accepts `{ receiptIds }`, enqueues SQS
+- `DELETE /api/receipts` — unchanged
 
 **S3 key format**
 
-Keys use `receipts/{jobId}/{receiptFileId}` — no extension. The receipt DB record ID is generated first and reused as the S3 object name, so both the DB row and the S3 object share the same UUID. The `s3Key` column becomes fully derivable from the record (`receipts/${jobId}/${id}`); keep it explicit on the row for flexibility. Extensions are omitted entirely — S3 and the browser both use `ContentType` metadata, not the filename, so the extension was never meaningful and becomes actively misleading after the worker overwrites HEIC with JPEG.
+Keys use `receipts/{jobId}/{receiptFileId}` — no extension. The receipt DB record ID is the client-generated UUID, reused as the S3 object name. Extensions are omitted — S3 and Textract use `ContentType` metadata, not the filename, and the extension becomes actively misleading after the worker overwrites HEIC with JPEG.
 
 **`apps/web/components/receipt-files/scan-upload-receipts.tsx`**
 
-`onSubmit` changes:
-1. Call `/api/receipts/presign` with file metadata
-2. `await Promise.all(files.map((file, i) => fetch(presignedUrls[i], { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })))` — increment an `uploadedCount` state as each PUT resolves
-3. Call `/api/receipts/confirm` with receiptIds
-4. Close form, `router.refresh()`
-
-**Progress indicator**: show a progress bar or subtle line (e.g. shadcn `Progress`) below the file list while submitting, tracking `uploadedCount / totalFiles`. Disappears once all uploads complete and `/confirm` is called.
-
-**Navigation guard**: while `isSubmitting`, block two scenarios:
-- Sheet close / cancel button: disable or intercept, same pattern as the unsaved-changes guard in `ExtractedExpenseSheet`
-- Page refresh / tab close: add a `beforeunload` listener (like the one in `ExtractedExpenseSheet`) that fires while `isSubmitting` is true
-
-No client-side compression or conversion — none needed.
+`onSubmit` flow:
+1. Generate a UUID per file: `values.files.map(file => ({ id: crypto.randomUUID(), file }))`
+2. Call `/api/receipts/presign` with `{ jobId, files: [{ id, name, type }] }`
+3. Match response by `receiptId` via `Map` (not array index)
+4. `await Promise.all(...)` — PUT each file to its presigned URL, increment `uploadedCount` in `finally`
+5. Call `/api/receipts` confirm with `receiptIds`
+6. Show progress bar (`uploadedCount / files.length`) during step 4
+7. `beforeunload` guard active while `isSubmitting`
 
 ---
 
 ## S3 CORS Configuration
 
-Required for browser PUT requests to succeed. Add a CORS rule to the bucket:
+Only the presigned PUT requires CORS — `<img src>` fetches to S3 for image preview are no-cors and don't trigger CORS checks.
 
 ```json
 [{
-  "AllowedHeaders": ["Content-Type"],
+  "AllowedHeaders": ["*"],
   "AllowedMethods": ["PUT"],
   "AllowedOrigins": ["https://your-app.vercel.app", "http://localhost:3000"],
-  "MaxAgeSeconds": 3600
+  "ExposeHeaders": ["ETag"]
 }]
 ```
 
-This applies to both the production bucket and the local dev bucket.
+`AllowedHeaders: ["*"]` is required because the presigned PUT includes a `Content-Type` header.
+
+---
+
+## Sharp on AWS Lambda
+
+Sharp is a native module (wraps libvips, compiled to a platform-specific `.node` binary). esbuild can bundle JavaScript but cannot inline native binaries, so sharp must be `--external` and physically present in the Lambda zip.
+
+All other dependencies (`dotenv`, `@aws-sdk/*`, `heic-convert`, etc.) are pure JavaScript — esbuild inlines them into `dist/index.js` at build time. Those packages' `node_modules` entries are never needed at Lambda runtime.
+
+### Why the deploy script installs sharp manually
+
+pnpm uses symlinks in `node_modules/` (e.g. `apps/worker/node_modules/sharp -> ../../../node_modules/.pnpm/sharp@.../node_modules/sharp`). Lambda does not support symlinks in deployment packages — they'd be silently ignored at runtime.
+
+CDK packages only `apps/worker/dist/`. So sharp must be installed as real files directly into `dist/node_modules/` before CDK zips that directory.
+
+### Cross-platform binary requirement
+
+`npm install sharp` on macOS installs `@img/sharp-darwin-arm64`. Lambda runs Linux. Three npm flags are all required together to get the Linux binary on a Mac:
+
+```bash
+npm install --cpu=arm64 --os=linux --libc=glibc sharp
+```
+
+- `--cpu` — which CPU architecture (matches your Lambda architecture: arm64 for M-series Mac)
+- `--os=linux` — target OS (overrides macOS detection)
+- `--libc=glibc` — C standard library (Lambda runs Amazon Linux 2023 = glibc; without this flag npm skips the optional binary entirely)
+
+### Version pinning
+
+The sharp version is hardcoded as `0.34.5` in three places:
+- `apps/worker/scripts/deploy-local.sh`
+- `.github/workflows/staging.yml`
+- `.github/workflows/main.yml`
+
+This must match the version declared in `packages/services/package.json` (`"sharp": "^0.34.5"`). When bumping sharp there, update all three deploy files to match.
+
+The sharp entry in `packages/services/package.json` serves two purposes: TypeScript types during development, and the actual runtime binary when running the worker locally with `tsx dev.ts`. For the Lambda, the manually installed copy in `dist/node_modules/` is what executes — the pnpm-managed copy is never included in the zip.
+
+### deploy-local.sh
+
+After `npm run build`:
+1. Detect host arch (`uname -m`) and map to npm's naming (`arm64`/`x64`)
+2. `cd dist && echo '{}' > package.json` — the empty `package.json` stops npm from walking up to the monorepo root, which contains `workspace:*` deps npm can't parse
+3. `npm install --cpu=$LINUX_ARCH --os=linux --libc=glibc sharp@0.34.5`
+4. `rm -f package.json package-lock.json` — clean up before CDK zips `dist/`
+
+### staging.yml / main.yml (CI)
+
+CI runner is Ubuntu (Linux x64), so no cross-platform override is needed. Same pattern: install into `dist/` with an empty `package.json` sentinel, clean up after:
+
+```yaml
+- name: Bundle sharp for Lambda
+  run: |
+    cd apps/worker/dist
+    echo '{}' > package.json
+    npm install --cpu=x64 --os=linux --libc=glibc sharp@0.34.5
+    rm -f package.json package-lock.json
+```
 
 ---
 
@@ -91,8 +157,8 @@ This applies to both the production bucket and the local dev bucket.
 
 - No client-side HEIC conversion library (`heic2any`, WASM)
 - No client-side compression (`browser-image-compression`)
-- No batching — all uploads truly parallel with no ceiling
-- `MAX_FILES_PER_UPLOAD` can be raised or removed; the only remaining constraint is UX
+- No batching — all uploads truly parallel
+- `MAX_FILES_PER_UPLOAD` can be raised; the only remaining constraint is UX
 
 ---
 
@@ -101,3 +167,5 @@ This applies to both the production bucket and the local dev bucket.
 - **Orphaned objects**: If the client uploads to S3 but crashes before calling `/confirm`, SQS is never enqueued and the receipt stays `pending` indefinitely. Acceptable at this scale; mitigatable later with an S3 lifecycle expiry rule on the `receipts/` prefix.
 - **Failed worker normalization**: Corrupt or unsupported file causes `heic-convert`/`sharp` to throw → worker marks receipt `failed`. Raw file remains in S3 until a cleanup pass.
 - **`/confirm` without verifying S3 existence**: Don't add a per-key existence check — just enqueue and let the worker report failure. The check adds latency on the happy path for no benefit.
+- **Presigned URL expiry**: URLs expire in 60 seconds. Direct PUTs complete in seconds even for large files, so this is generous. Short expiry limits the window for URL misuse.
+- **No server-enforced file size on PUT**: The presigned URL has no `ContentLengthRange` condition. An authenticated user could PUT an arbitrarily large file. Mitigatable with `createPresignedPost` instead of `getSignedUrl`, but not implemented — acceptable given auth requirement and low abuse risk.
