@@ -44,12 +44,14 @@ Only an ownership check runs before unconditionally setting `status: "failed"`. 
 
 **Decision (2026-07-03):** Skipped. Requires a stale/replayed client request to trigger; not worth guarding against pre-scale.
 
-## 6. [ ] Duplicate S3 client + duplicate key-building convention
+## 6. [x] ~~Duplicate S3 client + duplicate key-building convention~~ — MOVED TO BACKLOG
 
 **Files:** `packages/services/src/storage/s3.service.ts`, `apps/web/server/services/storage.service.ts`, `apps/web/server/services/receipts.service.ts`
 
 - `s3.service.ts` and `storage.service.ts` each instantiate an independent `S3Client` with near-identical bucket/region/credentials/endpoint config (and an identical `streamToBuffer` helper), with no shared module.
 - `presignReceiptUploads` builds keys as `receipts/{jobId}/{id}` (no extension) while `buildReceiptUpload` in the same file builds `receipts/{jobId}/{uuid}.{ext}` (with extension) — two independently-hardcoded conventions for the same prefix.
+
+**Decision (2026-07-03):** Out of scope for this PR — a proper fix means consolidating storage into `@repo/services` (per CLAUDE.md's documented ownership) and adding `apps/web` as a consumer, which is a real refactor, not a one-liner. Tracked in `tasks/backlog.md` under Medium Priority ("Consolidate Duplicate S3 Client + Unify Receipt S3 Key Convention").
 
 ## 7. [ ] `sharp@0.34.5` hardcoded identically in 3 separate files
 

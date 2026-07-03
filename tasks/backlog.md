@@ -69,6 +69,15 @@ Prioritized list of upcoming work. Move items to `active.md` when starting, `arc
 
 ## Medium Priority
 
+- [ ] Consolidate Duplicate S3 Client + Unify Receipt S3 Key Convention
+  - **Problem**: `packages/services/src/storage/s3.service.ts` (worker) and `apps/web/server/services/storage.service.ts` (web) each instantiate an independent `S3Client` with near-identical bucket/region/credentials/endpoint config, plus a duplicated `streamToBuffer` helper — no shared module, so the two can drift silently (e.g. a retry/timeout/endpoint fix applied to one but not the other)
+  - **Also**: Receipt S3 keys are built two different ways — `presignReceiptUploads` (scan-upload path) uses `receipts/{jobId}/{id}` with no extension, matching the convention documented in `docs/mobile-upload-fix.md`, while `buildReceiptUpload` (manual-upload path) still appends a file extension (`receipts/{jobId}/{uuid}.{ext}`) — out of sync with that doc, which explicitly calls extensions misleading once the worker overwrites HEIC uploads with JPEG in place
+  - **Proposed Solution**:
+    - Move presigned-URL generation (`generatePresignedPutUrl`, `getSignedReceiptUrl`) into `packages/services/src/storage/s3.service.ts` and export it from the package's `index.ts`
+    - Add `@repo/services` as a dependency of `apps/web`, point existing callers at it, and delete `apps/web/server/services/storage.service.ts`'s duplicate `S3Client`
+    - Add one shared `buildReceiptS3Key(jobId, id)` helper (no extension) used by both the manual and presigned upload paths
+  - **Origin**: Flagged in code review of PR #7 (`fix/mobile-upload-resizing`), see `docs/pr7-review-findings.md` #6. Deferred as out of scope for that PR.
+
 - [ ] Export Settings Enhancement
   - [ ] Option to export only completed expenses (exclude failed/pending)
   - [ ] Option to export with/without images attached
