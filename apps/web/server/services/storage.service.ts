@@ -95,7 +95,7 @@ export async function getSignedReceiptUrl(
 export async function generatePresignedPutUrl(
   key: string,
   contentType: string,
-  expiresInSeconds = 60,
+  expiresInSeconds = 60 * 15,
 ) {
   return getSignedUrl(
     s3,

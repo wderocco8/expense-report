@@ -20,23 +20,29 @@ Sharp does not auto-orient by default, and strips the EXIF orientation tag on ou
 
 **Decision (2026-07-03):** Fixed — added `.rotate()` before `.resize()` so sharp auto-orients using EXIF before compressing.
 
-## 3. [ ] Non-atomic per-file DB inserts in presign can orphan `receipt_files` rows
+## 3. [x] ~~Non-atomic per-file DB inserts in presign can orphan `receipt_files` rows~~ — DEFERRED
 
 **File:** `apps/web/server/services/receipts.service.ts:28-44` (`presignReceiptUploads`)
 
 `Promise.all` runs one DB insert + presign per file. If any single insert throws, the whole request rejects and the client never receives any presigned URLs — including for files whose inserts already committed. Those rows are permanently stuck at `pending` with no recovery path (worse than the "orphaned S3 object" case already documented in `docs/mobile-upload-fix.md`).
 
-## 4. [ ] 60s presigned-URL expiry may be too short for large mobile batches
+**Decision (2026-07-03):** Deferred, same reasoning as #1 — DB insert failure mid-batch is low-probability; not worth the added complexity pre-scale. Revisit once there are real users. See `[[feedback_defer_low_probability_error_handling]]`.
 
-**File:** `apps/web/server/services/storage.service.ts:95-98` + `apps/web/app/api/receipts/presign/route.ts`
+## 4. [x] 60s presigned-URL expiry may be too short for large mobile batches — FIXED
+
+**File:** `apps/web/server/services/storage.service.ts:95-99`
 
 All presigned URLs for a batch (up to `MAX_FILES_PER_UPLOAD = 40`) are minted up front, but the client's `Promise.all` PUTs are throttled by the browser's per-host connection limit (~6 concurrent). On a slow mobile connection with many large (up to 15MB) files, later files in the queue may not start their PUT until after the 60s window (which starts at presign time, not PUT-start time) has elapsed, producing spurious `failedIds`.
 
-## 5. [ ] `failedReceiptIds` branch has no guard against overwriting a receipt past `pending`
+**Decision (2026-07-03):** Fixed — bumped default `expiresInSeconds` from 60 to 900 (15 min) in `generatePresignedPutUrl`. Comfortably covers worst-case large-batch/slow-connection scenarios (7 waves of ~6 concurrent uploads × up to ~2 min/file on a poor connection) while remaining short-lived and scoped to a single PUT on a single key.
+
+## 5. [x] ~~`failedReceiptIds` branch has no guard against overwriting a receipt past `pending`~~ — SKIPPED
 
 **File:** `apps/web/app/api/receipts/route.ts:33-39`
 
 Only an ownership check runs before unconditionally setting `status: "failed"`. A stale or replayed `failedReceiptIds` entry referencing an already-`complete` receipt would silently overwrite it to `failed`, hiding a fully-extracted expense even though the extraction data is still intact in the DB.
+
+**Decision (2026-07-03):** Skipped. Requires a stale/replayed client request to trigger; not worth guarding against pre-scale.
 
 ## 6. [ ] Duplicate S3 client + duplicate key-building convention
 
