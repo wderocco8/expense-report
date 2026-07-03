@@ -83,6 +83,7 @@ async function normalizeImage(buffer: Buffer): Promise<Buffer> {
   }
 
   return sharp(input)
+    .rotate()
     .resize({ width: 1600, withoutEnlargement: true })
     .jpeg({ quality: 80 })
     .toBuffer();
