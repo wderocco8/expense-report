@@ -97,7 +97,7 @@ export function ScanUploadReceipts({
     const succeededIds: string[] = [];
     const failedIds: string[] = [];
     await Promise.all(
-      fileEntries.map(async ({ id, file }, i) => {
+      fileEntries.map(async ({ id, file }) => {
         try {
           const upload = uploadsByReceiptId.get(id);
           if (!upload) {
