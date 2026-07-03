@@ -105,9 +105,6 @@ export function ScanUploadReceipts({
             return;
           }
 
-          // TODO: remove - simulate failure for even-indexed receipts
-          if (i % 2 == 0) throw new Error("simulate failure");
-
           const res = await fetch(upload.presignedUrl, {
             method: "PUT",
             body: file,
