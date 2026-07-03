@@ -15,6 +15,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import {
   MAX_FILES_PER_UPLOAD,
+  MAX_FILE_SIZE_BYTES,
   ReceiptUploadInput,
   ReceiptUploadSchema,
 } from "@repo/shared";
@@ -73,6 +74,7 @@ export function ScanUploadReceipts({
         id,
         name: file.name,
         type: file.type,
+        size: file.size,
       })),
     };
 
@@ -188,6 +190,7 @@ export function ScanUploadReceipts({
             }
             accept="image/*"
             maxFiles={MAX_FILES_PER_UPLOAD}
+            maxSize={MAX_FILE_SIZE_BYTES}
             onFileReject={(_, message) => {
               setError("files", { message });
             }}

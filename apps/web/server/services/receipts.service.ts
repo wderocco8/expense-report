@@ -21,7 +21,6 @@ import { receiptFileProblems } from "@/lib/problems/domain/receiptFile";
 // Presigned upload flow (scan receipts)
 // ---------------------------------------------------------------------------
 
-// TODO: how does
 export async function presignReceiptUploads(
   jobId: string,
   files: { id: string; name: string; type: string }[],
