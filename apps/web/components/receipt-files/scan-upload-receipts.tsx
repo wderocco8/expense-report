@@ -94,47 +94,55 @@ export function ScanUploadReceipts({
     const uploadsByReceiptId = new Map(uploads.map((u) => [u.receiptId, u]));
 
     // Step 2: Upload each file directly to S3 in parallel, matched by receiptId
-    const uploadResults = new Map<string, boolean>(); // receiptId -> success
+    const succeededIds: string[] = [];
+    const failedIds: string[] = [];
     await Promise.all(
-      fileEntries.map(async ({ id, file }) => {
+      fileEntries.map(async ({ id, file }, i) => {
         try {
           const upload = uploadsByReceiptId.get(id);
           if (!upload) {
-            uploadResults.set(id, false);
+            failedIds.push(id);
             return;
           }
+
+          // TODO: remove - simulate failure for even-indexed receipts
+          if (i % 2 == 0) throw new Error("simulate failure");
+
           const res = await fetch(upload.presignedUrl, {
             method: "PUT",
             body: file,
             headers: { "Content-Type": file.type },
           });
-          uploadResults.set(id, res.ok);
-        } catch {
-          uploadResults.set(id, false);
+
+          if (res.ok) {
+            succeededIds.push(id);
+          } else {
+            failedIds.push(id);
+          }
+        } catch (err) {
+          console.error(`S3 upload failed for receipt ${id}:`, err);
+          failedIds.push(id);
         } finally {
           setUploadedCount((c) => c + 1);
         }
       }),
     );
 
-    const failedEntries = fileEntries.filter(
-      ({ id }) => !uploadResults.get(id),
-    );
-    if (failedEntries.length > 0) {
-      const names = failedEntries.map(({ file }) => file.name).join(", ");
+    if (failedIds.length > 0) {
+      const failedNames = fileEntries
+        .filter(({ id }) => failedIds.includes(id))
+        .map(({ file }) => file.name)
+        .join(", ");
       toast.error(
-        `${failedEntries.length} ${failedEntries.length === 1 ? "file" : "files"} failed to upload: ${names}`,
+        `${failedIds.length} ${failedIds.length === 1 ? "file" : "files"} failed to upload: ${failedNames}`,
       );
     }
 
-    const succeededIds = fileEntries
-      .filter(({ id }) => uploadResults.get(id))
-      .map(({ id }) => id);
-
-    if (succeededIds.length === 0) return;
-
-    // Step 3: Confirm only successful uploads
-    const confirmBody: ConfirmBody = { receiptIds: succeededIds };
+    // Step 3: Confirm — enqueues successes and immediately marks failures as failed
+    const confirmBody: ConfirmBody = {
+      successReceiptIds: succeededIds,
+      failedReceiptIds: failedIds,
+    };
 
     const confirmRes = await fetch("/api/receipts", {
       method: "POST",
