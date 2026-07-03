@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "esbuild index.ts --bundle --platform=node --target=node20 --external:sharp --outdir=dist",
+    "build": "esbuild index.ts --bundle --platform=node --target=node24 --external:sharp --outdir=dist",
     "deploy:local": "./scripts/deploy-local.sh",
     "deploy:staging": "npm run build && cdk deploy WorkerStack-staging --require-approval never",
     "deploy:prod": "npm run build && cdk deploy WorkerStack-prod --require-approval never",
