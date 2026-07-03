@@ -59,11 +59,13 @@ Only an ownership check runs before unconditionally setting `status: "failed"`. 
 
 Each hardcodes the same install command and version, requiring manual synchronization with no CI check enforcing it (`docs/mobile-upload-fix.md` already admits this). A missed update silently ships a version-mismatched sharp binary to one environment. Consider a single shared script or reading the version from `packages/services/package.json`.
 
-## 8. [ ] `normalizeImage` unconditionally re-runs on every Phase 1 attempt, including retries
+## 8. [x] `normalizeImage` unconditionally re-runs on every Phase 1 attempt, including retries — FIXED
 
-**File:** `packages/services/src/orchestration/phase1-processor.ts` (`normalizeImage`)
+**File:** `packages/services/src/orchestration/phase1-processor.ts` (`normalizeImage`, `skipNormalization`)
 
 No check for "already normalized" before the S3 GET → sharp transform → S3 PUT round trip. Every receipt pays this cost even if already a small compressed JPEG, and any retry (SQS redelivery, transient Textract failure) re-runs a lossy JPEG re-encode on an already-processed image, adding progressive quality loss and wasted Lambda time.
+
+**Decision (2026-07-03):** Fixed — added `skipNormalization(buffer)`, a circuit-breaker that skips the resize/recompress/re-upload path when the input is already JPEG, correctly oriented (EXIF `orientation` undefined or `1`), width ≤ 1600, and size ≤ 2MB. Also skips the S3 PUT entirely in the skip case (not just the sharp transform), since the bytes are unchanged. Went through a couple of iterations to get right — first cut used `new Promise(async (resolve) => ...)`, which could hang forever if `sharp(buffer).metadata()` threw; final version is a plain `async function` with a `try/catch`, which settles correctly on every path.
 
 ---
 

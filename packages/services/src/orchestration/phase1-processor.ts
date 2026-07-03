@@ -29,8 +29,15 @@ export async function processPhase1Ocr(receiptId: string): Promise<void> {
   // then overwrite the same S3 key so Textract and the frontend get a clean JPEG.
   try {
     const raw = await downloadS3Object(receipt.s3Key);
-    const normalized = await normalizeImage(raw);
-    await uploadS3Object(receipt.s3Key, normalized, "image/jpeg");
+    let image = raw;
+
+    if (await skipNormalization(image)) {
+      console.log(`[Phase 1] Skipping normalization, receipt ID: ${receiptId}`);
+    } else {
+      console.log(`[Phase 1] Normalizing, receipt ID: ${receiptId}`);
+      image = await normalizeImage(raw);
+      await uploadS3Object(receipt.s3Key, image, "image/jpeg");
+    }
   } catch (err) {
     await updateReceiptFile(receiptId, {
       status: "failed",
@@ -87,6 +94,35 @@ async function normalizeImage(buffer: Buffer): Promise<Buffer> {
     .resize({ width: 1600, withoutEnlargement: true })
     .jpeg({ quality: 80 })
     .toBuffer();
+}
+
+/**
+ * Returns true if **all** of the following conditions are met
+ * 1. format is jpeg
+ * 2. orientation is undefined or 1 (rotation not required)
+ * 3. width ≤ 1600
+ * 4. size ≤ ~2MB
+ *
+ * @param buffer image input buffer
+ * @returns `true` if can skip normalization else `false`
+ */
+async function skipNormalization(buffer: Buffer): Promise<boolean> {
+  try {
+    const metadata = await sharp(buffer).metadata();
+    if (
+      metadata.format === "jpeg" &&
+      (metadata.orientation === undefined || metadata.orientation === 1) &&
+      metadata.width <= 1600 &&
+      buffer.length <= 2 * 1000 * 1000 // 2MB
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("[Phase 1] Error checking to skip normalization", error);
+    return false;
+  }
 }
 
 // Detects HEIC/HEIF by magic bytes: 'ftyp' box at offset 4.
