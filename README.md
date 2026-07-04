@@ -14,7 +14,7 @@ This is a monorepo using pnpm workspaces with the following services:
 
 ## Prerequisites
 
-- **Node.js**: Version 20 or higher
+- **Node.js**: Version 24 or higher
 - **pnpm**: Version 10.28.1 or higher (specified in `packageManager`)
 - **Docker**: For local infrastructure (PostgreSQL, Neon Proxy, LocalStack)
 - **AWS CLI + LocalStack**: For local Lambda deployment
