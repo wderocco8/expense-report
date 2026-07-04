@@ -80,6 +80,13 @@ jobs:
       - name: Build Lambda
         run: pnpm --filter worker run build
 
+      - name: Bundle sharp for Lambda
+        run: |
+          cd apps/worker/dist
+          echo '{}' > package.json
+          npm install --cpu=x64 --os=linux --libc=glibc sharp@0.34.5
+          rm -f package.json package-lock.json
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:

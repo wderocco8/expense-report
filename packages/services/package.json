@@ -9,7 +9,13 @@
     "@aws-sdk/s3-request-presigner": "^3.956.0",
     "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
+    "heic-convert": "^2.1.0",
     "openai": "^6.9.1",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/heic-convert": "^2.1.0",
+    "@types/node": "^25.9.1"
   }
 }

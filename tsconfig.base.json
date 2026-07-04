@@ -9,8 +9,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "@repo/shared": ["packages/shared/index.ts"],
-      "@repo/db": ["packages/db/index.ts"]
+      "@repo/shared": ["./packages/shared/index.ts"],
+      "@repo/db": ["./packages/db/index.ts"]
     }
   }
 }
