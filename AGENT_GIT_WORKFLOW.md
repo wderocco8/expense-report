@@ -1,12 +1,12 @@
-# Opencode Git Workflow Guide
+# Agent Git Workflow Guide
 
-This document captures the recommended git workflow for using Opencode in this repo, so you don't lose changes or end up with a messy history.
+This document captures the recommended git workflow for using local agents (Claude Code, Opencode, Cursor...) in this repo, so you don't lose changes or end up with a messy history.
 
 ---
 
 ## The Problem
 
-Unlike GitHub Copilot (which shows a per-file inline diff *before* applying changes), Opencode is agentic — it can modify multiple files in one shot and the changes are already applied by the time you see them. This means you need a deliberate strategy to review and recover cleanly.
+Unlike GitHub Copilot (which shows a per-file inline diff _before_ applying changes), many agentic AI tools are CLI based — it can modify multiple files in one shot and the changes are already applied by the time you see them. This means you need a deliberate strategy to review and recover cleanly.
 
 ---
 
@@ -83,14 +83,14 @@ git worktree remove ../my-app-ai-session
 
 ## Quick Reference
 
-| Situation | Command |
-|---|---|
-| Before every Opencode prompt | `git add -A && git commit -m "wip: before opencode prompt"` |
-| Changes were good, commit properly | `git reset HEAD~1` then `git add -A && git commit -m "..."` |
-| Still iterating, squash WIPs later | `git rebase -i HEAD~N` |
-| Changes were bad, start over | `git reset --hard HEAD` |
-| Undo a commit, keep file changes | `git reset HEAD~1` |
-| Undo a commit, discard file changes | `git reset --hard HEAD` |
+| Situation                           | Command                                                     |
+| ----------------------------------- | ----------------------------------------------------------- |
+| Before every Opencode prompt        | `git add -A && git commit -m "wip: before opencode prompt"` |
+| Changes were good, commit properly  | `git reset HEAD~1` then `git add -A && git commit -m "..."` |
+| Still iterating, squash WIPs later  | `git rebase -i HEAD~N`                                      |
+| Changes were bad, start over        | `git reset --hard HEAD`                                     |
+| Undo a commit, keep file changes    | `git reset HEAD~1`                                          |
+| Undo a commit, discard file changes | `git reset --hard HEAD`                                     |
 
 ---
 

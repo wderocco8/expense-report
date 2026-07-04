@@ -11,50 +11,42 @@ import { ReceiptFileUpdateInput } from "@repo/shared";
 import heicConvert from "heic-convert";
 import {
   deleteS3Object,
+  generatePresignedPutUrl,
   uploadReceiptImage,
 } from "@/server/services/storage.service";
 import { NewReceiptFile, ReceiptFile } from "@repo/db/src/schema";
-import { enqueueReceiptProcessing } from "@/server/services/queue.service";
 import { receiptFileProblems } from "@/lib/problems/domain/receiptFile";
 
-/**
- * Ingests a receipt into the system.
- *
- * Handles image normalization, S3 upload, and DB persistence.
- * Optionally triggers further processing (OCR / AI extraction).
- *
- * @param params - Object containing job ID and the file to ingest
- * @param params.jobId - ID of the expense report job
- * @param params.file - Receipt file to ingest
- * @returns The created ReceiptFile record
- */
-export async function queueIngestReceipt({
-  jobId,
-  file,
-}: {
-  jobId: string;
-  file: File;
-}) {
-  const receipt = await ingestReceipt({ jobId, file });
-  await enqueueReceiptProcessing(receipt.id);
+// ---------------------------------------------------------------------------
+// Presigned upload flow (scan receipts)
+// ---------------------------------------------------------------------------
+
+export async function presignReceiptUploads(
+  jobId: string,
+  files: { id: string; name: string; type: string }[],
+): Promise<{ receiptId: string; presignedUrl: string }[]> {
+  return Promise.all(
+    files.map(async (file) => {
+      const id = file.id;
+      const s3Key = `receipts/${jobId}/${id}`;
+
+      await reopCreateReceiptFile({
+        id,
+        jobId,
+        s3Key,
+        originalFilename: file.name,
+      });
+
+      const presignedUrl = await generatePresignedPutUrl(s3Key, file.type);
+
+      return { receiptId: id, presignedUrl };
+    }),
+  );
 }
 
-export async function ingestReceipt({
-  jobId,
-  file,
-}: {
-  jobId: string;
-  file: File;
-}) {
-  const key = await persistReceiptFile({ jobId, file });
-  const receipt = await createReceiptFile({
-    jobId,
-    originalFilename: file.name,
-    s3Key: key,
-  });
-
-  return receipt;
-}
+// ---------------------------------------------------------------------------
+// Manual upload flow (single file, goes through Vercel — kept for manual tab)
+// ---------------------------------------------------------------------------
 
 export async function persistReceiptFile({
   jobId,
@@ -69,27 +61,20 @@ export async function persistReceiptFile({
     jobId,
   });
 
-  await uploadReceiptImage({
-    buffer,
-    contentType,
-    key,
-  });
+  await uploadReceiptImage({ buffer, contentType, key });
 
   return key;
 }
 
-/**
- * Persists a new ReceiptFile record to the database.
- *
- * @param data - Data for the new receipt file
- * @returns The created ReceiptFile record
- */
 export async function createReceiptFile(
   data: NewReceiptFile,
 ): Promise<ReceiptFile> {
-  const job = await reopCreateReceiptFile(data);
-  return job;
+  return reopCreateReceiptFile(data);
 }
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
 export async function updateReceiptFile(
   id: string,
@@ -104,13 +89,6 @@ export async function updateReceiptFile(
   return receipt;
 }
 
-/**
- * Retrieves a ReceiptFile by its ID.
- *
- * @param id - ID of the receipt file to retrieve
- * @returns The matching ReceiptFile record
- * @throws If no receipt file with the given ID exists
- */
 export async function getReceiptFile(id: string): Promise<ReceiptFile> {
   const receipt = repoGetReceiptFile(id);
 
@@ -143,15 +121,9 @@ export async function getReceiptFileWithExpense(
   return receipt;
 }
 
-/**
- * Deletes a receipt file from the database and its associated S3 object
- * @param id - ID of the receipt file to delete
- * @returns The deleted ReceiptFile record
- */
 export async function deleteReceiptFileWithS3(
   id: string,
 ): Promise<ReceiptFile> {
-  // First, get the receipt to know its S3 key
   const receipt = await repoGetReceiptFile(id);
 
   if (!receipt) {
@@ -167,16 +139,10 @@ export async function deleteReceiptFileWithS3(
   return deleted;
 }
 
-/**
- * Normalizes a receipt image file for processing and storage.
- *
- * Currently converts HEIC/HEIF images to JPEG.
- * Future enhancements could include resizing, compression, or orientation fixes.
- *
- * @internal
- * @param file - The file to normalize
- * @returns The normalized File
- */
+// ---------------------------------------------------------------------------
+// Internal — manual upload only
+// ---------------------------------------------------------------------------
+
 async function normalizeReceiptImage(file: File) {
   if (["image/heic", "image/heif"].includes(file.type)) {
     const arrayBuffer = Buffer.from(await file.arrayBuffer());
@@ -193,27 +159,9 @@ async function normalizeReceiptImage(file: File) {
     });
   }
 
-  // Resize files
-  // const resized = await sharp(file.arrayBuffer())
-  //   .resize({ width: 768 }) // or even 512 for receipts
-  //   .jpeg({ quality: 80 })
-  //   .toBuffer();
-
   return file;
 }
 
-/**
- * Prepares a receipt image file for upload.
- *
- * Converts the File to a Buffer, determines content type, and generates a
- * unique storage key scoped to the expense report job.
- *
- * @internal
- * @param params - Object containing the file and job ID
- * @param params.file - The file to upload
- * @param params.jobId - The job ID used to scope the storage key
- * @returns Object containing buffer, content type, and key for S3 upload
- */
 async function buildReceiptUpload({
   file,
   jobId,
@@ -229,7 +177,6 @@ async function buildReceiptUpload({
         ? "png"
         : "img";
   const key = `receipts/${jobId}/${crypto.randomUUID()}.${extension}`;
-  const contentType = file.type;
 
-  return { buffer, contentType, key };
+  return { buffer, contentType: file.type, key };
 }

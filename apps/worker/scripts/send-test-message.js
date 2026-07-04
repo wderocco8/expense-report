@@ -9,7 +9,7 @@ const client = new SQSClient({
   },
 });
 
-const QUEUE_URL = "http://localhost:4566/000000000000/receipts";
+const QUEUE_URL = "http://localhost:4566/000000000000/receipts-local";
 
 async function sendTestMessage() {
   const receiptId = process.argv[2] || "test-receipt-123";
