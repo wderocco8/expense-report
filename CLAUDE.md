@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Root (run from repo root)
+
 ```bash
 pnpm dev                # Start Next.js web dev server (http://localhost:3000)
 pnpm build              # Build web for production
@@ -14,6 +15,7 @@ pnpm db:studio          # Open Drizzle Studio GUI
 ```
 
 ### Worker (run from `apps/worker/`)
+
 ```bash
 pnpm dev                # Run worker locally via tsx (for quick iteration)
 pnpm build              # Bundle Lambda with esbuild → dist/index.js
@@ -22,11 +24,13 @@ pnpm send:test          # Send a test SQS message to trigger the worker
 ```
 
 ### Infrastructure
+
 ```bash
 docker-compose up -d    # Start Postgres + Neon Proxy + LocalStack (required for local dev)
 ```
 
 ### Linting
+
 ```bash
 pnpm --filter web lint  # ESLint for web app
 ```
@@ -78,8 +82,6 @@ Both phases are idempotent — re-running a message in any intermediate state sa
 ### Environment Variables
 
 Secrets live at `~/.config/secrets/expense-report.env` (loaded via `.envrc` if using direnv). Key variables: `DATABASE_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `OPENAI_API_KEY`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
-
-The `S3_ENDPOINT` variable is optional — omit it to use real AWS S3; set it to `http://localhost:9000` for MinIO in local dev. The `forcePathStyle` S3 option is tied to whether `S3_ENDPOINT` is set.
 
 ### Infrastructure
 

@@ -9,6 +9,7 @@ import {
   ColumnFiltersState,
   PaginationState,
   OnChangeFn,
+  RowSelectionState,
 } from "@tanstack/react-table";
 
 import { useState } from "react";
@@ -30,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   isFetching?: boolean;
   rowClassName?: (row: TData) => string;
+  onRowClick?: (row: TData) => void;
+  getRowId?: (row: TData) => string;
   pageCount?: number;
   pagination?: PaginationState;
   onPaginationChange?: OnChangeFn<PaginationState>;
@@ -39,14 +42,17 @@ interface DataTableProps<TData, TValue> {
   sorting?: SortingState;
   onSortingChange?: OnChangeFn<SortingState>;
   totalRows?: number;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   isLoading,
-  isFetching,
   rowClassName,
+  onRowClick,
+  getRowId,
   pageCount,
   pagination,
   onPaginationChange,
@@ -55,10 +61,17 @@ export function DataTable<TData, TValue>({
   manualSorting,
   sorting,
   onSortingChange,
-  totalRows,
+  rowSelection: controlledRowSelection,
+  onRowSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [rowSelection, setRowSelection] = useState({});
+  const [internalRowSelection, setInternalRowSelection] =
+    useState<RowSelectionState>({});
+
+  const isControlled = controlledRowSelection !== undefined;
+  const rowSelection = isControlled
+    ? controlledRowSelection
+    : internalRowSelection;
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -67,8 +80,11 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: onSortingChange,
     onColumnFiltersChange: setColumnFilters,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: isControlled
+      ? onRowSelectionChange
+      : setInternalRowSelection,
     onPaginationChange: onPaginationChange,
+    getRowId: getRowId,
     state: {
       sorting: sorting ?? [],
       columnFilters,
@@ -107,7 +123,6 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              // Loading skeleton rows
               Array.from({ length: skeletonRowCount }).map((_, rowIndex) => (
                 <TableRow key={`skeleton-${rowIndex}`}>
                   {columns.map((_, colIndex) => (
@@ -118,12 +133,14 @@ export function DataTable<TData, TValue>({
                 </TableRow>
               ))
             ) : table.getRowModel().rows?.length ? (
-              // Normal rows
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={rowClassName ? rowClassName(row.original) : ""}
+                  className={`${rowClassName ? rowClassName(row.original) : ""}${onRowClick ? " cursor-pointer" : ""}`}
                   data-state={row.getIsSelected() && "selected"}
+                  onClick={
+                    onRowClick ? () => onRowClick(row.original) : undefined
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -136,7 +153,6 @@ export function DataTable<TData, TValue>({
                 </TableRow>
               ))
             ) : (
-              // Empty state
               <TableRow>
                 <TableCell
                   colSpan={columns.length}

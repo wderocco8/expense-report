@@ -1,6 +1,7 @@
 import {
   ColumnFiltersState,
   PaginationState,
+  RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
 import { useState } from "react";
@@ -13,6 +14,7 @@ export function useServerTableState() {
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filters, setFilters] = useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   return {
     pagination,
@@ -21,5 +23,7 @@ export function useServerTableState() {
     setSorting,
     filters,
     setFilters,
+    rowSelection,
+    setRowSelection,
   };
 }

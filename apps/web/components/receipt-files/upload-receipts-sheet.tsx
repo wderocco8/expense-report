@@ -32,14 +32,26 @@ export function UploadReceiptsSheet({
   const [scanSubmitting, setScanSubmitting] = useState(false);
   const [manualSubmitting, setManualSubmitting] = useState(false);
 
+  const isSubmitting = scanSubmitting || manualSubmitting;
+
   const handleSuccess = () => {
     onOpenChange(false);
     onSuccess();
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right-resize" className="flex flex-col">
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && isSubmitting) return;
+        onOpenChange(next);
+      }}
+    >
+      <SheetContent
+        side="right"
+        className="flex flex-col"
+        showCloseButton={false}
+      >
         <SheetHeader>
           <SheetTitle>Upload Expense</SheetTitle>
           <SheetDescription>
@@ -103,7 +115,9 @@ export function UploadReceiptsSheet({
             </Button>
           )}
           <SheetClose asChild>
-            <Button variant="outline">Close</Button>
+            <Button variant="outline" disabled={isSubmitting}>
+              Cancel
+            </Button>
           </SheetClose>
         </SheetFooter>
       </SheetContent>
