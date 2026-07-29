@@ -15,80 +15,62 @@
       {
         "name": "accounts",
         "schemaName": "public",
-        "x": 856,
-        "y": 56
+        "x": 336,
+        "y": 460.12670258645164
       },
       {
         "name": "sessions",
         "schemaName": "public",
-        "x": 856,
-        "y": 544
+        "x": 336,
+        "y": 956.1690250259828
       },
       {
         "name": "verifications",
         "schemaName": "public",
-        "x": 16,
+        "x": 38.11642184582428,
         "y": 16
-      },
-      {
-        "name": "organizations",
-        "schemaName": "public",
-        "x": 336,
-        "y": 440
-      },
-      {
-        "name": "members",
-        "schemaName": "public",
-        "x": 856,
-        "y": 944
-      },
-      {
-        "name": "invitations",
-        "schemaName": "public",
-        "x": 856,
-        "y": 1184
-      },
-      {
-        "name": "org_schemas",
-        "schemaName": "public",
-        "x": 1472,
-        "y": 16
-      },
-      {
-        "name": "schema_versions",
-        "schemaName": "public",
-        "x": 856,
-        "y": 1552
       },
       {
         "name": "expense_report_jobs_table",
         "schemaName": "public",
-        "x": 1472,
-        "y": 376
+        "x": 1094.0695272694968,
+        "y": 16
       },
       {
         "name": "receipt_files_table",
         "schemaName": "public",
-        "x": 1992,
+        "x": 1436.3579333166701,
         "y": 16
       },
       {
         "name": "ocr_results_table",
         "schemaName": "public",
-        "x": 2528,
-        "y": 56
+        "x": 1436.3579333166701,
+        "y": 474.8582953830411
       },
       {
         "name": "extracted_expenses_table",
         "schemaName": "public",
-        "x": 3032,
-        "y": 16
+        "x": 1436.3579333166701,
+        "y": 734.7267923151239
       },
       {
-        "name": "org_usage",
+        "name": "user_schemas_table",
         "schemaName": "public",
-        "x": 856,
-        "y": 1824
+        "x": 727.8530726935517,
+        "y": 314.05380267180107
+      },
+      {
+        "name": "schema_versions_table",
+        "schemaName": "public",
+        "x": 727.8530726935517,
+        "y": 688.0217961100092
+      },
+      {
+        "name": "user_usage_table",
+        "schemaName": "public",
+        "x": 727.8530726935517,
+        "y": 16
       }
     ],
     "tableGroupCollapseStates": [],
@@ -405,6 +387,96 @@
           "org_id"
         ],
         "secondTableName": "org_usage",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "user_schemas_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "schema_versions_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "active_version_id"
+        ],
+        "secondTableName": "user_schemas_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "user_schemas_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "schema_id"
+        ],
+        "secondTableName": "schema_versions_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "schema_versions_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "schema_version_id"
+        ],
+        "secondTableName": "expense_report_jobs_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "schema_versions_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "schema_version_id"
+        ],
+        "secondTableName": "extracted_expenses_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "user_usage_table",
         "secondSchemaName": "public",
         "secondRelation": "*",
         "checkPoints": []
