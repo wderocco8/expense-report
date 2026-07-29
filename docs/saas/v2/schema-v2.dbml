@@ -4,16 +4,17 @@
 // ============================================================
 //
 // Key changes from v1:
-//   - New tables: user_schemas_table, schema_versions_table, user_usage_table
+//   - New tables: schemas_table, schema_versions_table, user_usage_table
 //   - expense_report_jobs_table: +schema_version_id (NOT NULL)
 //   - extracted_expenses_table: removed typed field columns (merchant,
 //     description, category, transport_details), replaced with
-//     extracted_fields JSONB (NOT NULL) + schema_version_id (NOT NULL).
-//     amount + date retained as typed columns (universal, needed for
-//     aggregation).
+//     extracted_fields JSONB (NOT NULL) + schema_version_id (NOT NULL)
+//     + confidence_flags JSONB (NOT NULL). amount + date retained as
+//     typed columns (universal, needed for aggregation).
 //   - category enum: REMOVED (categories are now part of schema config)
-//   - receipt_status enum: +needs_review (a required, non-extractable
-//     field was left empty at extraction time; see plan.md Decision 8)
+//   - receipt_status enum: +needs_review (a required field is either
+//     null or flagged low-confidence at extraction time; see plan.md
+//     Decisions 8-9)
 //
 // Explicitly NOT in this version: organizations, members, invitations,
 // and any org_id columns. See plan.md Phase 4 for the deferred design
@@ -21,9 +22,16 @@
 // column per table — cheap to add later, which is why it's deferred
 // rather than built speculatively now).
 //
+// Table naming: `schemas_table` (not `user_schemas_table`) because the
+// ownership axis is expected to shift toward org-scoping in Phase 4 —
+// the name shouldn't bake in an assumption slated to change. The `_table`
+// suffix (matching every other table here) is what disambiguates it from
+// Postgres's own "schema" namespace concept.
+//
 // System fields: `amount` and `date` are always present on every
 // extracted expense as typed columns. They are implicit in every
-// schema version and cannot be removed by the user.
+// schema version, cannot be removed by the user, and are valid
+// showWhen.field references despite not living in the fields JSONB.
 //
 // Custom fields: everything else lives in extracted_fields JSONB,
 // keyed by SchemaFieldDefinition.key. The schema_version_id on the
@@ -52,7 +60,7 @@ Enum "receipt_status" {
   "ocr_complete"
   "extracting"
   "complete"
-  "needs_review" // extraction finished, but a required+non-extractable field is still empty; awaits user input
+  "needs_review" // extraction finished, but a required field is null and/or flagged in confidence_flags; awaits user input
   "failed"
 }
 
@@ -147,7 +155,7 @@ Table "verifications" {
 // Schema configuration tables (custom)
 // ────────────────────────────────────────────
 
-Table "user_schemas_table" {
+Table "schemas_table" {
   // NEW: a user can have multiple named schemas, but only one active at a time.
   // On user creation, a default schema is automatically seeded (active = true).
   "id" uuid [pk, default: `gen_random_uuid()`]
@@ -172,9 +180,9 @@ Table "user_schemas_table" {
   '''
 
   Indexes {
-    id [unique, name: "user_schemas_table_pkey"]
-    user_id [name: "user_schemas_user_id_idx"]
-    (user_id) [unique, name: "user_schemas_one_active_per_user", note: "WHERE is_active = true"]
+    id [unique, name: "schemas_table_pkey"]
+    user_id [name: "schemas_user_id_idx"]
+    (user_id) [unique, name: "schemas_one_active_per_user", note: "WHERE is_active = true"]
   }
 }
 
@@ -200,18 +208,27 @@ Table "schema_versions_table" {
   //   ...
   // ]
   //
-  // `groups` JSONB shape (FieldGroup[]):
+  // `groups` JSONB shape (FieldGroup[]) — a group is a PURE label/description,
+  // it has no showWhen of its own. Its fieldset renders in the UI iff at
+  // least one member field (by groupId) currently evaluates visible via
+  // that field's own showWhen. See plan.md Decision 6.
   // [
   //   {
   //     "id":          "transport_details",
   //     "label":       "Transport Details",
-  //     "description": "Transport-specific details regarding your receipt",
-  //     "showWhen":    { "field": "category", "op": "eq", "value": "transport" }
+  //     "description": "Transport-specific details regarding your receipt"
   //   },
   //   ...
   // ]
   //
   // ShowWhen shape: { field: string, op: "eq" | "neq" | "in", value: string | string[] }
+  // `field` may reference a custom field key OR the reserved system keys
+  // "amount" / "date" (typed columns, not present in this fields array —
+  // evaluators must resolve against { amount, date, ...extractedFields }).
+  //
+  // Known v1 limitations (see plan.md 1.3 + Open Questions): no compound
+  // (AND/OR) conditions, no comparison operators beyond eq/neq/in, no
+  // cycle detection across field dependencies. All deliberately deferred.
   //
   // System fields (amount, date) are NOT stored here — they are
   // always present as typed columns on extracted_expenses_table.
@@ -233,9 +250,11 @@ Table "schema_versions_table" {
     - Keys "amount" and "date" are reserved (system fields)
     - Every showWhen.field and every field.groupId must reference a real
       field/group key within the same version
+    - (Deferred) no circular showWhen dependencies across fields — not yet
+      enforced, flagged as a cheap future addition
 
-  No created_by column, for the same reason as user_schemas_table — the
-  owner is always derivable via schema_id -> user_schemas_table.user_id.
+  No created_by column, for the same reason as schemas_table — the
+  owner is always derivable via schema_id -> schemas_table.user_id.
   '''
 
   Indexes {
@@ -293,12 +312,16 @@ Table "receipt_files_table" {
 }
 
 Table "ocr_results_table" {
-  // No changes from v1.
+  // No changes from v1. SlimSummaryField.confidence (per-field, AWS-provided,
+  // 0-100) already survives here inside extracted_text — see plan.md 2.7 /
+  // Decision 9 for how it's consumed downstream. Note that line-item field
+  // confidence is currently dropped in the Textract transform and is not
+  // used by the confidence-flag signals in this version.
   "id" uuid [pk, default: `gen_random_uuid()`]
   "receipt_id" uuid [not null]
   "extracted_text" jsonb [not null]  // SlimOcrResult: summaryFields + lineItems + rawText
   "provider" text
-  "confidence" numeric(5,2)
+  "confidence" numeric(5,2)          // averaged across summaryFields only; see plan.md 2.7 for per-field usage
   "created_at" timestamp [not null, default: `now()`]
 
   Indexes {
@@ -310,7 +333,8 @@ Table "ocr_results_table" {
 Table "extracted_expenses_table" {
   // MODIFIED from v1:
   //   REMOVED: merchant, description, category (enum), transport_details
-  //   ADDED:   extracted_fields (JSONB, NOT NULL), schema_version_id (NOT NULL)
+  //   ADDED:   extracted_fields (JSONB, NOT NULL), schema_version_id (NOT NULL),
+  //            confidence_flags (JSONB, NOT NULL)
   //   RETAINED: amount, date as typed columns (system fields — always present,
   //             needed for DB-level aggregation, sorting, and date range filtering)
   "id" uuid [pk, default: `gen_random_uuid()`]
@@ -325,6 +349,14 @@ Table "extracted_expenses_table" {
   // Flexible fields — all user-defined fields keyed by SchemaFieldDefinition.key
   // e.g. { "merchant": "Shell", "category": "fuel", "project_code": null }
   "extracted_fields" jsonb [not null, default: '{}']
+
+  // Confidence signals (plan.md 2.7 / Decision 9) — flat map of fieldKey ->
+  // reason, e.g. { "amount": "ocr_mismatch", "date": "low_ocr_confidence" }.
+  // Populated only for fields with a known Textract mapping or the amount
+  // cross-check; most custom fields will never appear here. A flagged
+  // REQUIRED field forces receipt_status = needs_review; flagged optional
+  // fields are shown as a soft warning in the review UI only.
+  "confidence_flags" jsonb [not null, default: '{}']
 
   // Metadata
   "raw_json" jsonb                   // full AI response before validation, for debugging
@@ -381,9 +413,9 @@ Ref "accounts_user_id_fk":               "users"."id"         < "accounts"."user
 Ref "sessions_user_id_fk":               "users"."id"         < "sessions"."user_id"              [delete: cascade]
 
 // Schema config
-Ref "user_schemas_user_id_fk":           "users"."id"            < "user_schemas_table"."user_id"          [delete: cascade]
-Ref "user_schemas_active_version_fk":    "schema_versions_table"."id" < "user_schemas_table"."active_version_id" [delete: set null]
-Ref "schema_versions_schema_id_fk":      "user_schemas_table"."id" < "schema_versions_table"."schema_id"    [delete: cascade]
+Ref "schemas_user_id_fk":                "users"."id"            < "schemas_table"."user_id"              [delete: cascade]
+Ref "schemas_active_version_fk":         "schema_versions_table"."id" < "schemas_table"."active_version_id" [delete: set null]
+Ref "schema_versions_schema_id_fk":      "schemas_table"."id"    < "schema_versions_table"."schema_id"    [delete: cascade]
 
 // Jobs (updated)
 Ref "jobs_user_id_fk":                   "users"."id"         < "expense_report_jobs_table"."user_id"             [delete: cascade]

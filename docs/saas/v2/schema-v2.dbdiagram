@@ -55,12 +55,6 @@
         "y": 734.7267923151239
       },
       {
-        "name": "user_schemas_table",
-        "schemaName": "public",
-        "x": 727.8530726935517,
-        "y": 314.05380267180107
-      },
-      {
         "name": "schema_versions_table",
         "schemaName": "public",
         "x": 727.8530726935517,
@@ -71,6 +65,12 @@
         "schemaName": "public",
         "x": 727.8530726935517,
         "y": 16
+      },
+      {
+        "name": "schemas_table",
+        "schemaName": "public",
+        "x": 732.3525844123017,
+        "y": 311.80144501909416
       }
     ],
     "tableGroupCollapseStates": [],
@@ -477,6 +477,51 @@
           "user_id"
         ],
         "secondTableName": "user_usage_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "schemas_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "schema_versions_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "active_version_id"
+        ],
+        "secondTableName": "schemas_table",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "schemas_table",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "schema_id"
+        ],
+        "secondTableName": "schema_versions_table",
         "secondSchemaName": "public",
         "secondRelation": "*",
         "checkPoints": []
