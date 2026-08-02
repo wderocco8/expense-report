@@ -8,7 +8,9 @@
     "deploy:staging": "npm run build && cdk deploy WorkerStack-staging --require-approval never",
     "deploy:prod": "npm run build && cdk deploy WorkerStack-prod --require-approval never",
     "send:test": "node scripts/send-test-message.js",
-    "dev": "tsx dev.ts"
+    "dev": "tsx dev.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.975.0",

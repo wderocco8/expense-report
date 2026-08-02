@@ -1,6 +1,5 @@
 import {
   TextractClient,
-  DetectDocumentTextCommand,
   AnalyzeExpenseCommand,
 } from "@aws-sdk/client-textract";
 import { OcrResult, OcrService } from "./ocr.interface";
