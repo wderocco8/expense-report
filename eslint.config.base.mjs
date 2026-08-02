@@ -14,6 +14,12 @@ export default tseslint.config(
     rules: {
       // Catches circular imports between/within workspace packages at lint time.
       "import-x/no-cycle": "error",
+      // tsc --noEmit is the authoritative check for "does this import resolve"
+      // (fails as TS2307 otherwise). This rule re-resolves each import via
+      // TypeScript's resolveModuleName API and false-positives on ambient-only
+      // @types packages (e.g. @types/aws-lambda, which has no real on-disk
+      // "aws-lambda" module — it's a global `declare module` merge).
+      "import-x/no-unresolved": "off",
     },
   },
   {
