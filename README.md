@@ -33,7 +33,7 @@ Create a secrets file at `~/.config/secrets/expense-report.env` with the followi
 
 ```env
 # Database (automatically configured via Docker)
-DATABASE_URL="postgres://postgres:postgres@db.localtest.me:4444/main"
+DATABASE_URL="postgres://postgres:postgres@db.localtest.me:4444/expense_v2"
 
 S3_ENDPOINT="https://s3.us-east-2.amazonaws.com"
 S3_REGION="us-east-2"
@@ -85,7 +85,7 @@ pnpm run db:generate
 Run migrations:
 
 ```bash
-DATABASE_URL="postgres://postgres:postgres@localhost:5432/main" pnpm run db:migrate
+DATABASE_URL="postgres://postgres:postgres@localhost:5432/expense_v2" pnpm run db:migrate
 ```
 
 Or using the migrations env file:
