@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "auth:generate": "dotenv -e .env.migrations -- npx @better-auth/cli@latest generate"
   },
   "dependencies": {

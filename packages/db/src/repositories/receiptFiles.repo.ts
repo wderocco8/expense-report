@@ -130,7 +130,7 @@ export async function getReceiptFilesByJobId({
   const total = Number(countResult?.count ?? 0);
   const offset = (page - 1) * limit;
 
-  let orderByClause: any[] = [];
+  let orderByClause: SQL[] = [];
   if (sort && sort.length > 0) {
     orderByClause = sort.map((s) => {
       const column = receiptFiles[s.field];

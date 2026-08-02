@@ -4,7 +4,7 @@ import { neon, neonConfig, Pool } from "@neondatabase/serverless";
 import ws from "ws";
 import * as schema from "./schema";
 
-let connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error("Database connectionString is not defined");

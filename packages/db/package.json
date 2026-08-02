@@ -7,7 +7,9 @@
     "db:migrate": "dotenv -e .env.migrations -o -- drizzle-kit migrate",
     "db:generate": "dotenv -e .env.migrations -o -- drizzle-kit generate",
     "db:push": "dotenv -e .env.migrations -o -- drizzle-kit push",
-    "db:studio": "dotenv -e .env.migrations -o -- drizzle-kit studio"
+    "db:studio": "dotenv -e .env.migrations -o -- drizzle-kit studio",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

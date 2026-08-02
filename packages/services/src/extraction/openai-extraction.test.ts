@@ -101,7 +101,7 @@ const uberReceiptOcr: SlimOcrResult = {
       type: "OTHER",
       label: "Reprint #:",
       value: "1",
-      confidence: 99.98037719726562,
+      confidence: 99.9803771972656,
     },
   ],
   lineItems: [
@@ -157,36 +157,36 @@ const uberReceiptOcr: SlimOcrResult = {
 // into the same prompt format that buildPrompt() will produce so the test
 // reflects the actual input OpenAI will receive.
 // ---------------------------------------------------------------------------
-function buildPrompt(ocr: SlimOcrResult): string {
-  const fields = ocr.summaryFields
-    .map((f) => `${f.type}${f.label ? ` (${f.label})` : ""}: ${f.value}`)
-    .join("\n");
+// function buildPrompt(ocr: SlimOcrResult): string {
+//   const fields = ocr.summaryFields
+//     .map((f) => `${f.type}${f.label ? ` (${f.label})` : ""}: ${f.value}`)
+//     .join("\n");
 
-  const items = ocr.lineItems
-    .map((li, i) =>
-      [
-        `Item ${i + 1}:`,
-        li.description ? `  description: ${li.description}` : null,
-        li.quantity ? `  quantity: ${li.quantity}` : null,
-        li.unitPrice ? `  unit_price: ${li.unitPrice}` : null,
-        li.total ? `  total: ${li.total}` : null,
-        li.row ? `  row: ${li.row}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    )
-    .join("\n");
+//   const items = ocr.lineItems
+//     .map((li, i) =>
+//       [
+//         `Item ${i + 1}:`,
+//         li.description ? `  description: ${li.description}` : null,
+//         li.quantity ? `  quantity: ${li.quantity}` : null,
+//         li.unitPrice ? `  unit_price: ${li.unitPrice}` : null,
+//         li.total ? `  total: ${li.total}` : null,
+//         li.row ? `  row: ${li.row}` : null,
+//       ]
+//         .filter(Boolean)
+//         .join("\n"),
+//     )
+//     .join("\n");
 
-  return [
-    "## Structured fields (extracted by Textract)",
-    fields,
-    items ? `\n## Line items\n${items}` : "",
-    "\n## Full receipt text (completeness fallback)",
-    ocr.rawText,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
+//   return [
+//     "## Structured fields (extracted by Textract)",
+//     fields,
+//     items ? `\n## Line items\n${items}` : "",
+//     "\n## Full receipt text (completeness fallback)",
+//     ocr.rawText,
+//   ]
+//     .filter(Boolean)
+//     .join("\n");
+// }
 
 // ---------------------------------------------------------------------------
 // Test runner

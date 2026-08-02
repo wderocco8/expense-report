@@ -8,6 +8,16 @@
     "start": "pnpm --filter web start",
     "db:generate": "pnpm --filter @repo/db db:generate",
     "db:migrate": "pnpm --filter @repo/db db:migrate",
-    "db:studio": "pnpm --filter @repo/db db:studio"
+    "db:studio": "pnpm --filter @repo/db db:studio",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "eslint": "catalog:",
+    "eslint-import-resolver-typescript": "catalog:",
+    "eslint-plugin-import-x": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   }
 }
