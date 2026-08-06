@@ -30,12 +30,12 @@ export async function createExpenseReportJob(
 }
 
 export async function getExpenseReportJobs(
-  userId: string,
+  userId?: string,
 ): Promise<ExpenseReportJob[]> {
   return await db
     .select()
     .from(expenseReportJobs)
-    .where(eq(expenseReportJobs.userId, userId));
+    .where(userId ? eq(expenseReportJobs.userId, userId) : undefined);
 }
 
 export async function getExpenseReportJob(
@@ -51,6 +51,19 @@ export async function getExpenseReportJob(
         eq(expenseReportJobs.userId, userId),
       ),
     );
+
+  return job;
+}
+
+// Unfiltered by id — callers are responsible for verifying the caller
+// is either the job's owner or an admin before using the result.
+export async function getExpenseReportJobById(
+  jobId: string,
+): Promise<ExpenseReportJob | undefined> {
+  const [job] = await db
+    .select()
+    .from(expenseReportJobs)
+    .where(eq(expenseReportJobs.id, jobId));
 
   return job;
 }
@@ -90,7 +103,7 @@ export async function getExpenseReportJobWithReceiptAndExpense(jobId: string) {
 }
 
 // TODO: this function seems very unoptimized
-export async function getExpenseReportJobsWithProgress(userId: string) {
+export async function getExpenseReportJobsWithProgress(userId?: string) {
   const jobs = await getExpenseReportJobs(userId);
 
   return await Promise.all(

@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/api";
+import { isAdmin } from "@/lib/auth/roles";
 import { AuthProblems } from "@/lib/auth/auth.problems";
 import { respondProblem } from "@/lib/http/respond";
 import { withProblems } from "@/lib/problems/wrapper";
@@ -19,7 +20,10 @@ export const GET = withProblems<RouteCtx>(async (req, { params }) => {
 
   const receipt = await getReceiptFileWithJob(id);
 
-  if (receipt.job.userId !== authResult.session.user.id) {
+  if (
+    receipt.job.userId !== authResult.session.user.id &&
+    !isAdmin(authResult.session.user)
+  ) {
     return respondProblem(AuthProblems.unauthorized());
   }
 

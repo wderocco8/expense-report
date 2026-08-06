@@ -1,8 +1,9 @@
 import { requireApiAuth } from "@/lib/auth/api";
+import { isAdmin } from "@/lib/auth/roles";
 import { AuthProblems } from "@/lib/auth/auth.problems";
 import { respondProblem } from "@/lib/http/respond";
 import { withProblems } from "@/lib/problems/wrapper";
-import { getReceiptFilesByJobId, getExpenseReportJob } from "@repo/db";
+import { getReceiptFilesByJobId, getExpenseReportJobById } from "@repo/db";
 import { NextResponse } from "next/server";
 import { problem } from "@/lib/problems/problem";
 import { z } from "zod";
@@ -46,14 +47,16 @@ export const GET = withProblems<RouteCtx>(async (req, { params }) => {
 
   const jobId = z.uuid().parse((await params).jobId);
 
-  const job = await getExpenseReportJob(jobId, authResult.session.user.id);
+  const job = await getExpenseReportJobById(jobId);
 
   if (!job) {
     throw expenseReportJobProblems.notFoundById(jobId);
   }
 
-  // TODO: decide if we want to offload this to the repo
-  if (job.userId !== authResult.session.user.id) {
+  if (
+    job.userId !== authResult.session.user.id &&
+    !isAdmin(authResult.session.user)
+  ) {
     return respondProblem(AuthProblems.unauthorized());
   }
 

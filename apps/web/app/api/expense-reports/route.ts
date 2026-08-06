@@ -6,6 +6,7 @@ import {
 import { ExpenseReportCreateSchema } from "@repo/shared";
 import { z } from "zod";
 import { requireApiAuth } from "@/lib/auth/api";
+import { isAdmin } from "@/lib/auth/roles";
 import { respondProblem } from "@/lib/http/respond";
 import { withProblems } from "@/lib/problems/wrapper";
 
@@ -36,7 +37,7 @@ export const GET = withProblems(async () => {
   if (!authResult.ok) return respondProblem(authResult.problem);
 
   const jobs = await getExpenseReportJobsWithProgress(
-    authResult.session.user.id,
+    isAdmin(authResult.session.user) ? undefined : authResult.session.user.id,
   );
 
   return NextResponse.json(jobs, { status: 200 });

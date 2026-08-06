@@ -1,7 +1,9 @@
 import { requireApiAuth } from "@/lib/auth/api";
+import { isAdmin } from "@/lib/auth/roles";
 import { respondProblem } from "@/lib/http/respond";
 import { withProblems } from "@/lib/problems/wrapper";
-import { getExpenseReport } from "@/server/services/expenseReports.service";
+import { getExpenseReportJobById } from "@/server/services/expenseReports.service";
+import { expenseReportJobProblems } from "@/lib/problems/domain/expenseReportJob";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -17,7 +19,15 @@ export const GET = withProblems<RouteCtx>(async (req, { params }) => {
 
   const id = z.uuid().parse((await params).id);
 
-  const expense = await getExpenseReport(id, authResult.session.user.id);
+  const job = await getExpenseReportJobById(id);
 
-  return NextResponse.json(expense, { status: 200 });
+  if (
+    !job ||
+    (job.userId !== authResult.session.user.id &&
+      !isAdmin(authResult.session.user))
+  ) {
+    throw expenseReportJobProblems.notFoundById(id);
+  }
+
+  return NextResponse.json(job, { status: 200 });
 });

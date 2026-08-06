@@ -2,6 +2,7 @@ import {
   createExpenseReportJob as repoCreateExpenseReportJob,
   getExpenseReportJobs as repoGetExpenseReportJobs,
   getExpenseReportJob as repoGetExpenseReportJob,
+  getExpenseReportJobById as repoGetExpenseReportJobById,
   getExpenseReportJobWithFiles as repoGetExpenseReportJobWithFiles,
   getExpenseReportJobWithReceiptAndExpense as repoGetExpenseReportJobWithReceiptAndExpense,
   getExpenseReportJobsWithProgress as repoGetExpenseReportJobsWithProgress,
@@ -53,6 +54,12 @@ export async function getExpenseReport(
   return job;
 }
 
+export async function getExpenseReportJobById(
+  jobId: string,
+): Promise<ExpenseReportJob | undefined> {
+  return repoGetExpenseReportJobById(jobId);
+}
+
 export async function getExpenseReportWithFiles(
   jobId: string,
   userId: string,
@@ -77,7 +84,7 @@ export async function exportExpenseReport(jobId: string) {
 }
 
 export async function getExpenseReportJobsWithProgress(
-  userId: string,
+  userId?: string,
 ): Promise<ExpenseReportJobsWithProgress> {
   return repoGetExpenseReportJobsWithProgress(userId);
 }
