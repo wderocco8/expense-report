@@ -65,6 +65,26 @@ Prioritized list of upcoming work. Move items to `active.md` when starting, `arc
   - Add retry button with confirmation dialog
   - Track retry attempts and limit to prevent abuse
 
+- [ ] Admin: View Other Users' Expense Reports (Support/Troubleshooting)
+  - **Goal**: Let users with `role: "admin"` view (read-only) other users' expense reports/receipts, to help troubleshoot data for newly onboarded users (e.g. family members).
+  - **Design direction** (discussed, not yet implemented — prior attempt was scrapped to restart clean):
+    - Resolve access per-record against the actual DB owner (e.g. `expenseReportJobs.userId`), i.e. `record.userId === session.user.id || isAdmin(user)` — checked against the row itself, not an out-of-band "view as" signal (query param or cookie). Avoids needing every frontend call site to pass extra state, and doesn't add DB calls beyond what's already there (just drop/relax the `WHERE userId = ...` filter).
+    - List endpoints: admin sees all rows (no owner filter).
+    - Detail endpoints: fetch record by ID only (no owner filter baked into the query), then check ownership-or-admin before returning.
+    - Scope to read-only for now — mutation routes (delete, confirm, patch, presign uploads) stay strictly self-scoped; do not extend admin bypass to writes.
+    - Centralize the ownership check into one shared helper (e.g. `assertOwnerOrAdmin`) instead of duplicating the inline condition per route — reduces the chance of gaps like the ones tracked above.
+  - **Longer-term consideration**: if/when there's real multi-tenant or compliance risk, revisit Postgres Row-Level Security (RLS) as a DB-enforced backstop. Non-trivial with the current Neon HTTP-proxy + Drizzle setup (RLS wants per-request session context, which doesn't map cleanly onto the serverless HTTP driver) — not worth the investment at current (2-user) scale.
+
+- [ ] Authorization Gaps — Some Read Routes Missing Ownership Checks
+  - **Problem**: `GET /api/expense-reports/[id]/export` and `GET /api/receipts/[id]/extracted-expense` fetch and return data by ID with no check that the record belongs to the requesting user. Any authenticated user who knows/guesses a valid UUID can export another user's expense report or view another user's extracted expense data.
+  - **Expected Behavior**: Every route that fetches a record by ID should verify the record's owner (`job.userId`, or the owning job's `userId` for nested resources like receipts/expenses) matches the requesting user before returning data — mirroring the checks already present in `receipts/[id]/route.ts` and `receipts/[id]/image/route.ts`.
+  - **Origin**: Found while investigating the admin-view feature below.
+
+- [ ] Cross-User Access Fails Silently Instead of Erroring
+  - **Problem**: When a user hits a URL for a resource they don't own, the page doesn't show an error — the data just doesn't load (blank/stuck state) instead of a clear "not found" / "unauthorized" message.
+  - **Expected Behavior**: Frontend data-loading code should surface non-2xx Problem Details responses as a visible error state (toast, inline message, redirect, etc.), notfail silently.
+  - **Investigation Needed**: Determine whether this is a frontend fetch-error-handling gap (not checking `response.ok` / not handling the RFC 9457 problem body) or specific to how certain routes respond on an ownership failure.
+
 ---
 
 ## Medium Priority
