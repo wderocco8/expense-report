@@ -57,8 +57,8 @@
       {
         "name": "schema_versions_table",
         "schemaName": "public",
-        "x": 727.8530726935517,
-        "y": 688.0217961100092
+        "x": 732.3525844123017,
+        "y": 554.5610533356964
       },
       {
         "name": "user_usage_table",
@@ -70,7 +70,7 @@
         "name": "schemas_table",
         "schemaName": "public",
         "x": 732.3525844123017,
-        "y": 311.80144501909416
+        "y": 266.0128051688346
       }
     ],
     "tableGroupCollapseStates": [],

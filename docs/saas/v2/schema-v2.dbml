@@ -5,12 +5,18 @@
 //
 // Key changes from v1:
 //   - New tables: schemas_table, schema_versions_table, user_usage_table
-//   - expense_report_jobs_table: +schema_version_id (NOT NULL)
+//   - expense_report_jobs_table: +schema_version_id (NOT NULL) — frozen at
+//     job creation, locks every receipt in the job to one schema version
 //   - extracted_expenses_table: removed typed field columns (merchant,
 //     description, category, transport_details), replaced with
-//     extracted_fields JSONB (NOT NULL) + schema_version_id (NOT NULL)
-//     + confidence_flags JSONB (NOT NULL). amount + date retained as
-//     typed columns (universal, needed for aggregation).
+//     extracted_fields JSONB (NOT NULL) + confidence_flags JSONB (NOT NULL).
+//     amount + date retained as typed columns (universal, needed for
+//     aggregation). No schema_version_id here — always derivable via the
+//     receipt's job, which already locks to one version (see note below).
+//   - schemas_table: no "active" flag and no version pointer — schema choice
+//     happens explicitly at job creation, and a schema's "current version"
+//     is derived as MAX(version_number) over schema_versions_table rather
+//     than stored, so there's nothing to keep in sync on publish.
 //   - category enum: REMOVED (categories are now part of schema config)
 //   - receipt_status enum: +needs_review (a required field is either
 //     null or flagged low-confidence at extraction time; see plan.md
@@ -34,8 +40,9 @@
 // showWhen.field references despite not living in the fields JSONB.
 //
 // Custom fields: everything else lives in extracted_fields JSONB,
-// keyed by SchemaFieldDefinition.key. The schema_version_id on the
-// extracted expense row tells you how to interpret those keys.
+// keyed by SchemaFieldDefinition.key. The schema version that produced
+// a row (resolved via its job — see extracted_expenses_table note)
+// tells you how to interpret those keys.
 // ============================================================
 
 // ────────────────────────────────────────────
@@ -156,23 +163,36 @@ Table "verifications" {
 // ────────────────────────────────────────────
 
 Table "schemas_table" {
-  // NEW: a user can have multiple named schemas, but only one active at a time.
-  // On user creation, a default schema is automatically seeded (active = true).
+  // A user can have multiple named schemas (e.g. "Standard Expense Report",
+  // "Travel Report"). There is no "active" schema — the user picks which
+  // schema to use explicitly at job-creation time, and that job's
+  // schema_version_id is then frozen for the job's entire lifetime
+  // (see expense_report_jobs_table).
+  //
+  // "Current version" for a schema is NOT stored here — it's derived as
+  // MAX(version_number) from schema_versions_table WHERE schema_id = this.id,
+  // backed by the schema_versions_schema_version_unique index. Publishing an
+  // edit is a single INSERT; there is nothing else to keep in sync.
   "id" uuid [pk, default: `gen_random_uuid()`]
   "user_id" uuid [not null]
   "name" text [not null]            // e.g. "Standard Expense Report"
   "description" text
-  "is_active" boolean [not null, default: false]  // only one schema active per user at a time
-  "active_version_id" uuid          // FK to schema_versions_table (set after first version created)
+  "last_used_at" timestamp          // UI convenience only — defaults the job-creation
+                                     // picker to the most-recently-used schema; not a
+                                     // data-integrity constraint
   "created_at" timestamp [not null, default: `now()`]
   "updated_at" timestamp [not null]
 
   Note: '''
-  Constraint: only one row per user_id can have is_active = true.
-  Enforced via partial unique index: UNIQUE (user_id) WHERE is_active = true.
-
-  active_version_id is nullable during schema creation before the first
-  version is saved, then becomes non-null.
+  No is_active / active_version_id: an earlier draft had a global "active
+  schema" toggle plus a pointer to the "active" version. That models a
+  standing setting the user has to remember to switch before creating a
+  job, and a pointer that has to be kept in sync on every publish (a second
+  write, in a transaction, that's easy to forget in a future code path).
+  Neither is needed — schema choice happens once, explicitly, at job
+  creation, and "current version" is always derivable and can never drift
+  out of sync (see above). This also removes what would otherwise be a
+  circular FK between schemas_table and schema_versions_table.
 
   No created_by column: in this single-owner model it would always equal
   user_id. Reintroduce it in Phase 4 if orgs make "who made this on behalf
@@ -182,7 +202,6 @@ Table "schemas_table" {
   Indexes {
     id [unique, name: "schemas_table_pkey"]
     user_id [name: "schemas_user_id_idx"]
-    (user_id) [unique, name: "schemas_one_active_per_user", note: "WHERE is_active = true"]
   }
 }
 
@@ -333,14 +352,19 @@ Table "ocr_results_table" {
 Table "extracted_expenses_table" {
   // MODIFIED from v1:
   //   REMOVED: merchant, description, category (enum), transport_details
-  //   ADDED:   extracted_fields (JSONB, NOT NULL), schema_version_id (NOT NULL),
-  //            confidence_flags (JSONB, NOT NULL)
+  //   ADDED:   extracted_fields (JSONB, NOT NULL), confidence_flags (JSONB, NOT NULL)
   //   RETAINED: amount, date as typed columns (system fields — always present,
   //             needed for DB-level aggregation, sorting, and date range filtering)
+  //
+  // No schema_version_id here: a job locks to one schema_version_id for its
+  // entire lifetime (expense_report_jobs_table.schema_version_id), and every
+  // extraction's receipt belongs to exactly one job — so which schema version
+  // produced a given extraction is always derivable via
+  // receipt_id -> receipt_files.job_id -> expense_report_jobs.schema_version_id,
+  // with no possibility of drift.
   "id" uuid [pk, default: `gen_random_uuid()`]
   "receipt_id" uuid [not null]
   "ocr_result_id" uuid
-  "schema_version_id" uuid [not null] // which schema version produced this extraction
 
   // System fields — always present, typed for queryability
   "amount" numeric(10,2) [not null]
@@ -366,9 +390,12 @@ Table "extracted_expenses_table" {
   "updated_at" timestamp [not null, default: `now()`]
 
   Note: '''
-  extracted_fields is keyed by field.key from the referenced schema_version.
-  To interpret a row, JOIN to schema_versions_table via schema_version_id
-  and use its fields array to know which keys exist and their types.
+  extracted_fields is keyed by field.key from the schema version that
+  produced it. To interpret a row, resolve the schema version via
+  receipt_id -> receipt_files.job_id -> expense_report_jobs.schema_version_id,
+  then use schema_versions_table.fields to know which keys exist and their
+  types. Callers almost always already have the receipt/job loaded at this
+  point (status checks, ownership checks), so this is rarely an extra hop.
 
   Partial unique index `uniq_active_receipt` (WHERE is_current = true)
   enforces at most one active extraction per receipt.
@@ -377,26 +404,41 @@ Table "extracted_expenses_table" {
   Indexes {
     id [unique, name: "extracted_expenses_table_pkey"]
     receipt_id [unique, name: "uniq_active_receipt", note: "WHERE is_current = true"]
-    schema_version_id [name: "extracted_expenses_schema_version_idx"]
     date [name: "extracted_expenses_date_idx"]
   }
 }
 
 // ────────────────────────────────────────────
-// Usage tracking (for free tier enforcement)
+// Usage tracking (DEFERRED — table defined now so no future migration is
+// needed, but enforcement is not built until plan.md Phase 5: Usage
+// Limiting. Not wired into the extraction pipeline yet.)
 // ────────────────────────────────────────────
 
 Table "user_usage_table" {
-  // NEW: tracks receipts processed per user per calendar month.
+  // Tracks receipts processed per user per calendar month.
   // Incremented on every successful extraction (phase 2 complete).
   // Used to enforce free tier limits before enqueueing new receipts.
   // Migrates to org-scoped usage in Phase 4.
   "id" uuid [pk, default: `gen_random_uuid()`]
   "user_id" uuid [not null]
-  "period" text [not null]           // "YYYY-MM" — e.g. "2026-07"
+  "period" date [not null]           // first-of-month, e.g. 2026-07-01 (date, not text —
+                                      // real date semantics/range queries, no format drift)
   "receipts_processed" integer [not null, default: 0]
   "created_at" timestamp [not null, default: `now()`]
   "updated_at" timestamp [not null]
+
+  Note: '''
+  This is usage/quota limiting (a monthly count against a plan cap), not
+  rate limiting (burst protection over a short rolling window) — see
+  plan.md Phase 5. A calendar-aligned fixed-window counter is the right
+  shape for the former; it would be the wrong tool for the latter.
+
+  Idempotency: the worker's SQS delivery is at-least-once, so a redelivered
+  message can reprocess the same receipt. The increment itself is atomic
+  (ON CONFLICT (user_id, period) DO UPDATE SET receipts_processed += 1),
+  but the call site must only fire once per receipt — gate it on the
+  receipt's extraction first becoming is_current, not on "phase 2 ran."
+  '''
 
   Indexes {
     id [unique, name: "user_usage_table_pkey"]
@@ -414,7 +456,6 @@ Ref "sessions_user_id_fk":               "users"."id"         < "sessions"."user
 
 // Schema config
 Ref "schemas_user_id_fk":                "users"."id"            < "schemas_table"."user_id"              [delete: cascade]
-Ref "schemas_active_version_fk":         "schema_versions_table"."id" < "schemas_table"."active_version_id" [delete: set null]
 Ref "schema_versions_schema_id_fk":      "schemas_table"."id"    < "schema_versions_table"."schema_id"    [delete: cascade]
 
 // Jobs (updated)
@@ -430,7 +471,6 @@ Ref "ocr_results_receipt_id_fk":         "receipt_files_table"."id" < "ocr_resul
 // Extracted expenses (updated)
 Ref "extracted_receipt_id_fk":           "receipt_files_table"."id"    < "extracted_expenses_table"."receipt_id"        [delete: cascade]
 Ref "extracted_ocr_result_id_fk":        "ocr_results_table"."id"      < "extracted_expenses_table"."ocr_result_id"     [delete: set null]
-Ref "extracted_schema_version_id_fk":    "schema_versions_table"."id"  < "extracted_expenses_table"."schema_version_id" [delete: restrict]
 
 // Usage tracking
 Ref "user_usage_user_id_fk":             "users"."id" < "user_usage_table"."user_id"               [delete: cascade]

@@ -569,18 +569,22 @@ At `/settings/schema/history`, show version history:
 
 ---
 
-## Phase 5 — Free Tier & Rate Limiting (Post-MVP)
+## Phase 5 — Usage Limiting (Post-MVP)
 
 > Design the model now so the table structure is in place. Enforcement is not needed until you have real users.
+>
+> This is **usage/quota limiting** (a monthly count against a plan cap), not rate limiting in the token-bucket/burst-protection sense — those are different problems that happen to rhyme. A calendar-aligned counter is the correct shape for a monthly cap; it would be the wrong tool for smoothing short bursts. If burst protection against the Textract/OpenAI calls is ever needed, that's a separate, ephemeral (Redis/API-Gateway-throttling) mechanism layered on top — not a replacement for this table, and not scoped here.
 
 ### Usage Tracking
 
-Add `user_usage_table` (see `schema-v2.dbml`). Keyed by `user_id` for this version; migrates to `org_id` alongside the rest of Phase 4.
+Add `user_usage_table` (see `schema-v2.dbml`). Keyed by `user_id` for this version; migrates to `org_id` alongside the rest of Phase 4. `period` is a `date` (first-of-month), not free text — see dbml note.
 
 ```typescript
 // Increment on every successful extraction
-await incrementUserUsage(userId, period: "2026-07");
+await incrementUserUsage(userId, period: "2026-07-01");
 ```
+
+**Idempotency note:** the worker's SQS delivery is at-least-once (see phase 1/2's idempotent-resume design), so a redelivered message can reprocess the same receipt. The `ON CONFLICT (user_id, period) DO UPDATE SET receipts_processed = receipts_processed + 1` upsert is atomic, but *calling* it more than once per receipt will still double-count. Don't increment on "phase 2 ran"; increment on "this receipt's extraction transitioned to `is_current` for the first time" (e.g. gated on the insert that sets `is_current = true` actually being the one that created the row, not a retry that no-ops into the existing `uniq_active_receipt` row). Get this right when implementing — a double-counted quota is a real, not hypothetical, failure mode of at-least-once delivery, not an edge case to defer.
 
 ### Suggested Free Tier
 
@@ -617,7 +621,7 @@ Phase 3.2  Dynamic export
 Phase 3.3  Job creation wiring (small, can land anytime after 1.1)
 Phase 3.4  Schema version history
 Phase 4    Multi-tenant org support
-Phase 5    Free tier enforcement + billing
+Phase 5    Usage limiting (free tier enforcement) + billing
 ```
 
 ---
