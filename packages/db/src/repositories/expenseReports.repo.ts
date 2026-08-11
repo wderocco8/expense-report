@@ -55,6 +55,19 @@ export async function getExpenseReportJob(
   return job;
 }
 
+// TODO: this function doesn't guarantee RLS (currently only used in lambda, but worth reviewing)
+// Same applies to getSchemaVersion in schemaVersions.repo.ts
+export async function getExpenseReportJobLambda(
+  jobId: string,
+): Promise<ExpenseReportJob> {
+  const [job] = await db
+    .select()
+    .from(expenseReportJobs)
+    .where(and(eq(expenseReportJobs.id, jobId)));
+
+  return job;
+}
+
 export async function getExpenseReportJobWithFiles(
   jobId: string,
   userId: string,

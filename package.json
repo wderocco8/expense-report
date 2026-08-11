@@ -9,8 +9,8 @@
     "db:generate": "pnpm --filter @repo/db db:generate",
     "db:migrate": "pnpm --filter @repo/db db:migrate",
     "db:studio": "pnpm --filter @repo/db db:studio",
-    "lint": "pnpm -r run lint",
-    "typecheck": "pnpm -r run typecheck"
+    "lint": "pnpm -r --no-bail run lint",
+    "typecheck": "pnpm -r --no-bail run typecheck"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

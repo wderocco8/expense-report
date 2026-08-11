@@ -48,7 +48,9 @@ A group has **no visibility condition of its own** — it is purely a label + de
 
 ### 7. `description` is User-Facing Only; AI Prompt Uses Structured Metadata
 
-Field definitions have a `description` property (user-authored, shown as a tooltip in the review UI). The AI extraction prompt is built entirely from structured field metadata (`type`, `options`, `required`, `showWhen`) — never from freeform user text. This avoids prompt injection risk, keeps the AI prompt deterministic, and separates the two concerns cleanly. `showWhen` conditions are translated into explicit natural-language constraints in the prompt (e.g., "only fill `transport_mode` if `category` equals `transport`, otherwise return null").
+Field definitions have a `description` property (user-authored, shown as a tooltip in the review UI). The AI extraction prompt is built entirely from structured field metadata (`type`, `options`, `required`) — never from freeform user text. This avoids prompt injection risk, keeps the AI prompt deterministic, and separates the two concerns cleanly.
+
+`showWhen` is deliberately **not** part of the prompt at all — see Decision 10.
 
 ### 8. Non-Extractable Required Fields Hold the Receipt in `needs_review`
 
@@ -74,6 +76,26 @@ Decision 8 already sends a receipt to `needs_review` when a required field is nu
 Signals 1–2 are computed at Phase 2.6/2.7 and persisted as `confidence_flags` (a flat `{ fieldKey: reason }` JSONB map) on `extracted_expenses_table`. `needs_review` triggers when a **required** field is either null or present in `confidence_flags`. Flags on *optional* fields are still stored and shown as a soft warning in the review UI, but do not force `needs_review` — scoping the trigger to required fields avoids flooding the review queue with noise on fields that don't block completion.
 
 Explicitly deferred: logprobs-based per-field confidence from OpenAI (a real signal, unlike self-reported confidence, but requires correlating token spans to JSON field paths and calibrating thresholds against ground truth this product doesn't have yet). Revisit once there's enough real usage to calibrate against.
+
+### 10. `showWhen` Is a Display/Update-Time Concern, Never Sent to the Model
+
+The extraction prompt and JSON schema make no mention of `showWhen` at all — every `extractable` field is requested unconditionally on every receipt, regardless of whether its `showWhen` condition currently holds.
+
+This isn't a simplification with a hidden cost — it's mechanically forced either way. OpenAI's Structured Outputs supports only a subset of JSON Schema and explicitly excludes `if`/`then`/`else` composition (conditional requiredness), and strict mode already requires every property in `required` unconditionally. So the JSON schema was never able to express "only require this field when X" — a `showWhen`-derived prompt sentence was only ever adding natural-language words on top of an already-unconditional schema, not changing what was actually requested.
+
+Consequence: `extracted_fields` can legitimately contain a non-null value for a field whose `showWhen` condition doesn't currently hold (the model found plausible-looking data anyway, or `category` was corrected by the user post-extraction). This is expected, not a bug.
+
+`showWhen` is enforced in exactly two places, both already required for other reasons — nothing new is being built to support this:
+
+1. **Review UI rendering (3.1)** — evaluate `showWhen` against current values to decide what's visible/editable.
+2. **Field update validation** — when a user edits a field via the review UI, the update endpoint re-validates the submitted value against the field's *current* `showWhen` state, in addition to the type/enum checks it needs regardless. Rejecting an update to a currently-hidden field is a small addition to validation that already has to exist, not a new subsystem.
+
+Two knock-on effects, both now load-bearing rather than theoretical (see 2.7 and 3.2):
+
+- The `needs_review` completion check (2.7) must only consider *currently visible* required fields — a required field hidden by its own `showWhen` must not permanently block completion.
+- Export (3.2) must apply the same `showWhen` evaluation per row before rendering a column — otherwise a stray non-null value on a conditionally-hidden field leaks into the spreadsheet.
+
+Accepted, not fully validated, tradeoff: without the targeted "only fill if X" prompt hint, the model has less explicit permission to abstain on conditionally-irrelevant fields than it did with the hint — the generic "return null if not applicable" instruction still applies to every optional field regardless, but it's less specific. This could modestly increase hallucinated non-null values on hidden fields. Given those values are invisible to the user by construction, the blast radius is low. Revisit if real usage shows otherwise — see Open Questions.
 
 ---
 
@@ -242,13 +264,15 @@ Fields with `extractable: false` are skipped by the AI entirely and surfaced as 
 
 ### 1.4 Schema Version Immutability Rule
 
-A `schema_version` is **never updated** once created. Editing an active schema:
+A `schema_version` is **never updated** once created. Editing a schema means:
 
-1. Creates a new `schema_version` record with `version_number + 1` and the updated fields
-2. Updates `schemas_table.active_version_id` to point to the new version
-3. All future jobs pick up the new version; all past jobs retain the old version
+1. Creating a new `schema_version` record via the same "publish a version" call used for the schema's very first version — `version_number` is computed server-side as `MAX(version_number) + 1` for that `schema_id`
+2. Nothing else needs updating. There is no `active_version_id` pointer to keep in sync (see `schema-v2.dbml`'s `schemas_table` note) — the current version is always whichever row has the highest `version_number`
+3. Future jobs pick up the new version by fetching it explicitly at job-creation time; past jobs retain whatever version they were frozen to at creation
 
-Enforce this at the repository layer — no UPDATE on `schema_versions_table`.
+Enforce immutability at the repository layer — INSERT only, no UPDATE on `schema_versions_table`.
+
+Note: a `schemas_table` row can briefly exist with **zero** versions (right after creation, before the first version is published). This is a valid, if inert, state — nothing else has a mandatory reference into `schema_versions_table`, so it can't corrupt anything. It's just not usable for job creation until it has at least one version.
 
 ### 1.5 Complexity Cap (v1)
 
@@ -265,6 +289,47 @@ Page at `/settings/schema` (no admin-role gating needed — it's the user's own 
 - Edit field: change label, options, required flag (key is immutable after creation)
 - Delete field: only allowed if no jobs reference the current version (or warn that it affects future jobs only)
 - Publish: saves as a new version, with confirmation showing "X future jobs will use this schema"
+
+### 1.7 API Surface
+
+Nesting rule: **list/create are nested under their parent** (`/schemas/{id}/versions`) because the operation is inherently parent-scoped — you can't list or create "versions" without saying whose. **Single-item fetch by id is flat** (`/schema-versions/{id}`), because every id in this schema is a global UUID, not a value only unique within its parent's scope — the parent adds no addressing information, only coupling (matches the existing `extracted-expenses/[expenseId]` precedent, which is flat despite belonging to a receipt).
+
+**`schemas_table`**
+
+| Method | Path | Purpose | Status |
+| --- | --- | --- | --- |
+| POST | `/api/schemas` | Create a schema shell (`name`, `description?`) — zero versions initially | built |
+| GET | `/api/schemas` | List the current user's schemas | built |
+| GET | `/api/schemas/{id}` | Fetch one schema's own metadata | gap |
+| PATCH | `/api/schemas/{id}` | Rename / edit description (not fields) | gap, low priority |
+| DELETE | `/api/schemas/{id}` | — | see note below |
+
+**`schema_versions_table`**
+
+| Method | Path | Purpose | Status |
+| --- | --- | --- | --- |
+| POST | `/api/schemas/{id}/versions` | Publish a new version under a known schema — same call for v1 and every edit after | built |
+| GET | `/api/schemas/{id}/versions` | List a schema's versions, newest first | built |
+| GET | `/api/schema-versions/{id}` | Fetch one version directly by its own id — flat, no parent needed | built |
+| — | — | No PATCH/DELETE — versions are immutable, insert-only by design (1.4) | n/a |
+
+**Internal only, never HTTP** — `packages/services` (the worker) calls `@repo/db` directly, it never hits the web API:
+
+| Function | Purpose | Status |
+| --- | --- | --- |
+| `getSchemaVersion(id)` | Resolve one version's `fields` for the Phase 2 prompt builder, using the job's already-frozen `schemaVersionId`. No ownership check — that trust was already established once, at job creation. | built |
+
+**`expense_report_jobs_table` tie-in**
+
+| Method | Path | Purpose | Status |
+| --- | --- | --- | --- |
+| POST | `/api/expense-reports` | Create job; body includes `schemaVersionId`. Now verifies the version resolves to a schema owned by the requesting user (reuses the same version→schema ownership check as the flat version-fetch route) before creating the job. | built |
+
+**Delete note:** `schema_versions_schema_id_fk` cascades schema→versions, but `jobs_schema_version_id_fk` is `ON DELETE restrict` version→job. So once any version of a schema has been used by a job, deleting that schema fails outright (the cascade into versions collides with the job restrict). In practice, only never-used schemas can be hard-deleted. Worth an explicit soft-delete/archive decision later rather than discovering this via a constraint error — not designed yet.
+
+Not endpoints, but the same action set: default schema seeding on signup (1.2) reuses the `POST /api/schemas` → `POST /api/schemas/{id}/versions` sequence internally rather than over HTTP. Deletion/archival of schemas or versions beyond the note above is unscoped — deliberately left undecided rather than silently missing.
+
+Also deferred: a combined "schemas with their current version attached" endpoint to save the job-creation picker a round trip (`GET /api/schemas` then `GET /api/schemas/{id}/versions` per schema is two calls today). Not a gap, just a possible later convenience.
 
 ---
 
@@ -284,7 +349,7 @@ const schemaVersion = await getSchemaVersion(job.schemaVersionId);
 
 ### 2.2 Dynamic Prompt Builder
 
-The prompt is built entirely from structured field metadata — never from freeform user text. `showWhen` conditions are translated into explicit natural-language constraints so the model knows which fields are conditional.
+The prompt is built entirely from structured field metadata — never from freeform user text. Per Decision 10, `showWhen` is **not** translated into the prompt at all; every extractable field is requested unconditionally, and conditional visibility is enforced later (client-side render + update validation).
 
 ```typescript
 function buildFieldConstraint(field: SchemaFieldDefinition): string {
@@ -297,25 +362,7 @@ function buildFieldConstraint(field: SchemaFieldDefinition): string {
     ? "[required]"
     : "[optional — return null if not found or not applicable]";
 
-  // Translate showWhen → explicit AI instruction
-  const conditionHint = field.showWhen
-    ? `Only extract if ${field.showWhen.field} ${showWhenToEnglish(field.showWhen)}; otherwise return null.`
-    : "";
-
-  return [
-    `- "${field.key}" (${field.label}): ${typeHint} ${requiredHint}`,
-    conditionHint,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function showWhenToEnglish(condition: ShowWhen): string {
-  if (condition.op === "eq") return `equals "${condition.value}"`;
-  if (condition.op === "neq") return `does not equal "${condition.value}"`;
-  if (condition.op === "in")
-    return `is one of [${(condition.value as string[]).join(", ")}]`;
-  return "";
+  return `- "${field.key}" (${field.label}): ${typeHint} ${requiredHint}`;
 }
 
 function buildExtractionPrompt(
@@ -341,46 +388,75 @@ function buildExtractionPrompt(
 
 ### 2.3 Dynamic JSON Schema for OpenAI
 
-Build the `json_schema` output constraint at runtime from the schema version fields instead of using the hardcoded Zod schema.
-
-**Important:** OpenAI's strict `json_schema` mode requires every property to appear in `required` — optionality is expressed via a `["<type>", "null"]` type union, not by omitting the key from `required`. A schema that puts only `required: true` fields into the `required` array will be rejected by the API.
+Build the output schema at runtime from the schema version's fields using **Zod + `zodTextFormat`** (`openai/helpers/zod`), not a hand-written JSON Schema object. One Zod schema is the single source of truth for both what's sent to OpenAI (`text.format`) and what validates the parsed response (`response.output_parsed`) — a hand-rolled JSON Schema object plus a separately hand-maintained Zod validator would be two schemas that have to be kept in lockstep by hand.
 
 ```typescript
-function fieldToJsonSchemaType(field: SchemaFieldDefinition): object {
-  const base = fieldTypeToJsonSchemaType(field.type); // e.g. { type: "string" } or { type: "string", enum: field.options }
-  if (field.required) return base;
-  // strict mode: optional fields are nullable unions, not omitted from `required`
-  return { ...base, type: [base.type, "null"].flat() };
+function fieldTypeToZodBase(field: SchemaFieldDefinition): z.ZodType {
+  switch (field.type) {
+    case "text":
+      return z.string();
+    case "number":
+      return z.number();
+    case "date":
+      return z.iso.date(); // "YYYY-MM-DD"
+    case "boolean":
+      return z.boolean();
+    case "enum":
+      // options must be non-null/non-empty by this point — see Open Questions
+      return z.enum(field.options as [string, ...string[]]);
+    case "multi_select":
+      return z.array(z.enum(field.options as [string, ...string[]]));
+  }
 }
 
-function buildJsonSchema(fields: SchemaFieldDefinition[]): object {
-  const properties: Record<string, object> = {
-    amount: { type: "number" }, // system field, always present
-    date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, // system field
-  };
-  // strict mode: ALL properties go in `required`, including optional ones
-  const required: string[] = ["amount", "date"];
+function fieldToZod(field: SchemaFieldDefinition): z.ZodType {
+  const base = fieldTypeToZodBase(field);
+  // Strict mode requires .nullable(), not .optional() — verified against the
+  // installed SDK: a property that's .optional() without .nullable() fails
+  // the strict-schema transform with an explicit error ("uses .optional()
+  // without .nullable() which is not supported by the API").
+  return field.required ? base : base.nullable();
+}
 
-  for (const field of fields.filter((f) => f.extractable)) {
-    properties[field.key] = fieldToJsonSchemaType(field);
-    required.push(field.key);
-  }
+function buildZodSchema(fields: SchemaFieldDefinition[]) {
+  const extractableFields = fields.filter((f) => f.extractable);
 
-  return { type: "object", properties, required, additionalProperties: false };
+  const dynamicShape = Object.fromEntries(
+    extractableFields.map((f) => [f.key, fieldToZod(f)] as const),
+  );
+
+  // amount/date declared as literal properties (not spread from a Record)
+  // so their specific types survive in the inferred schema, instead of
+  // collapsing into the dynamic fields' generic Record<string, ZodType>.
+  return z.object({
+    amount: z.number(),
+    date: z.iso.date(),
+    ...dynamicShape,
+  });
 }
 ```
 
+`zodTextFormat(buildZodSchema(fields), "receipt")` produces the `text.format` passed to `client.responses.parse(...)` — use `.parse()`, not `.create()`, for typed `response.output_parsed` plus built-in refusal handling. Verified against the installed SDK (`openai@6.16.0`, `zod@4.4.3`):
+
+- `additionalProperties: false` and `required: <every key>` are added automatically by the strict-mode transform — no manual bookkeeping needed, unlike the hand-rolled version above.
+- A nullable enum (`z.enum([...]).nullable()`) compiles to a clean `anyOf: [{ enum: [...] }, { type: "null" }]` union, avoiding the ambiguous `{ type: ["string","null"], enum: [...] }` form (whether `null` also needs to appear inside `enum` in that form is inconsistent across OpenAI's own documentation examples).
+
+Do **not** call `.describe()` on any field schema — that injects description text into the schema sent to OpenAI, duplicating what's already in the prompt (Decision 7) and burning tokens for no benefit.
+
 ### 2.4 `extracted_expenses_table` — No Migration Required
 
-Because we are starting with a clean database (Decision 5), this is the table's **initial state**. There are no typed columns to drop, no JSONB backfill to write, and no legacy rows to handle — `schema_version_id` and `extracted_fields` are `NOT NULL` from day one.
+Because we are starting with a clean database (Decision 5), this is the table's **initial state**. There are no typed columns to drop, no JSONB backfill to write, and no legacy rows to handle — `extracted_fields` is `NOT NULL` from day one.
 
 The table is defined with:
 
-- `amount` decimal — typed system field
-- `date` date — typed system field (nullable: OCR/extraction may not confidently determine a date from a given receipt)
-- `extracted_fields` jsonb, `NOT NULL` — all user-defined fields (flat key-value map)
-- `schema_version_id` uuid, `NOT NULL` — reference to the schema version that produced this row
-- `confidence_flags` jsonb, `NOT NULL` — see 2.7
+- `amount` decimal, `NOT NULL` — typed system field
+- `date` date, nullable — typed system field (OCR/extraction may not confidently determine a date from a given receipt)
+- `extracted_fields` jsonb, `NOT NULL`, default `{}` — all user-defined fields (flat key-value map), **excludes** `amount`/`date` (2.5)
+- `confidence_flags` jsonb, `NOT NULL`, default `{}` — see 2.7
+- `raw_json` jsonb, nullable — under reconsideration, see 2.5 and Open Questions
+- `model_version`, `is_current`, timestamps
+
+No `schema_version_id` column here — see `schema-v2.dbml`'s `extracted_expenses_table` note (always derivable via `receipt → job.schema_version_id`, never stored redundantly).
 
 ### 2.5 Updated Extraction Output Shape
 
@@ -389,15 +465,17 @@ The table is defined with:
 await createExtractedExpense({
   receiptId,
   ocrResultId: ocrResult.id,
-  schemaVersionId: schemaVersion.id,
   amount: result.data.amount, // typed column
   date: result.data.date, // typed column
   extractedFields: omit(result.data, ["amount", "date"]), // everything else → JSONB
   confidenceFlags, // see 2.7
-  rawJson: result.data,
   modelVersion: "gpt-4o-mini",
 });
 ```
+
+Note on `extracted_fields` and Decision 10: because `showWhen` is never sent to the model, `extracted_fields` can legitimately contain a non-null value for a field whose `showWhen` condition doesn't currently hold. This is expected — it's filtered at render/export time (3.1, 3.2), not at save time.
+
+`raw_json` intentionally omitted above — see Open Questions on whether it's still worth persisting. Its original justification was catching divergence between the model's raw output and a server-side `showWhen`-enforcement post-processing step; Decision 10 removes that step, so on the happy path `raw_json` is now mechanically reconstructable as `{ amount, date, ...extractedFields }` and may no longer earn its keep.
 
 ### 2.6 Validation at Save Time
 
@@ -446,11 +524,15 @@ function computeConfidenceFlags(
 }
 ```
 
-Final terminal status, combining 2.6 and 2.7 (extends Decision 8):
+Final terminal status, combining 2.6 and 2.7 (extends Decision 8). Per Decision 10, a required field currently hidden by its own `showWhen` must not block completion — only currently-visible required fields count:
 
 ```typescript
-const requiredFields = schemaVersion.fields.filter((f) => f.required);
-const hasBlockingIssue = requiredFields.some(
+const visibleRequiredFields = schemaVersion.fields.filter(
+  (f) =>
+    f.required &&
+    evaluateShowWhen(f.showWhen, { amount, date, ...extractedFields }),
+);
+const hasBlockingIssue = visibleRequiredFields.some(
   (f) => extractedFields[f.key] == null || f.key in confidenceFlags,
 );
 const status = hasBlockingIssue ? "needs_review" : "complete";
@@ -478,6 +560,7 @@ The review UI renders dynamically from the schema version. Fields are first spli
 6. Fields with `extractable: true` render the AI-extracted value with an edit affordance
 7. A receipt in `needs_review` status is surfaced distinctly (e.g., a badge/filter) so unfinished required fields are easy to find; saving values for all required fields transitions the receipt to `complete`
 8. Fields present in `confidence_flags` (2.7) render a distinct "please verify" indicator, separate from the "needs your input" indicator — shown whether or not the field is required
+9. Field updates are validated server-side against the field's *current* `showWhen` state (Decision 10), in addition to the type/enum checks every update needs regardless — an update to a currently-hidden field is rejected
 
 ```tsx
 // Pseudocode — groups rendered as separate fieldsets (mirrors current transport details UX)
@@ -534,7 +617,8 @@ The Excel export currently has hardcoded column names. Update to:
 
 1. Load the schema version for the job
 2. Generate columns: `Date`, `Amount`, then one column per schema field in `displayOrder`
-3. Map `extractedFields[field.key]` to each column
+3. For each row, evaluate each field's `showWhen` against that row's values and blank the cell if it doesn't currently hold — per Decision 10, `extracted_fields` isn't guaranteed clean with respect to `showWhen`, so skipping this step would leak stray values into the sheet
+4. Map `extractedFields[field.key]` to each visible column
 
 ### 3.3 Job Creation
 
@@ -634,3 +718,6 @@ Phase 5    Usage limiting (free tier enforcement) + billing
 4. **Multi-org users** — can a user belong to more than one org (e.g., a contractor)? Better Auth supports it natively. This is now purely a Phase 4 concern — no design work needed until orgs exist.
 5. **Schema import** — can a user upload their existing Excel template and have the system infer the schema fields? Compelling, validated as worth pursuing eventually, but intentionally excluded from this version pending evidence that the manual schema editor + extraction workflow itself has real demand.
 6. **Schema versions** — Limits on how many schema versions a user can make? No limit could cause massive db pressure.
+7. **Keep `raw_json` on `extracted_expenses_table`?** Under Decision 10, there's no more server-side post-processing step that would make it diverge from `{ amount, date, ...extractedFields }` on the happy path — it's mechanically reconstructable. Leaning toward dropping it, or narrowing it to a nullable field populated only on the parse-failure/refusal path (where `extracted_fields` never gets populated at all). Not yet decided.
+8. **Does dropping the `showWhen` prompt hint measurably increase hallucinated values on conditionally-hidden fields?** Accepted as a likely-acceptable tradeoff per Decision 10 (the values are invisible to the user regardless), but unverified — revisit once there's real usage to check against.
+9. **Enforce non-null/non-empty `options` for `enum`/`multi_select` at schema-version publish time.** `SchemaFieldDefinition.options: string[] | null`, but the JSON-schema builder (2.3) needs it non-null for these two types. `schemaVersion.zod.ts` doesn't currently enforce this (deliberately left out earlier to match the dbml's literal constraint list) — worth reinstating now that a concrete downstream consumer requires the guarantee, rather than each consumer defensively erroring.

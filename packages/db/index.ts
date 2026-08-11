@@ -4,5 +4,7 @@ export * from "./src/repositories/expenseReports.repo";
 export * from "./src/repositories/extractedExpenses.repo";
 export * from "./src/repositories/ocrResults.repo";
 export * from "./src/repositories/receiptFiles.repo";
+export * from "./src/repositories/schemas.repo";
+export * from "./src/repositories/schemaVersions.repo";
 export * from "./src/types/ocr.types";
-export * from "./src/mappers/extractedExpense.mapper";
+export * from "./src/types/schema.types";

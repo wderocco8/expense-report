@@ -4,5 +4,7 @@ export * from "./src/validators/login.zod";
 export * from "./src/validators/receipt.zod";
 export * from "./src/validators/receiptUpload.zod";
 export * from "./src/validators/sign-up.zod";
+export * from "./src/validators/schema.zod";
+export * from "./src/validators/schemaVersion.zod";
 export * from "./src/domain/expense-reports/constants";
 export * from "./src/domain/expense-reports/status";

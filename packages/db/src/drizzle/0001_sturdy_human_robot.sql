@@ -1,0 +1,1 @@
+ALTER TABLE "extracted_expenses_table" DROP COLUMN "raw_json";

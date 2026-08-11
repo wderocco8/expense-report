@@ -1,74 +1,24 @@
 import OpenAI from "openai";
 import { ExtractionResult, ExtractionService } from "./extraction.interface";
-import { ReceiptExtractionSchema } from "./extraction.schema";
-import { ResponseTextConfig } from "openai/resources/responses/responses.mjs";
-import { SlimOcrResult } from "@repo/db";
+import { ExtractedFields, SlimOcrResult } from "@repo/db";
+import { zodTextFormat } from "openai/helpers/zod";
+import z from "zod";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
-const ReceiptFormat: ResponseTextConfig = {
-  format: {
-    type: "json_schema",
-    name: "receipt",
-    strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        merchant: { type: "string", nullable: true },
-        description: { type: "string", nullable: true },
-        date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
-        amount: { type: "number" },
-        category: {
-          type: "string",
-          enum: [
-            "tolls/parking",
-            "hotel",
-            "transport",
-            "fuel",
-            "meals",
-            "phone",
-            "supplies",
-            "misc",
-          ],
-        },
-        transportDetails: {
-          type: "object",
-          nullable: true,
-          properties: {
-            mode: {
-              type: "string",
-              nullable: true,
-              enum: ["train", "car", "plane"],
-            },
-            mileage: { type: "number", nullable: true },
-          },
-          required: ["mode", "mileage"],
-          additionalProperties: false,
-        },
-      },
-      required: [
-        "merchant",
-        "description",
-        "date",
-        "amount",
-        "category",
-        "transportDetails",
-      ],
-      additionalProperties: false,
-    },
-  },
-};
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 200;
 
 export class OpenAIExtractionService implements ExtractionService {
-  async extractFromText(ocrText: SlimOcrResult): Promise<ExtractionResult> {
+  async extractFromText(
+    ocrText: SlimOcrResult,
+    zodSchemaVersion: z.ZodObject,
+  ): Promise<ExtractionResult> {
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const result = await this.callOpenAI(ocrText);
+        const result = await this.callOpenAI(ocrText, zodSchemaVersion);
         return result;
       } catch (error) {
         lastError = error;
@@ -97,7 +47,10 @@ export class OpenAIExtractionService implements ExtractionService {
     };
   }
 
-  private async callOpenAI(ocrText: SlimOcrResult): Promise<ExtractionResult> {
+  private async callOpenAI(
+    ocrText: SlimOcrResult,
+    zodSchemaVersion: z.ZodObject,
+  ): Promise<ExtractionResult> {
     const response = await client.responses.create({
       model: "gpt-4o-mini",
       input: [
@@ -117,12 +70,14 @@ export class OpenAIExtractionService implements ExtractionService {
           ].join("\n"),
         },
       ],
-      text: ReceiptFormat,
+      text: { format: zodTextFormat(zodSchemaVersion, "schema") },
     });
 
-    const parsed = ReceiptExtractionSchema.safeParse(
-      JSON.parse(response.output_text),
-    );
+    const parsed = zodSchemaVersion.safeParse(JSON.parse(response.output_text));
+    const data = parsed.data as {
+      amount: number;
+      date: string;
+    } & ExtractedFields;
 
     if (!parsed.success) {
       return {
@@ -133,13 +88,8 @@ export class OpenAIExtractionService implements ExtractionService {
       };
     }
 
-    // NOTE: clear transit data if category is not "transport"
-    if (parsed.data.category !== "transport") {
-      parsed.data.transportDetails = null;
-    }
-
     return {
-      data: parsed.data,
+      data,
       success: true,
       shouldRetry: false,
     };

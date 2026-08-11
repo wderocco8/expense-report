@@ -1,11 +1,13 @@
 import {
   createExtractedExpense,
+  getExpenseReportJobLambda,
   getOcrResultByReceiptId,
   getReceiptFile,
-  mapReceiptToDb,
+  getSchemaVersion,
   updateReceiptFile,
 } from "@repo/db";
 import { openaiExtractionService } from "../extraction/openai-extraction.service";
+import { buildZodSchema } from "../extraction/extraction-helpers";
 
 function isDuplicateError(error: unknown): boolean {
   return (
@@ -20,6 +22,9 @@ export async function processPhase2Extraction(
 ): Promise<void> {
   // Idempotency check
   const receipt = await getReceiptFile(receiptId);
+  // TODO: we may need another version of this method that doesn't require userId?
+  const job = await getExpenseReportJobLambda(receipt.jobId);
+  const schemaVersion = await getSchemaVersion(job.schemaVersionId);
 
   if (receipt.status === "complete") {
     console.log(`[Phase 2] Receipt ${receiptId} already complete, skipping`);
@@ -45,12 +50,15 @@ export async function processPhase2Extraction(
     extractionStartedAt: new Date(),
   });
 
+  const zodSchemaVersion = buildZodSchema(schemaVersion?.fields ?? []);
+
   // Run extraction
   const result = await openaiExtractionService.extractFromText(
     ocrResult.extractedText,
+    zodSchemaVersion,
   );
 
-  if (!result.success) {
+  if (!result.success || !result.data) {
     await updateReceiptFile(receiptId, {
       status: "failed",
       errorMessage: `Extraction failed: ${result.error}`,
@@ -63,17 +71,19 @@ export async function processPhase2Extraction(
   }
 
   // Save to database
-  const data = result.data!;
-
-  // Map to database format
-  const extractedExpenseRecord = mapReceiptToDb({
-    receiptId,
-    ocrResult,
-    receiptDTO: data,
-  });
+  const data = result.data;
+  const { amount, date, ...extractedFields } = data;
 
   try {
-    await createExtractedExpense(extractedExpenseRecord);
+    await createExtractedExpense({
+      receiptId,
+      amount: amount.toString(),
+      date: date, // TODO: maybe call mapper `normalizeData` -> but maybe not needed because of z.iso.date()
+      extractedFields: extractedFields,
+      ocrResultId: ocrResult.id,
+      modelVersion: "gpt-4o-mini",
+      isCurrent: true,
+    });
   } catch (error) {
     // Handle duplicate (idempotent)
     if (isDuplicateError(error)) {

@@ -6,7 +6,6 @@ import {
   getExpenseReportJobWithReceiptAndExpense as repoGetExpenseReportJobWithReceiptAndExpense,
   getExpenseReportJobsWithProgress as repoGetExpenseReportJobsWithProgress,
   type ExpenseReportJob,
-  createExtractedExpense,
 } from "@repo/db";
 
 import {
@@ -15,19 +14,25 @@ import {
 } from "@/server/types/expense-report-jobs";
 import { buildExpenseReportWorkbook } from "@/server/services/exports/expenseReportExcel";
 import { expenseReportJobProblems } from "@/lib/problems/domain/expenseReportJob";
-import { createReceiptFile, persistReceiptFile } from "./receipts.service";
-import { ReceiptDTO } from "@repo/shared";
-import { mapReceiptToDb } from "@repo/db";
+import { getSchemaVersion } from "./schemaVersions.service";
 
 export async function createExpenseReport({
   userId,
+  schemaVersionId,
   title,
 }: {
   userId: string;
+  schemaVersionId: string;
   title?: string;
 }): Promise<ExpenseReportJob> {
+  // Throws if schemaVersionId doesn't resolve to a version whose parent
+  // schema is owned by this user — without this, any authenticated user
+  // could freeze a job to an arbitrary schema version id.
+  await getSchemaVersion({ userId, versionId: schemaVersionId });
+
   const job = await repoCreateExpenseReportJob({
-    userId: userId,
+    userId,
+    schemaVersionId,
     title,
   });
 
@@ -80,29 +85,4 @@ export async function getExpenseReportJobsWithProgress(
   userId: string,
 ): Promise<ExpenseReportJobsWithProgress> {
   return repoGetExpenseReportJobsWithProgress(userId);
-}
-
-export async function manualUpload({
-  jobId,
-  file,
-  expensePayload,
-}: {
-  jobId: string;
-  file: File;
-  expensePayload: ReceiptDTO;
-}) {
-  const key = await persistReceiptFile({ jobId, file });
-  const receipt = await createReceiptFile({
-    jobId,
-    originalFilename: file.name,
-    s3Key: key,
-    status: "complete",
-  });
-
-  const dbExpense = mapReceiptToDb({
-    receiptId: receipt.id,
-    receiptDTO: expensePayload,
-  });
-
-  await createExtractedExpense(dbExpense);
 }

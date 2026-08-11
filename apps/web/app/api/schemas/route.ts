@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  createExpenseReport,
-  getExpenseReportJobsWithProgress,
-} from "@/server/services/expenseReports.service";
-import { ExpenseReportCreateSchema } from "@repo/shared";
+import { SchemaCreateSchema } from "@repo/shared";
 import { z } from "zod";
 import { requireApiAuth } from "@/lib/auth/api";
 import { respondProblem } from "@/lib/http/respond";
 import { withProblems } from "@/lib/problems/wrapper";
+import { createSchema, getSchemas } from "@/server/services/schemas.service";
 
 export const POST = withProblems(async (req) => {
   const authResult = await requireApiAuth();
@@ -15,7 +12,7 @@ export const POST = withProblems(async (req) => {
 
   const body = await req.json().catch(() => ({}));
 
-  const parsed = ExpenseReportCreateSchema.safeParse(body);
+  const parsed = SchemaCreateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: z.treeifyError(parsed.error) },
@@ -23,7 +20,7 @@ export const POST = withProblems(async (req) => {
     );
   }
 
-  const job = await createExpenseReport({
+  const job = await createSchema({
     userId: authResult.session.user.id,
     ...parsed.data,
   });
@@ -35,9 +32,7 @@ export const GET = withProblems(async () => {
   const authResult = await requireApiAuth();
   if (!authResult.ok) return respondProblem(authResult.problem);
 
-  const jobs = await getExpenseReportJobsWithProgress(
-    authResult.session.user.id,
-  );
+  const jobs = await getSchemas(authResult.session.user.id);
 
   return NextResponse.json(jobs, { status: 200 });
 });

@@ -7,6 +7,7 @@ export const ExpenseReportCreateSchema = z.object({
     .min(1, "Title cannot be empty")
     .optional()
     .or(z.literal("")),
+  schemaVersionId: z.string(),
 });
 
 export type ExpenseReportCreateInput = z.infer<
