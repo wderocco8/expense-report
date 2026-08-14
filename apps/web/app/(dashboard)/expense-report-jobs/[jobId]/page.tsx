@@ -19,28 +19,23 @@ export default function ExpenseReportPage() {
   const params = useParams<{ jobId: string }>();
   const { jobId } = params;
 
-  const { data } = useQuery<ExpenseReportJob>({
+  const { data: job } = useQuery<ExpenseReportJob>({
     queryKey: ["expense-report", jobId],
     queryFn: () => fetchJob(jobId),
   });
 
-  // const numProcessed = data.receiptFiles.filter(
-  //   (r) => r.status === "complete" || r.status === "failed",
-  // ).length;
-
   return (
     <div className="container mx-auto py-8 space-y-8">
-      {data ? (
-        <div>{data.title}</div>
+      {job ? (
+        <div>{job.title}</div>
       ) : (
         <Skeleton className="h-5 w-25 rounded-full" />
       )}
 
-      {/* <div>
-        Progress: {numProcessed} / {data.receiptFiles.length} receipts processed
-      </div> */}
-
-      <ReceiptFilesSection jobId={jobId} />
+      <ReceiptFilesSection
+        jobId={jobId}
+        schemaVersionId={job?.schemaVersionId}
+      />
     </div>
   );
 }

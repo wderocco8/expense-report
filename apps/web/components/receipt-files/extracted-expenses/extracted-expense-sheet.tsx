@@ -21,7 +21,7 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ExtractedExpenseUpdateSchema } from "@repo/shared";
+import { ExtractedExpenseUpdateSchema, time } from "@repo/shared";
 import { useEffect, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
-import { ExtractedExpense, ReceiptFile } from "@repo/db";
+import { ExtractedExpense, ReceiptFile, SchemaVersion } from "@repo/db";
 import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
@@ -39,6 +39,7 @@ import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/
 import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
 import UnsavedChangesDialog from "@/components/receipt-files/extracted-expenses/unsaved-changes-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
 
 const CATEGORY_OPTIONS = [
   { value: "tolls/parking", label: "Tolls / Parking" },
@@ -72,6 +73,7 @@ type ReceiptImage = { url: string };
 
 type ExtractedExpenseSheetProps = {
   receipt: ReceiptFile | null | undefined;
+  schemaVersionId: string | undefined;
   open: boolean;
   onClose: () => void;
   onPrev: () => void;
@@ -80,8 +82,20 @@ type ExtractedExpenseSheetProps = {
   hasNext: boolean;
 };
 
+async function fetchSchemaVersion(
+  schemaVersionId: string | undefined,
+): Promise<SchemaVersion> {
+  const res = await fetch(`/api/schema-versions/${schemaVersionId}`);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch schema-version");
+  }
+  return res.json();
+}
+
 export function ExtractedExpenseSheet({
   receipt,
+  schemaVersionId,
   open,
   onClose,
   onPrev,
@@ -106,6 +120,16 @@ export function ExtractedExpenseSheet({
 
     return res.json();
   };
+
+  const { data: schemaVersion } = useQuery<SchemaVersion>({
+    queryKey: ["schema-version", schemaVersionId],
+    queryFn: () => fetchSchemaVersion(schemaVersionId),
+    enabled: schemaVersionId != undefined,
+    staleTime: 10 * time.Second,
+    // TODO: configure gcTime and stale time?
+  });
+
+  console.log("schema version", schemaVersionId, schemaVersion);
 
   const {
     data: expense,

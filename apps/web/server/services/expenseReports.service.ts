@@ -49,7 +49,7 @@ export async function getExpenseReport(
   jobId: string,
   userId: string,
 ): Promise<ExpenseReportJob> {
-  const job = repoGetExpenseReportJob(jobId, userId);
+  const job = await repoGetExpenseReportJob(jobId, userId);
 
   if (!job) {
     throw expenseReportJobProblems.notFoundById(jobId);

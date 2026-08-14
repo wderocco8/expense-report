@@ -57,7 +57,15 @@ async function fetchReceiptFiles(
   return res.json();
 }
 
-export function ReceiptFilesSection({ jobId }: { jobId: string }) {
+interface ReceiptFilesSectionProps {
+  jobId: string;
+  schemaVersionId: string | undefined;
+}
+
+export function ReceiptFilesSection({
+  jobId,
+  schemaVersionId,
+}: ReceiptFilesSectionProps) {
   const [uploadSheetOpen, setUploadSheetOpen] = useState(false);
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -249,6 +257,7 @@ export function ReceiptFilesSection({ jobId }: { jobId: string }) {
 
       <ExtractedExpenseSheet
         receipt={receipt}
+        schemaVersionId={schemaVersionId}
         open={!!openReceiptId}
         onClose={() => setOpenReceiptId(null)}
         onPrev={goPrev}
