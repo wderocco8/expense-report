@@ -1,4 +1,4 @@
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { SchemaFieldDefinition } from "@repo/db";
 import { Control, FieldErrors, Path, UseFormRegister } from "react-hook-form";
 import { Input } from "@/components/ui/input";
@@ -23,9 +23,7 @@ export default function DynamicFieldInput({
 }: DynamicFieldInputProps) {
   const name =
     `extractedFields.${field.key}` as Path<ExtractedExpenseFormValues>;
-  const error = (
-    errors.extractedFields as Record<string, unknown> | undefined
-  )?.[field.key];
+  const error = errors.extractedFields?.[field.key];
 
   return (
     <Field data-invalid={!!error}>
@@ -60,6 +58,8 @@ export default function DynamicFieldInput({
           {field.type} not yet supported
         </div>
       )}
+
+      <FieldError errors={error ? [error] : undefined} />
     </Field>
   );
 }
