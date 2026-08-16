@@ -7,36 +7,33 @@ interface FieldTypeInfo {
   options: string[] | null;
 }
 
-function fieldValueSchema(field: FieldTypeInfo): z.ZodType {
-  let base: z.ZodType;
+function fieldTypeToZodBase(field: FieldTypeInfo) {
   switch (field.type) {
     case "text":
-      base = z.string();
-      break;
+      return z.string();
     case "number":
-      base = z.number();
-      break;
+      return z.number();
     case "date":
-      base = z.iso.date();
-      break;
+      return z.iso.date();
     case "boolean":
-      base = z.boolean();
-      break;
+      return z.boolean();
     case "enum":
       if (!field.options?.length)
         throw new Error(
           `Field "${field.key}" is type "enum" but has no options`,
         );
-      base = z.enum(field.options as [string, ...string[]]);
-      break;
+      return z.enum(field.options as [string, ...string[]]);
     case "multi_select":
       if (!field.options?.length)
         throw new Error(
           `Field "${field.key}" is type "multi_select" but has no options`,
         );
-      base = z.array(z.enum(field.options as [string, ...string[]]));
-      break;
+      return z.array(z.enum(field.options as [string, ...string[]]));
   }
+}
+
+function fieldValueSchema(field: FieldTypeInfo) {
+  const base = fieldTypeToZodBase(field);
   return field.required ? base : base.nullable();
 }
 

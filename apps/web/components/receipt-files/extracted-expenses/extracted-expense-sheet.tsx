@@ -116,6 +116,11 @@ export function ExtractedExpenseSheet({
     fetcher,
   );
 
+  const formSchema = useMemo(
+    () => buildExtractedExpenseSchema(schemaVersion?.fields ?? []),
+    [schemaVersion],
+  );
+
   const {
     register,
     handleSubmit,
@@ -123,13 +128,7 @@ export function ExtractedExpenseSheet({
     reset,
     control,
   } = useForm<ExtractedExpenseFormValues>({
-    resolver: zodResolver(
-      schemaVersion &&
-        useMemo(
-          () => buildExtractedExpenseSchema(schemaVersion.fields),
-          [schemaVersion],
-        ),
-    ), // TODO: not sure how zod will actually work here???
+    resolver: zodResolver(formSchema),
     defaultValues: expense
       ? {
           amount: expense.amount,
