@@ -250,7 +250,7 @@ export function ExtractedExpenseSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 min-h-0 px-4 overflow-y-auto">
+          <div className="flex-1 min-h-0 px-4 pb-4 overflow-y-auto">
             <div className="mb-4">
               <div
                 className="relative w-full h-72 overflow-hidden rounded-lg border cursor-pointer group"
@@ -258,8 +258,7 @@ export function ExtractedExpenseSheet({
               >
                 {isLoadingImage ? (
                   <Skeleton className="absolute inset-0" />
-                ) : // <div className="absolute inset-0 animate-pulse bg-muted" />
-                image?.url ? (
+                ) : image?.url ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img

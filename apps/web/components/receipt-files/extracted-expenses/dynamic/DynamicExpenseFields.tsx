@@ -9,6 +9,7 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
+import React from "react";
 
 interface DynamicExpenseFieldsProps {
   fields: SchemaFieldDefinition[];
@@ -57,7 +58,7 @@ export default function DynamicExpenseFields({
         if (members.length === 0) return null;
 
         return (
-          <div key={group.id}>
+          <React.Fragment key={group.id}>
             <FieldSeparator />
             <FieldSet>
               <FieldLegend variant="label">{group.label}</FieldLegend>
@@ -74,7 +75,7 @@ export default function DynamicExpenseFields({
                 ))}
               </FieldGroup>
             </FieldSet>
-          </div>
+          </React.Fragment>
         );
       })}
     </FieldGroup>
