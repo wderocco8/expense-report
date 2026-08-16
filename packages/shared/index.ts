@@ -1,5 +1,6 @@
 export * from "./src/validators/expenseReport.zod";
 export * from "./src/validators/extractedExpense.zod";
+export * from "./src/validators/extractedFields.zod";
 export * from "./src/validators/login.zod";
 export * from "./src/validators/receipt.zod";
 export * from "./src/validators/receiptUpload.zod";

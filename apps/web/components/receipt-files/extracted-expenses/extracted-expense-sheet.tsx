@@ -11,8 +11,12 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ExtractedExpenseUpdateSchema, time } from "@repo/shared";
-import { useEffect, useState } from "react";
+import {
+  buildExtractedExpenseSchema,
+  ExtractedExpenseUpdateSchema,
+  time,
+} from "@repo/shared";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ExtractedExpense, ReceiptFile, SchemaVersion } from "@repo/db";
 import { toast } from "sonner";
@@ -119,7 +123,13 @@ export function ExtractedExpenseSheet({
     reset,
     control,
   } = useForm<ExtractedExpenseFormValues>({
-    // resolver: zodResolver(dynamicSchema), // TODO: not sure how zod will actually work here???
+    resolver: zodResolver(
+      schemaVersion &&
+        useMemo(
+          () => buildExtractedExpenseSchema(schemaVersion.fields),
+          [schemaVersion],
+        ),
+    ), // TODO: not sure how zod will actually work here???
     defaultValues: expense
       ? {
           amount: expense.amount,

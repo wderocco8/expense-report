@@ -4,7 +4,7 @@ import {
   // ShowWhen,
   // SlimOcrResult,
 } from "@repo/db";
-import z from "zod";
+import { z } from "zod";
 
 // function buildFieldConstraint(field: SchemaFieldDefinition): string {
 //   const typeHint =
