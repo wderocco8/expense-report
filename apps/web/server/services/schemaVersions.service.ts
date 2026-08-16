@@ -5,7 +5,7 @@ import {
   getSchema,
   SchemaVersion,
   type SchemaFieldDefinition,
-  type FieldGroup,
+  type SchemaFieldGroup,
 } from "@repo/db";
 import { schemaProblems } from "@/lib/problems/domain/schema";
 import { schemaVersionProblems } from "@/lib/problems/domain/schemaVersion";
@@ -19,7 +19,7 @@ export async function createSchemaVersion({
   userId: string;
   schemaId: string;
   fields: SchemaFieldDefinition[];
-  groups: FieldGroup[];
+  groups: SchemaFieldGroup[];
 }): Promise<SchemaVersion> {
   const schema = await getSchema(schemaId, userId);
   if (!schema) {

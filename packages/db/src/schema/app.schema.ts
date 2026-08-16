@@ -17,7 +17,7 @@ import { users } from "../schema/auth.schema";
 import type { SlimOcrResult } from "../types/ocr.types";
 import type {
   SchemaFieldDefinition,
-  FieldGroup,
+  SchemaFieldGroup,
   ExtractedFields,
   ConfidenceFlags,
 } from "../types/schema.types";
@@ -92,7 +92,7 @@ export const schemaVersions = pgTable(
       .notNull(),
     versionNumber: integer("version_number").notNull(),
     fields: jsonb("fields").notNull().$type<SchemaFieldDefinition[]>(),
-    groups: jsonb("groups").notNull().default([]).$type<FieldGroup[]>(),
+    groups: jsonb("groups").notNull().default([]).$type<SchemaFieldGroup[]>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [

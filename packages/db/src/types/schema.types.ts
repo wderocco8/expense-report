@@ -27,7 +27,7 @@ export interface SchemaFieldDefinition {
   displayOrder: number;
 }
 
-export interface FieldGroup {
+export interface SchemaFieldGroup {
   id: string;
   label: string;
   description: string | null;

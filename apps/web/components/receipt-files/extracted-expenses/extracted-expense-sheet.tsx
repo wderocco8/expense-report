@@ -1,14 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-  FieldLegend,
-  FieldDescription,
-  FieldSeparator,
-} from "@/components/ui/field";
 import {
   Sheet,
   SheetClose,
@@ -18,21 +8,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ExtractedExpenseUpdateSchema, time } from "@repo/shared";
 import { useEffect, useState } from "react";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
-import { ChevronDownIcon } from "lucide-react";
 import useSWR from "swr";
 import { ExtractedExpense, ReceiptFile, SchemaVersion } from "@repo/db";
-import { FormCombobox } from "@/components/receipt-files/extracted-expenses/form-combobox";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/receipt-preview-dialog";
@@ -40,28 +22,8 @@ import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expen
 import UnsavedChangesDialog from "@/components/receipt-files/extracted-expenses/unsaved-changes-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-
-const CATEGORY_OPTIONS = [
-  { value: "tolls/parking", label: "Tolls / Parking" },
-  { value: "hotel", label: "Hotel" },
-  { value: "transport", label: "Transport" },
-  { value: "fuel", label: "Fuel" },
-  { value: "meals", label: "Meals" },
-  { value: "phone", label: "Phone" },
-  { value: "supplies", label: "Supplies" },
-  { value: "misc", label: "Misc" },
-];
-
-const TRANSPORT_MODE_OPTIONS = [
-  { value: "car", label: "Car" },
-  { value: "train", label: "Train" },
-  { value: "plane", label: "Plane" },
-];
-
-function parseDateOnly(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
+import DynamicExpenseFields from "./dynamic/DynamicExpenseFields";
+import { ExtractedExpenseFormValues } from "./dynamic/types";
 
 function formatMoney(value: string): string {
   const n = Number(value);
@@ -83,9 +45,9 @@ type ExtractedExpenseSheetProps = {
 };
 
 async function fetchSchemaVersion(
-  schemaVersionId: string | undefined,
+  id: string | undefined,
 ): Promise<SchemaVersion> {
-  const res = await fetch(`/api/schema-versions/${schemaVersionId}`);
+  const res = await fetch(`/api/schema-versions/${id}`);
 
   if (!res.ok) {
     throw new Error("Failed to fetch schema-version");
@@ -103,7 +65,6 @@ export function ExtractedExpenseSheet({
   hasPrev,
   hasNext,
 }: ExtractedExpenseSheetProps) {
-  const [dateOpen, setDateOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
   const [pendingNav, setPendingNav] = useState<null | "prev" | "next">(null);
@@ -144,41 +105,38 @@ export function ExtractedExpenseSheet({
     fetcher,
   );
 
+  console.log("expense", expense);
+
   const { data: image, isLoading: isLoadingImage } = useSWR<ReceiptImage>(
     receipt?.id ? `/api/receipts/${receipt.id}/image` : null,
     fetcher,
   );
 
-  type FormValues = z.infer<typeof ExtractedExpenseUpdateSchema>;
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
     reset,
     control,
-  } = useForm<FormValues>({
-    resolver: zodResolver(ExtractedExpenseUpdateSchema),
+  } = useForm<ExtractedExpenseFormValues>({
+    // resolver: zodResolver(dynamicSchema), // TODO: not sure how zod will actually work here???
     defaultValues: expense
       ? {
-          category: expense.category,
-          merchant: expense.merchant ?? "",
-          description: expense.description ?? "",
           amount: expense.amount,
           date: expense.date ?? null,
-          transportDetails: expense.transportDetails ?? null,
+          extractedFields: expense.extractedFields,
         }
       : undefined,
   });
 
+  const inputProps = { control, register, errors, isSubmitting };
+
   useEffect(() => {
     if (expense) {
       reset({
-        category: expense.category,
-        merchant: expense.merchant ?? "",
-        description: expense.description ?? "",
         amount: expense.amount,
         date: expense.date ?? null,
-        transportDetails: expense.transportDetails ?? null,
+        extractedFields: expense.extractedFields,
       });
     }
   }, [expense, reset]);
@@ -196,7 +154,7 @@ export function ExtractedExpenseSheet({
     };
   }, [isDirty]);
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit(values: ExtractedExpenseFormValues) {
     if (!expense?.id) return;
 
     const res = await fetch(`/api/extracted-expenses/${expense.id}`, {
@@ -322,163 +280,16 @@ export function ExtractedExpenseSheet({
               <div className="text-sm text-muted-foreground">
                 No extracted expense found for this receipt.
               </div>
+            ) : !(schemaVersion?.fields || schemaVersion?.groups) ? (
+              <div className="text-sm text-muted-foreground">
+                No schema version found for this receipt.
+              </div>
             ) : (
-              <FieldGroup>
-                <FieldSet>
-                  <FieldLegend variant="label">Expense Details</FieldLegend>
-                  <FieldDescription>
-                    General details regarding your expense
-                  </FieldDescription>
-
-                  <FieldGroup>
-                    <Field data-invalid={!!errors.category}>
-                      <FieldLabel>Category</FieldLabel>
-                      <FormCombobox
-                        control={control}
-                        disabled={isSubmitting}
-                        name="category"
-                        options={CATEGORY_OPTIONS}
-                        placeholder="Select category"
-                      />
-                    </Field>
-
-                    <Field data-invalid={!!errors.merchant}>
-                      <FieldLabel htmlFor="merchant">Merchant</FieldLabel>
-                      <Input
-                        id="merchant"
-                        disabled={isSubmitting}
-                        aria-invalid={!!errors.merchant}
-                        {...register("merchant")}
-                      />
-                    </Field>
-
-                    <Field data-invalid={!!errors.description}>
-                      <FieldLabel htmlFor="description">Description</FieldLabel>
-                      <Input
-                        id="description"
-                        disabled={isSubmitting}
-                        aria-invalid={!!errors.description}
-                        {...register("description")}
-                      />
-                    </Field>
-
-                    <Field data-invalid={!!errors.amount}>
-                      <FieldLabel htmlFor="amount">Amount</FieldLabel>
-                      <Input
-                        id="amount"
-                        disabled={isSubmitting}
-                        inputMode="decimal"
-                        aria-invalid={!!errors.amount}
-                        {...register("amount", {
-                          onBlur: (e) => {
-                            const formatted = formatMoney(e.target.value);
-                            e.target.value = formatted;
-                          },
-                        })}
-                      />
-                    </Field>
-
-                    <Field data-invalid={!!errors.date}>
-                      <FieldLabel htmlFor="date">Date</FieldLabel>
-
-                      <Controller
-                        name="date"
-                        control={control}
-                        render={({ field }) => {
-                          const date = field.value
-                            ? parseDateOnly(field.value)
-                            : undefined;
-
-                          return (
-                            <Popover
-                              open={dateOpen}
-                              onOpenChange={setDateOpen}
-                              aria-invalid={!!errors.date}
-                            >
-                              <PopoverTrigger asChild>
-                                <Button
-                                  id="date"
-                                  disabled={isSubmitting}
-                                  variant="outline"
-                                  className="w-48 justify-between font-normal"
-                                >
-                                  {date
-                                    ? date.toLocaleDateString()
-                                    : "Select date"}
-                                  <ChevronDownIcon />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-auto overflow-hidden p-0"
-                                align="start"
-                              >
-                                <Calendar
-                                  mode="single"
-                                  disabled={isSubmitting}
-                                  selected={date}
-                                  captionLayout="dropdown"
-                                  onSelect={(date) => {
-                                    field.onChange(
-                                      date
-                                        ? date.toISOString().slice(0, 10)
-                                        : null,
-                                    );
-                                    setDateOpen(false);
-                                  }}
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          );
-                        }}
-                      />
-                    </Field>
-                  </FieldGroup>
-                </FieldSet>
-
-                {expense?.transportDetails && (
-                  <>
-                    <FieldSeparator />
-                    <FieldSet>
-                      <FieldLegend variant="label">
-                        Transport Details
-                      </FieldLegend>
-                      <FieldDescription>
-                        Transport-specific details regarding your receipt
-                      </FieldDescription>
-
-                      <FieldGroup>
-                        <Field data-invalid={!!errors.transportDetails?.mode}>
-                          <FieldLabel htmlFor="mode">Mode</FieldLabel>
-                          <FormCombobox
-                            disabled={isSubmitting}
-                            control={control}
-                            name="transportDetails.mode"
-                            options={TRANSPORT_MODE_OPTIONS}
-                            placeholder="Select transport mode"
-                          />
-                        </Field>
-
-                        <Field
-                          data-invalid={!!errors.transportDetails?.mileage}
-                        >
-                          <FieldLabel htmlFor="mileage">Mileage</FieldLabel>
-                          <Input
-                            id="mileage"
-                            aria-invalid={!!errors.transportDetails?.mileage}
-                            disabled={isSubmitting}
-                            {...register("transportDetails.mileage")}
-                          />
-                        </Field>
-                      </FieldGroup>
-                    </FieldSet>
-                  </>
-                )}
-                {expense && (
-                  <div className="pt-4 text-xs text-muted-foreground">
-                    Model version: {expense?.modelVersion}
-                  </div>
-                )}
-              </FieldGroup>
+              <DynamicExpenseFields
+                fields={schemaVersion.fields}
+                groups={schemaVersion.groups}
+                {...inputProps}
+              />
             )}
           </div>
 
@@ -530,3 +341,318 @@ export function ExtractedExpenseSheet({
     </Sheet>
   );
 }
+//   return (
+//     <Sheet
+//       open={open}
+//       onOpenChange={(isOpen) => {
+//         if (!isOpen) {
+//           if (isDirty) {
+//             setPendingClose(true);
+//             setUnsavedChangesOpen(true);
+//           } else {
+//             onClose();
+//           }
+//         }
+//       }}
+//     >
+//       <SheetContent
+//         className="flex flex-col"
+//         side="right"
+//         showCloseButton={false}
+//       >
+//         <form
+//           onSubmit={handleSubmit(onSubmit)}
+//           className="flex flex-col flex-1 min-h-0"
+//         >
+//           <SheetHeader>
+//             <div className="flex justify-between items-center mt-6">
+//               <SheetTitle>Extracted Expense</SheetTitle>
+
+//               <div className="flex gap-2">
+//                 <Button
+//                   type="button"
+//                   size="sm"
+//                   variant="outline"
+//                   onClick={() => {
+//                     if (isDirty) {
+//                       setPendingNav("prev");
+//                       setUnsavedChangesOpen(true);
+//                     } else {
+//                       onPrev();
+//                     }
+//                   }}
+//                   disabled={!hasPrev}
+//                 >
+//                   Prev
+//                 </Button>
+
+//                 <Button
+//                   type="button"
+//                   size="sm"
+//                   variant="outline"
+//                   onClick={() => {
+//                     if (isDirty) {
+//                       setPendingNav("next");
+//                       setUnsavedChangesOpen(true);
+//                     } else {
+//                       onNext();
+//                     }
+//                   }}
+//                   disabled={!hasNext}
+//                 >
+//                   Next
+//                 </Button>
+//               </div>
+//             </div>
+//             <SheetDescription>
+//               AI-extracted expense details from this receipt.
+//             </SheetDescription>
+//           </SheetHeader>
+
+//           <div className="flex-1 min-h-0 px-4 overflow-y-auto">
+//             <div className="mb-4">
+//               <div
+//                 className="relative w-full h-72 overflow-hidden rounded-lg border cursor-pointer group"
+//                 onClick={() => image?.url && setPreviewOpen(true)}
+//               >
+//                 {isLoadingImage ? (
+//                   <Skeleton className="absolute inset-0" />
+//                 ) : // <div className="absolute inset-0 animate-pulse bg-muted" />
+//                 image?.url ? (
+//                   <>
+//                     {/* eslint-disable-next-line @next/next/no-img-element */}
+//                     <img
+//                       src={image.url}
+//                       alt={receipt?.originalFilename ?? "Receipt"}
+//                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+//                     />
+//                     <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/50" />
+//                     {receipt?.originalFilename && (
+//                       <div className="absolute inset-0 flex items-center justify-center px-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+//                         <p className="text-white text-lg font-medium text-center break-all drop-shadow-md">
+//                           {receipt.originalFilename}
+//                         </p>
+//                       </div>
+//                     )}
+//                   </>
+//                 ) : (
+//                   <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+//                     No image available
+//                   </div>
+//                 )}
+//               </div>
+//             </div>
+//             {isLoading ? (
+//               <ExtractedExpenseSkeleton />
+//             ) : !expense ? (
+//               <div className="text-sm text-muted-foreground">
+//                 No extracted expense found for this receipt.
+//               </div>
+//             ) : (
+//               <FieldGroup>
+//                 <FieldSet>
+//                   <FieldLegend variant="label">Expense Details</FieldLegend>
+//                   <FieldDescription>
+//                     General details regarding your expense
+//                   </FieldDescription>
+
+//                   <FieldGroup>
+//                     <Field data-invalid={!!errors.category}>
+//                       <FieldLabel>Category</FieldLabel>
+//                       <FormCombobox
+//                         control={control}
+//                         disabled={isSubmitting}
+//                         name="category"
+//                         options={CATEGORY_OPTIONS}
+//                         placeholder="Select category"
+//                       />
+//                     </Field>
+
+//                     <Field data-invalid={!!errors.merchant}>
+//                       <FieldLabel htmlFor="merchant">Merchant</FieldLabel>
+//                       <Input
+//                         id="merchant"
+//                         disabled={isSubmitting}
+//                         aria-invalid={!!errors.merchant}
+//                         {...register("merchant")}
+//                       />
+//                     </Field>
+
+//                     <Field data-invalid={!!errors.description}>
+//                       <FieldLabel htmlFor="description">Description</FieldLabel>
+//                       <Input
+//                         id="description"
+//                         disabled={isSubmitting}
+//                         aria-invalid={!!errors.description}
+//                         {...register("description")}
+//                       />
+//                     </Field>
+
+//                     <Field data-invalid={!!errors.amount}>
+//                       <FieldLabel htmlFor="amount">Amount</FieldLabel>
+//                       <Input
+//                         id="amount"
+//                         disabled={isSubmitting}
+//                         inputMode="decimal"
+//                         aria-invalid={!!errors.amount}
+//                         {...register("amount", {
+//                           onBlur: (e) => {
+//                             const formatted = formatMoney(e.target.value);
+//                             e.target.value = formatted;
+//                           },
+//                         })}
+//                       />
+//                     </Field>
+
+//                     <Field data-invalid={!!errors.date}>
+//                       <FieldLabel htmlFor="date">Date</FieldLabel>
+
+//                       <Controller
+//                         name="date"
+//                         control={control}
+//                         render={({ field }) => {
+//                           const date = field.value
+//                             ? parseDateOnly(field.value)
+//                             : undefined;
+
+//                           return (
+//                             <Popover
+//                               open={dateOpen}
+//                               onOpenChange={setDateOpen}
+//                               aria-invalid={!!errors.date}
+//                             >
+//                               <PopoverTrigger asChild>
+//                                 <Button
+//                                   id="date"
+//                                   disabled={isSubmitting}
+//                                   variant="outline"
+//                                   className="w-48 justify-between font-normal"
+//                                 >
+//                                   {date
+//                                     ? date.toLocaleDateString()
+//                                     : "Select date"}
+//                                   <ChevronDownIcon />
+//                                 </Button>
+//                               </PopoverTrigger>
+//                               <PopoverContent
+//                                 className="w-auto overflow-hidden p-0"
+//                                 align="start"
+//                               >
+//                                 <Calendar
+//                                   mode="single"
+//                                   disabled={isSubmitting}
+//                                   selected={date}
+//                                   captionLayout="dropdown"
+//                                   onSelect={(date) => {
+//                                     field.onChange(
+//                                       date
+//                                         ? date.toISOString().slice(0, 10)
+//                                         : null,
+//                                     );
+//                                     setDateOpen(false);
+//                                   }}
+//                                 />
+//                               </PopoverContent>
+//                             </Popover>
+//                           );
+//                         }}
+//                       />
+//                     </Field>
+//                   </FieldGroup>
+//                 </FieldSet>
+
+//                 {expense?.transportDetails && (
+//                   <>
+//                     <FieldSeparator />
+//                     <FieldSet>
+//                       <FieldLegend variant="label">
+//                         Transport Details
+//                       </FieldLegend>
+//                       <FieldDescription>
+//                         Transport-specific details regarding your receipt
+//                       </FieldDescription>
+
+//                       <FieldGroup>
+//                         <Field data-invalid={!!errors.transportDetails?.mode}>
+//                           <FieldLabel htmlFor="mode">Mode</FieldLabel>
+//                           <FormCombobox
+//                             disabled={isSubmitting}
+//                             control={control}
+//                             name="transportDetails.mode"
+//                             options={TRANSPORT_MODE_OPTIONS}
+//                             placeholder="Select transport mode"
+//                           />
+//                         </Field>
+
+//                         <Field
+//                           data-invalid={!!errors.transportDetails?.mileage}
+//                         >
+//                           <FieldLabel htmlFor="mileage">Mileage</FieldLabel>
+//                           <Input
+//                             id="mileage"
+//                             aria-invalid={!!errors.transportDetails?.mileage}
+//                             disabled={isSubmitting}
+//                             {...register("transportDetails.mileage")}
+//                           />
+//                         </Field>
+//                       </FieldGroup>
+//                     </FieldSet>
+//                   </>
+//                 )}
+//                 {expense && (
+//                   <div className="pt-4 text-xs text-muted-foreground">
+//                     Model version: {expense?.modelVersion}
+//                   </div>
+//                 )}
+//               </FieldGroup>
+//             )}
+//           </div>
+
+//           <SheetFooter>
+//             <Button
+//               type="button"
+//               variant="outline"
+//               onClick={() => reset()} // resets to the last fetched expense
+//               disabled={!isDirty} // only active if there are changes
+//             >
+//               Reset
+//             </Button>
+//             <Button type="submit" disabled={isSubmitting || !isDirty}>
+//               {isSubmitting && <Spinner />}
+//               Update
+//             </Button>
+//             <SheetClose asChild>
+//               <Button variant="outline">Cancel</Button>
+//             </SheetClose>
+//           </SheetFooter>
+//         </form>
+//       </SheetContent>
+//       <UnsavedChangesDialog
+//         open={unsavedChangesOpen}
+//         onOpenChange={setUnsavedChangesOpen}
+//         onSubmit={() => {
+//           setUnsavedChangesOpen(false);
+
+//           if (pendingNav === "prev") onPrev();
+//           else if (pendingNav === "next") onNext();
+//           else if (pendingClose) onClose();
+
+//           setPendingNav(null);
+//           setPendingClose(false);
+//           reset(expense);
+//         }}
+//         onCancel={() => {
+//           setUnsavedChangesOpen(false);
+//           setPendingNav(null);
+//           setPendingClose(false);
+//         }}
+//       />
+//       <ReceiptPreviewDialog
+//         open={previewOpen}
+//         onOpenChange={setPreviewOpen}
+//         imageUrl={image?.url ?? null}
+//         imageAlt={receipt?.originalFilename ?? null}
+//       />
+//     </Sheet>
+//   );
+// }
