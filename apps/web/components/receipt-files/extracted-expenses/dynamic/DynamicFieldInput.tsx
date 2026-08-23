@@ -27,7 +27,10 @@ export default function DynamicFieldInput({
 
   return (
     <Field data-invalid={!!error}>
-      <FieldLabel>{field.label}</FieldLabel>
+      <FieldLabel>
+        {field.label}
+        {field.required && <span className="text-destructive">*</span>}
+      </FieldLabel>
 
       {field.type === "date" && (
         <DateFieldInput name={name} control={control} disabled={isSubmitting} />

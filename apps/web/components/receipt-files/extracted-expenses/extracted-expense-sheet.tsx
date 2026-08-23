@@ -302,7 +302,9 @@ export function ExtractedExpenseSheet({
                     DynamicExpenseFields, which only knows about custom fields. */}
                 <FieldGroup>
                   <Field data-invalid={!!errors.amount}>
-                    <FieldLabel htmlFor="amount">Amount</FieldLabel>
+                    <FieldLabel htmlFor="amount">
+                      Amount <span className="text-destructive">*</span>
+                    </FieldLabel>
                     <Input
                       id="amount"
                       disabled={isSubmitting}
@@ -320,7 +322,9 @@ export function ExtractedExpenseSheet({
                   </Field>
 
                   <Field data-invalid={!!errors.date}>
-                    <FieldLabel htmlFor="date">Date</FieldLabel>
+                    <FieldLabel htmlFor="date">
+                      Date <span className="text-destructive">*</span>
+                    </FieldLabel>
                     <DateFieldInput
                       name="date"
                       control={control}
