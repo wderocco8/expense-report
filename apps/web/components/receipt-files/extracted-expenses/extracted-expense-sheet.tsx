@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldError,
+} from "@/components/ui/field";
 import {
   Sheet,
   SheetClose,
@@ -8,14 +15,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import DateFieldInput from "@/components/receipt-files/extracted-expenses/dynamic/DateFieldInput";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import {
-  buildExtractedExpenseSchema,
-  ExtractedExpenseUpdateSchema,
-  time,
-} from "@repo/shared";
+import { buildExtractedExpenseSchema, time } from "@repo/shared";
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ExtractedExpense, ReceiptFile, SchemaVersion } from "@repo/db";
@@ -293,11 +296,48 @@ export function ExtractedExpenseSheet({
                 No schema version found for this receipt.
               </div>
             ) : (
-              <DynamicExpenseFields
-                fields={schemaVersion.fields}
-                groups={schemaVersion.groups}
-                {...inputProps}
-              />
+              <FieldGroup>
+                {/* amount/date are system fields, not part of schemaVersion.fields
+                    (Decision 4) — rendered directly here rather than through
+                    DynamicExpenseFields, which only knows about custom fields. */}
+                <FieldGroup>
+                  <Field data-invalid={!!errors.amount}>
+                    <FieldLabel htmlFor="amount">Amount</FieldLabel>
+                    <Input
+                      id="amount"
+                      disabled={isSubmitting}
+                      inputMode="decimal"
+                      aria-invalid={!!errors.amount}
+                      {...register("amount", {
+                        onBlur: (e) => {
+                          e.target.value = formatMoney(e.target.value);
+                        },
+                      })}
+                    />
+                    <FieldError
+                      errors={errors.amount ? [errors.amount] : undefined}
+                    />
+                  </Field>
+
+                  <Field data-invalid={!!errors.date}>
+                    <FieldLabel htmlFor="date">Date</FieldLabel>
+                    <DateFieldInput
+                      name="date"
+                      control={control}
+                      disabled={isSubmitting}
+                    />
+                    <FieldError
+                      errors={errors.date ? [errors.date] : undefined}
+                    />
+                  </Field>
+                </FieldGroup>
+
+                <DynamicExpenseFields
+                  fields={schemaVersion.fields}
+                  groups={schemaVersion.groups}
+                  {...inputProps}
+                />
+              </FieldGroup>
             )}
           </div>
 

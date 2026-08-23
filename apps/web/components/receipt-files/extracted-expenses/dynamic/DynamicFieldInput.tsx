@@ -49,7 +49,17 @@ export default function DynamicFieldInput({
           disabled={isSubmitting}
           inputMode={field.type === "number" ? "decimal" : undefined}
           aria-invalid={!!error}
-          {...register(name)}
+          {...register(name, {
+            // Native inputs always submit strings, and "" when cleared.
+            // Convert here — before the value ever reaches the zod schema —
+            // rather than using z.coerce.number(), which widens the
+            // schema's input type and breaks zodResolver's Resolver<T>
+            // typing against useForm<ExtractedExpenseFormValues>().
+            setValueAs: (v) => {
+              if (v === "") return null;
+              return field.type === "number" ? Number(v) : v;
+            },
+          })}
         />
       )}
 
