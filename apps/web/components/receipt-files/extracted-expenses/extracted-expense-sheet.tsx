@@ -20,7 +20,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { buildExtractedExpenseSchema, time } from "@repo/shared";
 import { useEffect, useMemo, useState } from "react";
-import useSWR from "swr";
 import { ExtractedExpense, ReceiptFile, SchemaVersion } from "@repo/db";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,7 +27,7 @@ import ReceiptPreviewDialog from "@/components/receipt-files/extracted-expenses/
 import ExtractedExpenseSkeleton from "@/components/receipt-files/extracted-expenses/extracted-expense-skeleton";
 import UnsavedChangesDialog from "@/components/receipt-files/extracted-expenses/unsaved-changes-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DynamicExpenseFields from "./dynamic/DynamicExpenseFields";
 import { ExtractedExpenseFormValues } from "./dynamic/types";
 
@@ -62,6 +61,28 @@ async function fetchSchemaVersion(
   return res.json();
 }
 
+async function fetchReceiptImage(
+  id: string | undefined,
+): Promise<ReceiptImage> {
+  const res = await fetch(`/api/receipts/${id}/image`);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch receipt-image");
+  }
+  return res.json();
+}
+
+async function fetchExtractedExpense(
+  receiptId: string | undefined,
+): Promise<ExtractedExpense> {
+  const res = await fetch(`/api/receipts/${receiptId}/extracted-expense`);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch extracted-expense");
+  }
+  return res.json();
+}
+
 export function ExtractedExpenseSheet({
   receipt,
   schemaVersionId,
@@ -76,18 +97,7 @@ export function ExtractedExpenseSheet({
   const [unsavedChangesOpen, setUnsavedChangesOpen] = useState(false);
   const [pendingNav, setPendingNav] = useState<null | "prev" | "next">(null);
   const [pendingClose, setPendingClose] = useState(false);
-
-  const fetcher = async (url: string) => {
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({}));
-      const error = new Error(errorBody.error || "Request failed");
-      throw error;
-    }
-
-    return res.json();
-  };
+  const queryClient = useQueryClient();
 
   const { data: schemaVersion } = useQuery<SchemaVersion>({
     queryKey: ["schema-version", schemaVersionId],
@@ -97,27 +107,20 @@ export function ExtractedExpenseSheet({
     // TODO: configure gcTime and stale time?
   });
 
+  const { data: image, isLoading: isLoadingImage } = useQuery<ReceiptImage>({
+    queryKey: ["receipt-image", receipt?.id],
+    queryFn: () => fetchReceiptImage(receipt?.id),
+    enabled: receipt?.id != undefined,
+  });
+
+  const { data: expense, isLoading } = useQuery<ExtractedExpense>({
+    queryKey: ["extracted-expense", receipt?.id],
+    queryFn: () => fetchExtractedExpense(receipt?.id),
+    enabled: receipt?.id != undefined,
+  });
+
   console.log("schema version", schemaVersionId, schemaVersion);
-
-  const {
-    data: expense,
-    isLoading,
-    mutate,
-    error,
-  } = useSWR<ExtractedExpense>(
-    () =>
-      open && receipt?.id
-        ? `/api/receipts/${receipt.id}/extracted-expense`
-        : null,
-    fetcher,
-  );
-
   console.log("expense", expense);
-
-  const { data: image, isLoading: isLoadingImage } = useSWR<ReceiptImage>(
-    receipt?.id ? `/api/receipts/${receipt.id}/image` : null,
-    fetcher,
-  );
 
   const formSchema = useMemo(
     () => buildExtractedExpenseSchema(schemaVersion?.fields ?? []),
@@ -132,13 +135,6 @@ export function ExtractedExpenseSheet({
     control,
   } = useForm<ExtractedExpenseFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: expense
-      ? {
-          amount: expense.amount,
-          date: expense.date ?? null,
-          extractedFields: expense.extractedFields,
-        }
-      : undefined,
   });
 
   const inputProps = { control, register, errors, isSubmitting };
@@ -181,7 +177,10 @@ export function ExtractedExpenseSheet({
     }
 
     toast.success("Expense has been updated");
-    mutate({ ...expense, ...values }, false); // optimistic update
+    queryClient.setQueryData(["extracted-expense", receipt?.id], {
+      ...expense,
+      ...values,
+    }); // optimistic update
     reset({ ...expense, ...values }); // reset form state to current values
   }
 
