@@ -1,13 +1,7 @@
 import { z } from "zod";
+import { SchemaFieldDefinition } from "../types/schema.types";
 
-interface FieldTypeInfo {
-  key: string;
-  type: "text" | "number" | "date" | "boolean" | "enum" | "multi_select";
-  required: boolean;
-  options: string[] | null;
-}
-
-function fieldTypeToZodBase(field: FieldTypeInfo) {
+function fieldTypeToZodBase(field: SchemaFieldDefinition) {
   switch (field.type) {
     case "text":
       return z.string();
@@ -22,7 +16,7 @@ function fieldTypeToZodBase(field: FieldTypeInfo) {
         throw new Error(
           `Field "${field.key}" is type "enum" but has no options`,
         );
-      return z.enum(field.options as [string, ...string[]], {
+      return z.enum(field.options, {
         error: "Select a valid option",
       });
     case "multi_select":
@@ -30,18 +24,18 @@ function fieldTypeToZodBase(field: FieldTypeInfo) {
         throw new Error(
           `Field "${field.key}" is type "multi_select" but has no options`,
         );
-      return z.array(z.enum(field.options as [string, ...string[]]), {
+      return z.array(z.enum(field.options), {
         error: "Select a valid option",
       });
   }
 }
 
-function fieldValueSchema(field: FieldTypeInfo) {
+function fieldValueSchema(field: SchemaFieldDefinition) {
   const base = fieldTypeToZodBase(field);
   return field.required ? base : base.nullable();
 }
 
-export function buildExtractedExpenseSchema(fields: FieldTypeInfo[]) {
+export function buildExtractedExpenseSchema(fields: SchemaFieldDefinition[]) {
   const shape = Object.fromEntries(
     fields.map((f) => [f.key, fieldValueSchema(f)] as const),
   );

@@ -7,4 +7,4 @@ export * from "./src/repositories/receiptFiles.repo";
 export * from "./src/repositories/schemas.repo";
 export * from "./src/repositories/schemaVersions.repo";
 export * from "./src/types/ocr.types";
-export * from "./src/types/schema.types";
+export * from "@repo/shared/src/types/schema.types";

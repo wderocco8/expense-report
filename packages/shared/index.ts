@@ -1,3 +1,6 @@
+export * from "./src/domain/expense-reports/constants";
+export * from "./src/domain/expense-reports/status";
+export * from "./src/types/schema.types";
 export * from "./src/validators/expenseReport.zod";
 export * from "./src/validators/extractedExpense.zod";
 export * from "./src/validators/extractedFields.zod";
@@ -7,6 +10,4 @@ export * from "./src/validators/receiptUpload.zod";
 export * from "./src/validators/sign-up.zod";
 export * from "./src/validators/schema.zod";
 export * from "./src/validators/schemaVersion.zod";
-export * from "./src/domain/expense-reports/constants";
-export * from "./src/domain/expense-reports/status";
 export * from "./src/utils/time";

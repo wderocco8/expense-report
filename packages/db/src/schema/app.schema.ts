@@ -20,7 +20,7 @@ import type {
   SchemaFieldGroup,
   ExtractedFields,
   ConfidenceFlags,
-} from "../types/schema.types";
+} from "@repo/shared";
 
 // ------------ Enum definitions ------------
 
