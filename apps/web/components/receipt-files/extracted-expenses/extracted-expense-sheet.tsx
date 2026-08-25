@@ -328,6 +328,7 @@ export function ExtractedExpenseSheet({
                       name="date"
                       control={control}
                       disabled={isSubmitting}
+                      error={errors.date}
                     />
                     <FieldError
                       errors={errors.date ? [errors.date] : undefined}

@@ -33,7 +33,12 @@ export default function DynamicFieldInput({
       </FieldLabel>
 
       {field.type === "date" && (
-        <DateFieldInput name={name} control={control} disabled={isSubmitting} />
+        <DateFieldInput
+          name={name}
+          control={control}
+          disabled={isSubmitting}
+          error={error}
+        />
       )}
 
       {field.type === "enum" && (

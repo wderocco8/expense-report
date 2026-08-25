@@ -1,10 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverTrigger } from "@/components/ui/popover";
-import { PopoverContent } from "@radix-ui/react-popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
-import { Control, Controller, Path } from "react-hook-form";
+import { Control, Controller, FieldError, Path } from "react-hook-form";
 import { ExtractedExpenseFormValues } from "@/components/receipt-files/extracted-expenses/dynamic/types";
 
 function parseDateOnly(value: string): Date {
@@ -16,12 +19,14 @@ interface DateFieldInputProps {
   name: Path<ExtractedExpenseFormValues>;
   control: Control<ExtractedExpenseFormValues>;
   disabled: boolean;
+  error: FieldError | undefined;
 }
 
 export default function DateFieldInput({
   name,
   control,
   disabled,
+  error,
 }: DateFieldInputProps) {
   const [open, setOpen] = useState(false);
 
@@ -38,11 +43,7 @@ export default function DateFieldInput({
         const date = value ? parseDateOnly(value) : undefined;
 
         return (
-          <Popover
-            open={open}
-            onOpenChange={setOpen}
-            // aria-invalid={!!errors.date}
-          >
+          <Popover open={open} onOpenChange={setOpen} aria-invalid={!!error}>
             <PopoverTrigger asChild>
               <Button
                 id="date"
