@@ -119,9 +119,6 @@ export function ExtractedExpenseSheet({
     enabled: receipt?.id != undefined,
   });
 
-  console.log("schema version", schemaVersionId, schemaVersion);
-  console.log("expense", expense);
-
   const formSchema = useMemo(
     () => buildExtractedExpenseSchema(schemaVersion?.fields ?? []),
     [schemaVersion],
