@@ -1,5 +1,5 @@
 import { SQSEvent, SQSBatchResponse } from "aws-lambda";
-import { processReceipt } from "@repo/services";
+import { processReceipt } from "./src/process";
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
   console.log(`[SQS handler] Processing ${event.Records.length} messages`);
