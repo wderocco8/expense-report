@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { ExtractionResult, ExtractionService } from "./extraction.interface";
 import { ExtractedFields, SlimOcrResult } from "@repo/db";
 import { zodTextFormat } from "openai/helpers/zod";
-import z from "zod";
+import { z } from "zod";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 

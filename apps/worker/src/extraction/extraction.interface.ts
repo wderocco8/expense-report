@@ -1,5 +1,5 @@
 import { ExtractedFields, SlimOcrResult } from "@repo/db";
-import z from "zod";
+import { z } from "zod";
 
 export interface ExtractionResult {
   data: ({ amount: number; date: string } & ExtractedFields) | null;
