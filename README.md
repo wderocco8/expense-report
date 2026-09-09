@@ -2,6 +2,8 @@
 
 An AI-powered expense report automation system. Upload receipt images and let the AI extract structured data (merchant, amount, category, date) for easy export to Excel.
 
+https://github.com/user-attachments/assets/42800859-7734-4edc-b4c0-ede09d953898
+
 ## Architecture
 
 This is a monorepo using pnpm workspaces with the following services:
